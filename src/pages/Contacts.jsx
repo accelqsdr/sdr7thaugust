@@ -3,18 +3,29 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
-const STATUS_COLORS = {
-  fresh: { bg: '#e0f2fe', color: '#0369a1' },
-  contacted: { bg: '#f0fdf4', color: '#166534' },
-  replied: { bg: '#fef9c3', color: '#854d0e' },
-  meeting: { bg: '#ede9fe', color: '#6d28d9' },
-  won: { bg: '#dcfce7', color: '#15803d' },
-  lost: { bg: '#f1f5f9', color: '#475569' },
-  bounced: { bg: '#fee2e2', color: '#991b1b' },
+const STAGES = ['Fresh','F1','F2','F3','F4','F5','won','lost','bounced','unsubscribed'];
+
+const STAGE_COLORS = {
+  Fresh:        { bg: '#e0f2fe', color: '#0369a1' },
+  F1:           { bg: '#f0fdf4', color: '#166534' },
+  F2:           { bg: '#dcfce7', color: '#15803d' },
+  F3:           { bg: '#fef9c3', color: '#854d0e' },
+  F4:           { bg: '#ffedd5', color: '#9a3412' },
+  F5:           { bg: '#fee2e2', color: '#991b1b' },
+  won:          { bg: '#d1fae5', color: '#065f46' },
+  lost:         { bg: '#f1f5f9', color: '#475569' },
+  bounced:      { bg: '#fee2e2', color: '#991b1b' },
   unsubscribed: { bg: '#fef3c7', color: '#92400e' },
 };
 
-const ALL_STATUSES = ['fresh','contacted','replied','meeting','won','lost','bounced','unsubscribed'];
+const RESPONSE_COLORS = {
+  warm:          { bg: '#fef9c3', color: '#854d0e', label: '🟡 Warm' },
+  prospect:      { bg: '#d1fae5', color: '#065f46', label: '🟢 Prospect' },
+  cold:          { bg: '#e0f2fe', color: '#0369a1', label: '🔵 Cold' },
+  negative:      { bg: '#fee2e2', color: '#991b1b', label: '🔴 Negative' },
+  not_interested:{ bg: '#f1f5f9', color: '#475569', label: '⬜ Not interested' },
+  bounce:        { bg: '#fee2e2', color: '#991b1b', label: '⛔ Bounce' },
+};
 
 export default function Contacts() {
   const { user } = useAuth();
@@ -37,17 +48,30 @@ export default function Contacts() {
     setLoading(false);
   }
 
-  async function markBounced(id, reason = 'Manual') {
+  async function markBounced(id) {
     setMarking(id);
-    await supabase.from('contacts').update({ status: 'bounced', bounced: true, bounce_reason: reason, bounced_at: new Date().toISOString() }).eq('id', id);
-    await supabase.from('activity_log').insert({ actor_id: user.id, contact_id: id, activity_type: 'bounce_detected', details: { reason } });
+    await supabase.from('contacts').update({
+      status: 'bounced', bounced: true,
+      bounce_reason: 'Manual', bounced_at: new Date().toISOString()
+    }).eq('id', id);
+    await supabase.from('activity_log').insert({
+      actor_id: user.id, contact_id: id,
+      activity_type: 'bounce_detected', details: { reason: 'Manual' }
+    });
     setMarking(null);
     fetchContacts();
   }
 
   async function updateStatus(id, status) {
-    await supabase.from('contacts').update({ status }).eq('id', id);
-    await supabase.from('activity_log').insert({ actor_id: user.id, contact_id: id, activity_type: 'status_changed', details: { status } });
+    const update = { status };
+    // auto-advance sequence_step when moving to F-stages
+    const stepMap = { Fresh: 0, F1: 1, F2: 2, F3: 3, F4: 4, F5: 5 };
+    if (stepMap[status] !== undefined) update.sequence_step = stepMap[status];
+    await supabase.from('contacts').update(update).eq('id', id);
+    await supabase.from('activity_log').insert({
+      actor_id: user.id, contact_id: id,
+      activity_type: 'status_changed', details: { status }
+    });
     fetchContacts();
   }
 
@@ -55,8 +79,14 @@ export default function Contacts() {
     if (!showBounced && c.bounced) return false;
     if (!search) return true;
     const s = search.toLowerCase();
-    return c.full_name?.toLowerCase().includes(s) || c.email?.toLowerCase().includes(s) || c.company?.toLowerCase().includes(s);
+    return c.full_name?.toLowerCase().includes(s) ||
+           c.email?.toLowerCase().includes(s) ||
+           c.company?.toLowerCase().includes(s);
   });
+
+  const filterCounts = {};
+  STAGES.forEach(s => { filterCounts[s] = contacts.filter(c => c.status === s).length; });
+  const activeCount = contacts.filter(c => !c.bounced).length;
 
   return (
     <div style={{ padding: 24 }}>
@@ -64,28 +94,37 @@ export default function Contacts() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 600, color: '#111', margin: 0 }}>Contacts</h1>
-          <p style={{ fontSize: 13, color: '#888', margin: '3px 0 0' }}>{contacts.filter(c => !c.bounced).length} active · {contacts.filter(c => c.bounced).length} bounced</p>
+          <p style={{ fontSize: 13, color: '#888', margin: '3px 0 0' }}>
+            {activeCount} active · {contacts.filter(c => c.bounced).length} bounced
+          </p>
         </div>
         <UploadCSV userId={user.id} onDone={fetchContacts} />
       </div>
 
-      {/* Filters */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+      {/* Stage filter bar */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         <input
           value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search name, email, company…"
-          style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13, width: 240, outline: 'none' }}
+          style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13, width: 220, outline: 'none', marginRight: 4 }}
         />
-        <div style={{ display: 'flex', gap: 4, background: '#f0f0ee', padding: 4, borderRadius: 8 }}>
-          {['all', ...ALL_STATUSES].map(s => (
+        <button onClick={() => setFilter('all')}
+          style={{ padding: '6px 12px', borderRadius: 8, border: 'none', fontSize: 12, cursor: 'pointer',
+            background: filter === 'all' ? '#111' : '#f0f0ee', color: filter === 'all' ? '#fff' : '#666', fontWeight: 500 }}>
+          All ({contacts.length})
+        </button>
+        {STAGES.filter(s => filterCounts[s] > 0 || filter === s).map(s => {
+          const sc = STAGE_COLORS[s];
+          return (
             <button key={s} onClick={() => setFilter(s)}
-              style={{ padding: '5px 10px', borderRadius: 6, border: 'none', fontSize: 12, cursor: 'pointer',
-                background: filter === s ? '#fff' : 'transparent', color: filter === s ? '#111' : '#666', fontWeight: filter === s ? 500 : 400 }}>
-              {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
+              style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${filter === s ? sc.color : '#e0e0e0'}`,
+                fontSize: 12, cursor: 'pointer', fontWeight: filter === s ? 600 : 400,
+                background: filter === s ? sc.bg : '#fff', color: filter === s ? sc.color : '#666' }}>
+              {s} {filterCounts[s] > 0 ? `(${filterCounts[s]})` : ''}
             </button>
-          ))}
-        </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#666', cursor: 'pointer' }}>
+          );
+        })}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#888', cursor: 'pointer', marginLeft: 4 }}>
           <input type="checkbox" checked={showBounced} onChange={e => setShowBounced(e.target.checked)} />
           Show bounced
         </label>
@@ -96,54 +135,67 @@ export default function Contacts() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: '0.5px solid #e8e8e4' }}>
-              {['Name', 'Company', 'Email', 'Status', 'Last contacted', 'Next follow-up', 'Actions'].map(h => (
+              {['Name','Company','Email','Stage','Response','Last emailed','Next follow-up','Actions'].map(h => (
                 <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, color: '#999', fontWeight: 500 }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#aaa' }}>Loading…</td></tr>
+              <tr><td colSpan={8} style={{ padding: 32, textAlign: 'center', color: '#aaa' }}>Loading…</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#aaa' }}>No contacts found</td></tr>
+              <tr><td colSpan={8} style={{ padding: 32, textAlign: 'center', color: '#aaa' }}>No contacts found</td></tr>
             ) : filtered.map(c => {
-              const sc = STATUS_COLORS[c.status] || { bg: '#f1f5f9', color: '#475569' };
+              const sc = STAGE_COLORS[c.status] || { bg: '#f1f5f9', color: '#475569' };
+              const rc = c.response ? RESPONSE_COLORS[c.response] : null;
               return (
-                <tr key={c.id} style={{ borderBottom: '0.5px solid #f0f0ee', opacity: c.bounced ? 0.6 : 1 }}>
+                <tr key={c.id} style={{ borderBottom: '0.5px solid #f0f0ee', opacity: c.bounced ? 0.6 : 1,
+                  cursor: 'pointer' }} onClick={() => navigate(`/contacts/${c.id}`)}>
                   <td style={{ padding: '10px 14px', fontWeight: 500 }}>
                     {c.full_name}
                     {c.bounced && <span style={{ marginLeft: 6, fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 10 }}>BOUNCED</span>}
                   </td>
                   <td style={{ padding: '10px 14px', color: '#555' }}>{c.company}</td>
-                  <td style={{ padding: '10px 14px', color: '#555' }}>{c.email}</td>
+                  <td style={{ padding: '10px 14px', color: '#555', fontSize: 12 }}>{c.email}</td>
                   <td style={{ padding: '10px 14px' }}>
-                    <span style={{ padding: '3px 9px', borderRadius: 10, fontSize: 11, background: sc.bg, color: sc.color, fontWeight: 500 }}>
+                    <span style={{ padding: '3px 9px', borderRadius: 10, fontSize: 11, fontWeight: 600,
+                      background: sc.bg, color: sc.color }}>
                       {c.status}
                     </span>
+                  </td>
+                  <td style={{ padding: '10px 14px' }}>
+                    {rc ? (
+                      <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11,
+                        background: rc.bg, color: rc.color }}>{rc.label}</span>
+                    ) : <span style={{ color: '#ccc', fontSize: 12 }}>—</span>}
                   </td>
                   <td style={{ padding: '10px 14px', color: '#888', fontSize: 12 }}>
                     {c.last_contacted ? new Date(c.last_contacted).toLocaleDateString() : '—'}
                   </td>
-                  <td style={{ padding: '10px 14px', color: c.bounced ? '#999' : '#111', fontSize: 12 }}>
-                    {c.bounced ? <span style={{ color: '#991b1b', fontSize: 11 }}>Excluded (bounced)</span>
-                      : c.next_followup ? new Date(c.next_followup).toLocaleDateString() : '—'}
+                  <td style={{ padding: '10px 14px', fontSize: 12 }}>
+                    {c.bounced
+                      ? <span style={{ color: '#991b1b', fontSize: 11 }}>Excluded</span>
+                      : c.next_followup
+                        ? <span style={{ color: new Date(c.next_followup) < new Date() ? '#dc2626' : '#555' }}>
+                            {new Date(c.next_followup).toLocaleDateString()}
+                          </span>
+                        : <span style={{ color: '#ccc' }}>—</span>}
                   </td>
-                  <td style={{ padding: '10px 14px' }}>
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                      <button
-                        onClick={() => navigate(`/contacts/${c.id}`)}
-                        style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '1px solid #e0e0e0', background: '#fff', color: '#2563eb', cursor: 'pointer', fontWeight: 500 }}>
-                        View
-                      </button>
+                  <td style={{ padding: '10px 14px' }} onClick={e => e.stopPropagation()}>
+                    <div style={{ display: 'flex', gap: 6 }}>
                       {!c.bounced && (
                         <>
-                          <select value={c.status} onChange={e => updateStatus(c.id, e.target.value)}
+                          <select value={c.status}
+                            onChange={e => updateStatus(c.id, e.target.value)}
                             style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '1px solid #e0e0e0', cursor: 'pointer' }}>
-                            {ALL_STATUSES.filter(s => s !== 'bounced').map(s => <option key={s} value={s}>{s}</option>)}
+                            {STAGES.filter(s => s !== 'bounced').map(s => (
+                              <option key={s} value={s}>{s}</option>
+                            ))}
                           </select>
                           <button onClick={() => markBounced(c.id)} disabled={marking === c.id}
-                            style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '1px solid #fecaca', background: '#fff', color: '#dc2626', cursor: 'pointer' }}>
-                            {marking === c.id ? '…' : 'Mark bounced'}
+                            style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6,
+                              border: '1px solid #fecaca', background: '#fff', color: '#dc2626', cursor: 'pointer' }}>
+                            {marking === c.id ? '…' : '⛔'}
                           </button>
                         </>
                       )}
@@ -175,23 +227,26 @@ function UploadCSV({ userId, onDone }) {
       const rows = lines.slice(1).map(line => {
         const vals = line.split(',');
         const obj = {};
-        headers.forEach((h, i) => { obj[h] = (vals[i] || '').trim(); });
+        headers.forEach((h, i) => { obj[h] = (vals[i] || '').trim().replace(/^"|"$/g, ''); });
         return {
           owner_id: userId,
           full_name: obj.name || obj.full_name || '',
           email: obj.email || '',
           company: obj.company || '',
-          title: obj.title || obj.job_title || '',
+          title: obj.title || obj.job_title || obj.designation || '',
           phone: obj.phone || '',
           industry: obj.industry || '',
-          status: 'fresh',
+          country: obj.country || '',
+          linkedin_url: obj.linkedin || obj.linkedin_url || '',
+          status: 'Fresh',
+          sequence_step: 0,
         };
       }).filter(r => r.full_name || r.email);
 
       const { error } = await supabase.from('contacts').insert(rows);
       setUploading(false);
       if (error) { setMsg('Upload failed: ' + error.message); }
-      else { setMsg(`${rows.length} contacts imported`); onDone(); }
+      else { setMsg(`✓ ${rows.length} contacts imported`); onDone(); }
     };
     reader.readAsText(file);
     e.target.value = '';
