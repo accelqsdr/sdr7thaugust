@@ -72,6 +72,7 @@ export default function ContactDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const userId = user.id;
 
   const [contact, setContact] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -93,6 +94,8 @@ export default function ContactDetail() {
 
   const [timeline, setTimeline] = useState([]);
   const [advancing, setAdvancing] = useState(false);
+  const [emails, setEmails] = useState([]);
+  const [emailsLoading, setEmailsLoading] = useState(false);
 
   const fetchContact = useCallback(async () => {
     const { data } = await supabase.from('contacts').select('*').eq('id', id).single();
@@ -121,9 +124,16 @@ export default function ContactDetail() {
     setTimeline(data || []);
   }, [id]);
 
+  const fetchEmails = useCallback(async () => {
+    setEmailsLoading(true);
+    const { data } = await supabase.from('emails').select('*').eq('contact_id', id).order('sent_at', { ascending: false });
+    setEmails(data || []);
+    setEmailsLoading(false);
+  }, [id]);
+
   useEffect(() => { fetchContact(); }, [fetchContact]);
   useEffect(() => {
-    if (contact) { fetchNotes(contact.company); fetchTimeline(); }
+    if (contact) { fetchNotes(contact.company); fetchTimeline(); fetchEmails(); }
   }, [contact?.id]);
 
   async function updateStatus(status) {
@@ -242,6 +252,7 @@ export default function ContactDetail() {
     { key: 'signals',   label: activeSignalsCount > 0 ? `Signals (${activeSignalsCount})` : 'Signals' },
     { key: 'notes',     label: totalNotes > 0 ? `Notes (${totalNotes})` : 'Notes' },
     { key: 'timeline',  label: timeline.length > 0 ? `Timeline (${timeline.length})` : 'Timeline' },
+    { key: 'emails',    label: emails.length > 0 ? `Emails (${emails.length})` : 'Emails' },
   ];
 
   return (
@@ -510,6 +521,11 @@ export default function ContactDetail() {
         </div>
       )}
 
+      {/* ── EMAILS ── */}
+      {tab === 'emails' && (
+        <EmailHistoryPanel emails={emails} loading={emailsLoading} contact={contact} userId={userId} onSaved={() => { fetchEmails(); fetchTimeline(); }} />
+      )}
+
       {/* ── TIMELINE ── */}
       {tab === 'timeline' && (
         <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e4', padding: 24 }}>
@@ -609,6 +625,165 @@ function TimelineItem({ item, isLast }) {
           <span style={{ marginLeft: 8, fontSize: 11, background: '#e0f2fe', color: '#0369a1', padding: '1px 8px', borderRadius: 10 }}>→ {item.details.status}</span>
         )}
       </div>
+    </div>
+  );
+}
+
+
+/* ── Email History Panel ── */
+function EmailHistoryPanel({ emails, loading, contact, userId, onSaved }) {
+  const [showLog, setShowLog] = useState(false);
+  const [form, setForm] = useState({ stage: 'Fresh', subject: '', body: '', format: 'Cold Email', sender_email: '', sent_at: new Date().toISOString().slice(0,10) });
+  const [saving, setSaving] = useState(false);
+  const [expanded, setExpanded] = useState(null);
+
+  const FORMATS = ['Cold Email','LinkedIn Message','LinkedIn InMail','Follow-up','Voice Note Script','Twitter DM'];
+
+  async function logEmail() {
+    if (!form.subject && !form.body) return;
+    setSaving(true);
+    await supabase.from('emails').insert({
+      contact_id: contact.id,
+      owner_id: userId,
+      stage: form.stage,
+      subject: form.subject,
+      body: form.body,
+      format: form.format,
+      sender_email: form.sender_email,
+      sent_at: new Date(form.sent_at).toISOString(),
+    });
+    await supabase.from('activity_log').insert({
+      actor_id: userId, contact_id: contact.id,
+      activity_type: 'email_sent', details: { stage: form.stage, subject: form.subject }
+    });
+    setSaving(false);
+    setShowLog(false);
+    setForm(f => ({ ...f, subject: '', body: '' }));
+    onSaved();
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div>
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: '#111', margin: 0 }}>Email History</h2>
+          <p style={{ fontSize: 12, color: '#888', margin: '3px 0 0' }}>All emails sent to {contact.full_name}</p>
+        </div>
+        <button onClick={() => setShowLog(v => !v)}
+          style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+          {showLog ? 'Cancel' : '+ Log email'}
+        </button>
+      </div>
+
+      {/* Log form */}
+      {showLog && (
+        <div style={{ background: '#f8faff', border: '1px solid #bfdbfe', borderRadius: 12, padding: 20, marginBottom: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#1d4ed8', marginBottom: 14 }}>Log a sent email</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: '0.3px', display: 'block', marginBottom: 4 }}>Stage</label>
+              <select value={form.stage} onChange={e => setForm(f => ({ ...f, stage: e.target.value }))}
+                style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13 }}>
+                {['Fresh','F1','F2','F3','F4','F5'].map(s => <option key={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: '0.3px', display: 'block', marginBottom: 4 }}>Format</label>
+              <select value={form.format} onChange={e => setForm(f => ({ ...f, format: e.target.value }))}
+                style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13 }}>
+                {FORMATS.map(s => <option key={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: '0.3px', display: 'block', marginBottom: 4 }}>Sender email</label>
+              <input value={form.sender_email} onChange={e => setForm(f => ({ ...f, sender_email: e.target.value }))}
+                placeholder="you@domain.com"
+                style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13, boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: '0.3px', display: 'block', marginBottom: 4 }}>Sent date</label>
+              <input type="date" value={form.sent_at} onChange={e => setForm(f => ({ ...f, sent_at: e.target.value }))}
+                style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13, boxSizing: 'border-box' }} />
+            </div>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: '0.3px', display: 'block', marginBottom: 4 }}>Subject line</label>
+            <input value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))}
+              placeholder="Email subject…"
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: '0.3px', display: 'block', marginBottom: 4 }}>Email body</label>
+            <textarea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
+              placeholder="Paste the email you sent…" rows={6}
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.6, boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button onClick={() => setShowLog(false)}
+              style={{ padding: '8px 16px', background: '#f0f0ee', color: '#555', border: 'none', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+            <button onClick={logEmail} disabled={saving || (!form.subject && !form.body)}
+              style={{ padding: '8px 20px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                opacity: (!form.subject && !form.body) ? 0.5 : 1 }}>
+              {saving ? 'Saving…' : '✓ Save email'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Email list */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>Loading…</div>
+      ) : emails.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 48, color: '#bbb' }}>
+          <div style={{ fontSize: 28, marginBottom: 10 }}>✉️</div>
+          <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>No emails logged yet</div>
+          <div style={{ fontSize: 13 }}>Click "+ Log email" to record a sent email</div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {emails.map(e => {
+            const sc = STAGE_COLORS[e.stage] || { bg: '#f1f5f9', color: '#475569' };
+            const isOpen = expanded === e.id;
+            const sentDate = e.sent_at ? new Date(e.sent_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+            return (
+              <div key={e.id} style={{ background: '#fff', border: '0.5px solid #e8e8e4', borderRadius: 10, overflow: 'hidden' }}>
+                {/* Email header row */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: 'pointer' }}
+                  onClick={() => setExpanded(isOpen ? null : e.id)}>
+                  <span style={{ padding: '3px 9px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: sc.bg, color: sc.color, flexShrink: 0 }}>
+                    {e.stage}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: '#111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {e.subject || <span style={{ color: '#aaa', fontStyle: 'italic' }}>No subject</span>}
+                    </div>
+                    {e.sender_email && <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>From: {e.sender_email}</div>}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#aaa', flexShrink: 0 }}>{sentDate}</div>
+                  <div style={{ fontSize: 12, color: '#bbb', flexShrink: 0 }}>{isOpen ? '▲' : '▼'}</div>
+                </div>
+                {/* Expanded body */}
+                {isOpen && e.body && (
+                  <div style={{ padding: '0 16px 16px', borderTop: '0.5px solid #f0f0ee' }}>
+                    <div style={{ marginTop: 12, padding: '12px 14px', background: '#f8f8f6', borderRadius: 8,
+                      fontSize: 13, lineHeight: 1.75, color: '#333', whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+                      {e.body}
+                    </div>
+                    <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+                      <button onClick={() => navigator.clipboard.writeText((e.subject ? `Subject: ${e.subject}\n\n` : '') + e.body)}
+                        style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, border: '1px solid #e0e0e0', background: '#fff', color: '#555', cursor: 'pointer' }}>
+                        📋 Copy
+                      </button>
+                      <span style={{ fontSize: 11, color: '#bbb', padding: '4px 0' }}>{e.format}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
