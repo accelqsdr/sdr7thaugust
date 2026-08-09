@@ -314,8 +314,8 @@ export default function Contacts() {
       )}
 
       {/* Table */}
-      <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e4', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+      <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e4', overflowX: 'auto' }}>
+        <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: '0.5px solid #e8e8e4' }}>
               {/* Checkbox with smart select */}
@@ -396,17 +396,17 @@ export default function Contacts() {
                       style={{ cursor: 'pointer', width: 14, height: 14 }} />
                   </td>
                   <td style={{ padding: '10px 14px', fontWeight: 500 }}>
-                    {c.full_name}
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 130, display: 'inline-block', verticalAlign: 'middle' }} title={c.full_name}>{c.full_name}</span>
                     {c.bounced && <span style={{ marginLeft: 6, fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 10 }}>BOUNCED</span>}
                   </td>
-                  <td style={{ padding: '10px 14px', color: '#555' }}>{c.company || '—'}</td>
-                  <td style={{ padding: '10px 14px', color: '#666', fontSize: 12 }}>{c.title || '—'}</td>
+                  <td style={{ padding: '10px 14px', color: '#555', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.company || ''}>{c.company || '—'}</td>
+                  <td style={{ padding: '10px 14px', color: '#666', fontSize: 12, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.title || ''}>{c.title || '—'}</td>
                   <td style={{ padding: '10px 14px' }}>
                     {c.seniority ? (
                       <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#f1f5f9', color: '#475569', fontWeight: 500 }}>{c.seniority}</span>
                     ) : <span style={{ color: '#ccc', fontSize: 12 }}>—</span>}
                   </td>
-                  <td style={{ padding: '10px 14px', color: '#555', fontSize: 12 }}>{c.email || '—'}</td>
+                  <td style={{ padding: '10px 14px', color: '#555', fontSize: 12, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.email || ''}>{c.email || '—'}</td>
                   <td style={{ padding: '10px 14px' }}>
                     <span style={{ padding: '3px 9px', borderRadius: 10, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color }}>{c.status}</span>
                   </td>
