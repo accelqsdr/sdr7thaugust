@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
@@ -71,6 +71,8 @@ const ACTIVITY_ICONS = {
 export default function ContactDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const backState = location.state;
   const { user } = useAuth();
   const userId = user.id;
 
@@ -233,8 +235,8 @@ export default function ContactDetail() {
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 12 }}>
       <div style={{ fontSize: 32 }}>🔍</div>
       <p style={{ color: '#aaa', fontSize: 14 }}>Contact not found</p>
-      <button onClick={() => navigate('/contacts')} style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
-        Back to Contacts
+      <button onClick={() => backState?.from === 'account' ? navigate('/accounts', { state: { selectId: backState.accountId } }) : navigate('/contacts')} style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
+        {backState?.from === 'account' ? `← Back to ${backState.accountName}` : 'Back to Contacts'}
       </button>
     </div>
   );
@@ -257,9 +259,9 @@ export default function ContactDetail() {
 
   return (
     <div style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
-      <button onClick={() => navigate('/contacts')}
+      <button onClick={() => backState?.from === 'account' ? navigate('/accounts', { state: { selectId: backState.accountId } }) : navigate('/contacts')}
         style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: '#666', fontSize: 13, cursor: 'pointer', marginBottom: 20, padding: 0 }}>
-        ← Back to Contacts
+        {backState?.from === 'account' ? `← Back to ${backState.accountName}` : '← Back to Contacts'}
       </button>
 
       {/* Header card */}

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
@@ -91,6 +91,7 @@ function getSignalBadges(account) {
 export default function Accounts() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [accounts, setAccounts] = useState([]);
   const [contactsByAccount, setContactsByAccount] = useState({});
   const [loading, setLoading] = useState(true);
@@ -121,6 +122,13 @@ export default function Accounts() {
   }, [user.id]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  useEffect(() => {
+    if (location.state?.selectId) {
+      setSelectedId(location.state.selectId);
+      window.history.replaceState({}, '');
+    }
+  }, [location.state]);
 
   async function addAccount() {
     if (!newAcct.name.trim()) return;
@@ -678,7 +686,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
                     🔍 Find Email
                   </button>
                 )}
-                <button onClick={() => navigate(`/contacts/${c.id}`)}
+                <button onClick={() => navigate(`/contacts/${c.id}`, { state: { from: 'account', accountId: data.id, accountName: data.name } })}
                   style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '1px solid #e0e0e0', background: '#fff', color: '#2563eb', cursor: 'pointer', fontWeight: 500 }}>
                   View →
                 </button>
