@@ -67,7 +67,7 @@ function calcScore(account, contacts) {
   if (sig.recentLaunch) score += 6;
   if (sig.leadershipChange) score += 6;
   if (sig.cicd) score += 5;
-  const replied = (contacts || []).filter(c => c.response === 'warm' || c.response === 'prospect').length;
+  const replied = (contacts || []).filter(c => c.response_type === 'warm' || c.response_type === 'prospect').length;
   score += Math.min(replied * 5, 15);
   const r = account.research || {};
   score += Math.min(Object.values(r).filter(v => v && v.length > 10).length * 2, 10);
@@ -119,7 +119,7 @@ export default function Accounts() {
     setLoading(true);
     const [{ data: accs }, { data: cts }] = await Promise.all([
       supabase.from('accounts').select('*').eq('owner_id', user.id),
-      supabase.from('contacts').select('id, account_id, full_name, title, seniority, status, response, email, pitch, last_contacted, next_followup').eq('owner_id', user.id),
+      supabase.from('contacts').select('id, account_id, first_name, last_name, title, status, response_type, email, notes, next_followup').eq('owner_id', user.id),
     ]);
     const byAcct = {};
     (cts || []).forEach(c => {
@@ -459,7 +459,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
             revenue_millions: data.revenue_millions,
             notes: data.notes,
             testing_tools: data.testing_tools,
-            contacts: contacts.slice(0, 5).map(c => ({ full_name: c.full_name, title: c.title })),
+            contacts: contacts.slice(0, 5).map(c => ({ full_name: (c.first_name + ' ' + (c.last_name || '')).trim(), title: c.title })),
           }
         }
       });
@@ -570,7 +570,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
               </div>
             )}
             <button onClick={() => {
-              const csv = contacts.map(c => `"${c.full_name}","${c.title || ''}","${c.email || ''}","${c.status}"`).join('\n');
+              const csv = contacts.map(c => `"${(c.first_name + ' ' + (c.last_name || '')).trim()}","${c.title || ''}","${c.email || ''}","${c.status}"`).join('\n');
               const blob = new Blob([`Name,Title,Email,Stage\n${csv}`], { type: 'text/csv' });
               const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
               a.download = `${data.name.replace(/[^a-z0-9]/gi,'_')}.csv`; a.click();
@@ -613,7 +613,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
                 { label: 'Total Contacts', value: contacts.length, color: '#111', bg: '#fff', border: '#e5e7eb', icon: '👤' },
                 { label: 'Contacted', value: contacts.filter(c => c.status !== 'Fresh').length, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', icon: '✅' },
                 { label: 'Remaining', value: contacts.filter(c => c.status === 'Fresh').length, color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: '📋' },
-                { label: 'Warm / Prospect', value: contacts.filter(c => c.response === 'warm' || c.response === 'prospect').length, color: '#7c3aed', bg: '#fdf4ff', border: '#e9d5ff', icon: '🔥' },
+                { label: 'Warm / Prospect', value: contacts.filter(c => c.response_type === 'warm' || c.response_type === 'prospect').length, color: '#7c3aed', bg: '#fdf4ff', border: '#e9d5ff', icon: '🔥' },
               ].map(card => (
                 <div key={card.label} style={{ background: card.bg, border: `1px solid ${card.border}`, borderRadius: 12, padding: '14px 16px' }}>
                   <div style={{ fontSize: 18, marginBottom: 6 }}>{card.icon}</div>
@@ -687,18 +687,18 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {contacts.map(c => {
                   const sc2 = STAGE_COLORS[c.status] || { bg: '#f1f5f9', color: '#475569' };
-                  const initColor = avatarColor(c.full_name);
+                  const initColor = avatarColor((c.first_name + ' ' + (c.last_name || '')).trim());
                   return (
                     <div key={c.id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
                       {/* Avatar */}
                       <div style={{ width: 40, height: 40, borderRadius: '50%', background: initColor, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
-                        {getInitials(c.full_name)}
+                        {getInitials((c.first_name + ' ' + (c.last_name || '')).trim())}
                       </div>
                       {/* Info */}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>{c.full_name}</div>
-                        <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{[c.title, c.seniority].filter(Boolean).join(' · ')}</div>
-                        {c.pitch && <div style={{ fontSize: 11, color: '#7c3aed', marginTop: 4, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 380 }}>"{c.pitch}"</div>}
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>{(c.first_name + ' ' + (c.last_name || '')).trim()}</div>
+                        <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{c.title || ''}</div>
+                        {c.notes && <div style={{ fontSize: 11, color: '#7c3aed', marginTop: 4, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 380 }}>"{c.notes}"</div>}
                       </div>
                       {/* Stage */}
                       <span style={{ fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 8, background: sc2.bg, color: sc2.color, flexShrink: 0 }}>{c.status}</span>
@@ -706,7 +706,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
                       {c.email ? (
                         <span style={{ fontSize: 12, color: '#374151', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }} title={c.email}>✉️ {c.email}</span>
                       ) : (
-                        <button onClick={() => window.open(`https://app.apollo.io/#/people?name=${encodeURIComponent(c.full_name)}&organization_name=${encodeURIComponent(data.name)}`, '_blank')}
+                        <button onClick={() => window.open(`https://app.apollo.io/#/people?name=${encodeURIComponent((c.first_name + ' ' + (c.last_name || '')).trim())}&organization_name=${encodeURIComponent(data.name)}`, '_blank')}
                           style={{ fontSize: 11, padding: '4px 10px', borderRadius: 7, border: '1px dashed #d97706', background: 'none', color: '#d97706', cursor: 'pointer', flexShrink: 0 }}>
                           🔍 Find Email
                         </button>
@@ -938,8 +938,8 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
                 detail: tools.some(t => t.status === 'Legacy') ? `Legacy: ${tools.filter(t=>t.status==='Legacy').map(t=>t.tool).join(', ')}` : tools.some(t=>t.status==='Evaluating') ? 'Evaluating tools detected' : tools.length > 0 ? 'Modern tools' : 'No tools recorded' },
               { label: '📡 Intent Signals', pts: Math.min([signals.hiringQA&&10,signals.funding&&10,signals.outage&&8,signals.recentLaunch&&6,signals.leadershipChange&&6,signals.cicd&&5].filter(Boolean).reduce((a,b)=>a+b,0),45), max: 45,
                 detail: SIGNAL_DEFS.filter(s=>signals[s.key]).map(s=>s.label).join(', ') || 'No signals active' },
-              { label: '💬 Engagement', pts: Math.min(contacts.filter(c=>c.response==='warm'||c.response==='prospect').length*5,15), max: 15,
-                detail: `${contacts.filter(c=>c.response==='warm'||c.response==='prospect').length} warm/prospect contacts` },
+              { label: '💬 Engagement', pts: Math.min(contacts.filter(c=>c.response_type==='warm'||c.response_type==='prospect').length*5,15), max: 15,
+                detail: `${contacts.filter(c=>c.response_type==='warm'||c.response_type==='prospect').length} warm/prospect contacts` },
               { label: '🔬 Research', pts: Math.min(Object.values(data.research||{}).filter(v=>v&&v.length>10).length*2,10), max: 10,
                 detail: `${Object.values(data.research||{}).filter(v=>v&&v.length>10).length} of ${RESEARCH_DEFAULTS.length} sections filled` },
             ].map(row => (
