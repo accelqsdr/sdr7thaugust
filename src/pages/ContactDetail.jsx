@@ -94,6 +94,10 @@ export default function ContactDetail() {
   const [newCompanyNote, setNewCompanyNote] = useState('');
   const [savingNote, setSavingNote] = useState(false);
 
+  const [pitch, setPitch] = useState('');
+  const [savingPitch, setSavingPitch] = useState(false);
+  const [pitchSaved, setPitchSaved] = useState(false);
+
   const [timeline, setTimeline] = useState([]);
   const [advancing, setAdvancing] = useState(false);
   const [emails, setEmails] = useState([]);
@@ -105,6 +109,7 @@ export default function ContactDetail() {
       setContact(data);
       setResearch(data.research || {});
       setSignals(data.signals || {});
+      setPitch(data.notes || '');
     }
     setLoading(false);
   }, [id]);
@@ -208,6 +213,15 @@ export default function ContactDetail() {
     setSignalsSaved(true);
     setTimeout(() => setSignalsSaved(false), 2500);
     fetchTimeline();
+  }
+
+  async function savePitch() {
+    setSavingPitch(true);
+    await supabase.from('contacts').update({ notes: pitch }).eq('id', id);
+    setContact(c => ({ ...c, notes: pitch }));
+    setSavingPitch(false);
+    setPitchSaved(true);
+    setTimeout(() => setPitchSaved(false), 2500);
   }
 
   async function addContactNote() {
@@ -438,6 +452,30 @@ export default function ContactDetail() {
             <InfoRow label="Added on" value={contact.created_at ? new Date(contact.created_at).toLocaleDateString() : null} />
             {contact.bounced && <InfoRow label="Bounced on" value={contact.bounced_at ? new Date(contact.bounced_at).toLocaleDateString() : 'Yes'} danger />}
           </InfoCard>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <InfoCard title="Pitch">
+              <div style={{ padding: '4px 0' }}>
+                <textarea
+                  value={pitch}
+                  onChange={e => setPitch(e.target.value)}
+                  placeholder="What angle to use for this contact — this feeds directly into AI email generation…"
+                  rows={4}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e0e0e0',
+                    fontSize: 13, resize: 'vertical', fontFamily: 'inherit', outline: 'none',
+                    color: '#333', boxSizing: 'border-box', lineHeight: 1.5,
+                    background: pitch ? '#fafffe' : '#fff' }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                  <button onClick={savePitch} disabled={savingPitch}
+                    style={{ padding: '7px 18px', border: 'none', borderRadius: 8, fontSize: 13,
+                      fontWeight: 500, cursor: 'pointer',
+                      background: pitchSaved ? '#059669' : '#2563eb', color: '#fff', transition: 'background 0.2s' }}>
+                    {savingPitch ? 'Saving…' : pitchSaved ? '✓ Saved' : 'Save Pitch'}
+                  </button>
+                </div>
+              </div>
+            </InfoCard>
+          </div>
           {Object.values(research).some(Boolean) && (
             <div style={{ gridColumn: '1 / -1' }}>
               <InfoCard title="Research summary">
