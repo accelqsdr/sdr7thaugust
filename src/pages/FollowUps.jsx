@@ -3,30 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
-// ── constants ─────────────────────────────────────────────────────────────────
+// ── CADENCE: days from last email sent to next email due ──────────────────────
+const DEFAULT_CADENCE = { Fresh: 3, F1: 3, F2: 4, F3: 7, F4: 7 };
+const STATUS_CADENCE_KEY = { F1: 'Fresh', F2: 'F1', F3: 'F2', F4: 'F3', F5: 'F4' };
+const NEXT_STAGE = { F1: 'F2', F2: 'F3', F3: 'F4', F4: 'F5', F5: null };
+const FOLLOWUP_STAGES = ['F1', 'F2', 'F3', 'F4', 'F5'];
 
-const FOLLOWUP_STAGES = ['F1','F2','F3','F4','F5'];
-
-const STAGE_COLORS = {
-  F1: { bg: '#dbeafe', color: '#1d4ed8' },
-  F2: { bg: '#d1fae5', color: '#065f46' },
-  F3: { bg: '#fef9c3', color: '#854d0e' },
-  F4: { bg: '#ffedd5', color: '#9a3412' },
-  F5: { bg: '#fee2e2', color: '#991b1b' },
+const STAGE_META = {
+  F1: { bg: '#dbeafe', color: '#1d4ed8', label: 'F1 — Initial' },
+  F2: { bg: '#d1fae5', color: '#065f46', label: 'F2 — Follow-up 1' },
+  F3: { bg: '#fef9c3', color: '#854d0e', label: 'F3 — Follow-up 2' },
+  F4: { bg: '#ffedd5', color: '#9a3412', label: 'F4 — Follow-up 3' },
+  F5: { bg: '#fee2e2', color: '#991b1b', label: 'F5 — Break-up' },
 };
 
-const STAGE_LABELS = {
-  F1: 'F1 — Initial',
-  F2: 'F2 — Follow-up 1',
-  F3: 'F3 — Follow-up 2',
-  F4: 'F4 — Follow-up 3',
-  F5: 'F5 — Break-up',
-};
-
-const NEXT_STAGE = { F1:'F2', F2:'F3', F3:'F4', F4:'F5', F5:null };
-const ADVANCE_DAYS = { F2:3, F3:4, F4:5, F5:7 };
-
-const RESPONSE_COLORS = {
+const RESPONSE_META = {
   warm:           { bg: '#fef3c7', color: '#d97706', label: '🟡 Warm' },
   prospect:       { bg: '#d1fae5', color: '#059669', label: '🟢 Prospect' },
   cold:           { bg: '#e0f2fe', color: '#0369a1', label: '🔵 Cold' },
@@ -34,167 +25,231 @@ const RESPONSE_COLORS = {
   not_interested: { bg: '#f1f5f9', color: '#475569', label: '⬜ Not interested' },
 };
 
-const TIMING_OPTIONS = [
-  { key: 'all',      label: 'All' },
-  { key: 'overdue',  label: '🔴 Overdue' },
-  { key: 'today',    label: '🟢 Today' },
-  { key: 'week',     label: '🟡 This week' },
-  { key: 'later',    label: '📅 Later' },
-  { key: 'nodate',   label: '⏳ No date' },
+const TIMING_GROUPS = [
+  { key: 'overdue', label: '🔴 Overdue',     color: '#dc2626' },
+  { key: 'today',   label: '🟢 Due Today',   color: '#059669' },
+  { key: 'week',    label: '🟡 This Week',   color: '#d97706' },
+  { key: 'later',   label: '📅 Later',       color: '#6b7280' },
+  { key: 'nodate',  label: '⏳ No Date Set', color: '#94a3b8' },
 ];
 
 function getInitials(name) {
-  return (name || '').split(/\s+/).slice(0,2).map(w => w[0]).join('').toUpperCase() || '?';
+  return (name || '').split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
 }
 
-const AVATAR_COLORS = ['#2563eb','#7c3aed','#059669','#d97706','#0891b2','#9333ea','#dc2626'];
+const AVATAR_PALETTE = ['#2563eb','#7c3aed','#059669','#d97706','#0891b2','#9333ea','#dc2626'];
 function avatarColor(str) {
   let h = 0;
-  for (let i = 0; i < (str||'').length; i++) h = ((h << 5) - h) + str.charCodeAt(i);
-  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+  for (let i = 0; i < (str || '').length; i++) h = ((h << 5) - h) + str.charCodeAt(i);
+  return AVATAR_PALETTE[Math.abs(h) % AVATAR_PALETTE.length];
 }
 
-function timingBucket(nextFollowup) {
-  if (!nextFollowup) return 'nodate';
+function computeDue(contact, cadence) {
+  const key = STATUS_CADENCE_KEY[contact.status];
+  if (!key) return null;
+  const days = (cadence || DEFAULT_CADENCE)[key] ?? 3;
+  if (contact.last_contacted) {
+    const d = new Date(contact.last_contacted);
+    d.setDate(d.getDate() + days);
+    return d;
+  }
+  return contact.next_followup ? new Date(contact.next_followup) : null;
+}
+
+function getBucket(due) {
+  if (!due) return 'nodate';
   const now = new Date();
-  const d = new Date(nextFollowup);
-  if (d < now) return 'overdue';
-  const todayEnd = new Date(now); todayEnd.setHours(23,59,59,999);
-  if (d <= todayEnd) return 'today';
-  const weekEnd = new Date(now); weekEnd.setDate(now.getDate() + 7);
-  if (d <= weekEnd) return 'week';
+  if (due < now) return 'overdue';
+  const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+  if (due <= todayEnd) return 'today';
+  const weekEnd = new Date(); weekEnd.setDate(now.getDate() + 7);
+  if (due <= weekEnd) return 'week';
   return 'later';
 }
 
-// ── main component ─────────────────────────────────────────────────────────────
+function formatDue(due) {
+  if (!due) return 'No date';
+  const now = new Date();
+  if (due < now) {
+    const days = Math.floor((now - due) / 86400000);
+    return days === 0 ? 'Today' : days === 1 ? '1d ago' : `${days}d ago`;
+  }
+  if (due.toDateString() === now.toDateString()) return 'Today';
+  const tomorrow = new Date(); tomorrow.setDate(now.getDate() + 1);
+  if (due.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
+  return due.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+}
 
+// ─────────────────────────────────────────────────────────────────────────────
 export default function FollowUps() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
 
-  const [contacts, setContacts] = useState([]);
-  const [accounts, setAccounts] = useState({});  // id → account row
-  const [loading, setLoading] = useState(true);
+  const [cadence, setCadence] = useState(() => {
+    try { return { ...DEFAULT_CADENCE, ...JSON.parse(localStorage.getItem('sdr_cadence') || '{}') }; }
+    catch { return DEFAULT_CADENCE; }
+  });
+  const [autoGenerate, setAutoGenerate] = useState(
+    () => localStorage.getItem('sdr_auto_generate') !== 'false'
+  );
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
-  // Filters
-  const [search, setSearch]         = useState('');
-  const [stageFilter, setStageFilter]   = useState('all');
-  const [timingFilter, setTimingFilter] = useState('all');
+  const [contacts,   setContacts]   = useState([]);
+  const [accounts,   setAccounts]   = useState({});
+  const [sentEmails, setSentEmails] = useState({});
+  const [loading,    setLoading]    = useState(true);
+
+  const [search,         setSearch]         = useState('');
+  const [stageFilter,    setStageFilter]    = useState('all');
+  const [timingFilter,   setTimingFilter]   = useState('all');
   const [responseFilter, setResponseFilter] = useState('all');
-  const [companyFilter, setCompanyFilter]   = useState('all');
+  const [companyFilter,  setCompanyFilter]  = useState('all');
 
-  // Actions
-  const [advancing, setAdvancing]   = useState(null);
-  const [snoozingId, setSnoozingId] = useState(null);
+  const [drafts,      setDrafts]      = useState({});
+  const [drafting,    setDrafting]    = useState(null);
+  const [draftOpen,   setDraftOpen]   = useState(null);
+  const [copied,      setCopied]      = useState(null);
+  const [markingSent, setMarkingSent] = useState(null);
 
-  // Email draft panel — keyed by contact.id
-  const [draftOpen, setDraftOpen]   = useState(null);   // contact id with open panel
-  const [drafts, setDrafts]         = useState({});     // id → { subject, body }
-  const [drafting, setDrafting]     = useState(null);   // id generating
-  const [copied, setCopied]         = useState(null);   // id just copied
+  const autoGenRanRef = useRef(false);
 
   useEffect(() => { fetchData(); }, []);
 
   async function fetchData() {
     setLoading(true);
-    const [contactRes, accountRes] = await Promise.all([
-      supabase
-        .from('contacts')
-        .select('*')
-        .eq('owner_id', user.id)
-        .in('status', FOLLOWUP_STAGES)          // F1-F5 only — no Fresh
-        .neq('status', 'bounced')
-        .neq('status', 'unsubscribed')
-        .order('next_followup', { ascending: true, nullsFirst: false }),
-      supabase
-        .from('accounts')
-        .select('id, name, industry, research')
-        .eq('owner_id', user.id),
+    const [cRes, aRes, lRes] = await Promise.all([
+      supabase.from('contacts').select('*').eq('owner_id', user.id)
+        .in('status', FOLLOWUP_STAGES)
+        .order('last_contacted', { ascending: false, nullsFirst: false }),
+      supabase.from('accounts').select('id, name, industry, research').eq('owner_id', user.id),
+      supabase.from('activity_log').select('contact_id, details, created_at')
+        .eq('actor_id', user.id).eq('activity_type', 'email_sent')
+        .order('created_at', { ascending: false }),
     ]);
-    setContacts(contactRes.data || []);
+    const rows = cRes.data || [];
+    setContacts(rows);
     const accMap = {};
-    (accountRes.data || []).forEach(a => { accMap[a.id] = a; });
+    (aRes.data || []).forEach(a => { accMap[a.id] = a; });
     setAccounts(accMap);
+    const emailMap = {};
+    (lRes.data || []).forEach(row => {
+      if (!emailMap[row.contact_id]) emailMap[row.contact_id] = [];
+      if (row.details?.body) emailMap[row.contact_id].push({ body: row.details.body });
+    });
+    setSentEmails(emailMap);
     setLoading(false);
+    return rows;
   }
 
-  async function advanceStage(contact) {
+  useEffect(() => {
+    if (loading || autoGenRanRef.current || !autoGenerate) return;
+    autoGenRanRef.current = true;
+    contacts.forEach(c => {
+      const due = computeDue(c, cadence);
+      const b = getBucket(due);
+      if ((b === 'overdue' || b === 'today') && !drafts[c.id]) {
+        doGenerate(c, true);
+      }
+    });
+  }, [loading]);
+
+  function saveCadence(next) {
+    setCadence(next);
+    localStorage.setItem('sdr_cadence', JSON.stringify(next));
+  }
+
+  function toggleAutoGen() {
+    const next = !autoGenerate;
+    setAutoGenerate(next);
+    localStorage.setItem('sdr_auto_generate', String(next));
+  }
+
+  async function doGenerate(contact, silent = false) {
+    if (!silent) { setDrafting(contact.id); setDraftOpen(contact.id); }
+    const account    = accounts[contact.account_id] || {};
+    const senderName = profile?.full_name || user?.email?.split('@')[0] || 'SDR';
+    const priorBodies = (sentEmails[contact.id] || []).slice(0, 3).map(e => e.body);
+    try {
+      const res = await supabase.functions.invoke('generate-email', {
+        body: {
+          contact: {
+            full_name: contact.full_name, title: contact.title,
+            company: contact.company, email: contact.email,
+            response: contact.response, pitch: contact.pitch,
+            industry: account.industry,
+          },
+          stage: contact.status,
+          accountResearch: account.research || {},
+          senderName,
+          priorEmailBodies: priorBodies,
+        },
+      });
+      if (!res.error && res.data?.subject) {
+        setDrafts(d => ({ ...d, [contact.id]: { subject: res.data.subject, body: res.data.body } }));
+        if (!silent) setDraftOpen(contact.id);
+      }
+    } catch (e) { console.error(e); }
+    if (!silent) setDrafting(null);
+  }
+
+  async function markSent(contact) {
     const next = NEXT_STAGE[contact.status];
     if (!next) return;
-    setAdvancing(contact.id);
-    const nextDate = new Date();
-    nextDate.setDate(nextDate.getDate() + (ADVANCE_DAYS[next] || 3));
+    setMarkingSent(contact.id);
+    const draft = drafts[contact.id];
+    const now   = new Date().toISOString();
+    const daysToNext = cadence[contact.status] ?? 3;
+    const nextDue = new Date();
+    nextDue.setDate(nextDue.getDate() + daysToNext);
+
     await supabase.from('contacts').update({
-      status: next,
-      sequence_step: FOLLOWUP_STAGES.indexOf(next) + 1,
-      last_contacted: new Date().toISOString(),
-      next_followup: nextDate.toISOString(),
+      status: next, sequence_step: FOLLOWUP_STAGES.indexOf(next) + 1,
+      last_contacted: now, next_followup: nextDue.toISOString(),
     }).eq('id', contact.id);
+
     await supabase.from('activity_log').insert({
       actor_id: user.id, contact_id: contact.id,
-      activity_type: 'stage_advanced', details: { from: contact.status, to: next }
+      activity_type: 'email_sent',
+      details: { from_stage: contact.status, to_stage: next, subject: draft?.subject || '', body: draft?.body || '' },
     });
-    setAdvancing(null);
+
+    setDrafts(d => { const nd = { ...d }; delete nd[contact.id]; return nd; });
+    setDraftOpen(o => o === contact.id ? null : o);
+    setMarkingSent(null);
     fetchData();
   }
 
   async function snooze(id, days) {
-    setSnoozingId(id);
-    const d = new Date();
-    d.setDate(d.getDate() + days);
-    await supabase.from('contacts').update({ next_followup: d.toISOString() }).eq('id', id);
-    setSnoozingId(null);
+    const d = new Date(); d.setDate(d.getDate() + days);
+    await supabase.from('contacts').update({ next_followup: d.toISOString(), last_contacted: d.toISOString() }).eq('id', id);
     fetchData();
   }
 
-  async function generateEmail(contact) {
-    setDrafting(contact.id);
-    setDraftOpen(contact.id);
-    const account = accounts[contact.account_id] || {};
-    const research = account.research || {};
-    const senderName = profile?.full_name || user?.email?.split('@')[0] || 'Your SDR';
-    try {
-      const result = await supabase.functions.invoke('generate-email', {
-        body: {
-          contact: {
-            full_name: contact.full_name,
-            title: contact.title,
-            company: contact.company,
-            email: contact.email,
-            response: contact.response,
-            pitch: contact.pitch,
-            industry: account.industry,
-          },
-          stage: contact.status,
-          accountResearch: research,
-          senderName,
-        }
-      });
-      if (!result.error && result.data?.subject) {
-        setDrafts(d => ({ ...d, [contact.id]: { subject: result.data.subject, body: result.data.body } }));
-      }
-    } catch(e) { console.error(e); }
-    setDrafting(null);
-  }
-
-  function copyEmail(id) {
-    const draft = drafts[id];
-    if (!draft) return;
-    const text = `Subject: ${draft.subject}\n\n${draft.body}`;
-    navigator.clipboard.writeText(text);
+  function copyDraft(id) {
+    const draft = drafts[id]; if (!draft) return;
+    navigator.clipboard.writeText(`Subject: ${draft.subject}\n\n${draft.body}`);
     setCopied(id);
     setTimeout(() => setCopied(c => c === id ? null : c), 2000);
   }
 
-  // ── derive unique companies for filter dropdown ────────────────────────────
+  // Enrich contacts with computed due date
+  const enriched = contacts.map(c => {
+    const due = computeDue(c, cadence);
+    return { ...c, _due: due, _bucket: getBucket(due), _hasDraft: !!drafts[c.id] };
+  });
+
+  const stageCounts    = {};
+  FOLLOWUP_STAGES.forEach(s => { stageCounts[s] = enriched.filter(c => c.status === s).length; });
+  const overdueCt      = enriched.filter(c => c._bucket === 'overdue').length;
+  const todayCt        = enriched.filter(c => c._bucket === 'today').length;
+  const readyCt        = enriched.filter(c => c._hasDraft).length;
   const uniqueCompanies = [...new Set(contacts.map(c => c.company).filter(Boolean))].sort();
 
-  // ── apply filters ──────────────────────────────────────────────────────────
-  const filtered = contacts.filter(c => {
-    if (stageFilter !== 'all' && c.status !== stageFilter) return false;
-    if (timingFilter !== 'all' && timingBucket(c.next_followup) !== timingFilter) return false;
+  const filtered = enriched.filter(c => {
+    if (stageFilter    !== 'all' && c.status   !== stageFilter)    return false;
+    if (timingFilter   !== 'all' && c._bucket  !== timingFilter)   return false;
     if (responseFilter !== 'all' && c.response !== responseFilter) return false;
-    if (companyFilter !== 'all' && c.company !== companyFilter) return false;
+    if (companyFilter  !== 'all' && c.company  !== companyFilter)  return false;
     if (search) {
       const q = search.toLowerCase();
       if (!c.full_name?.toLowerCase().includes(q) && !c.company?.toLowerCase().includes(q) && !c.email?.toLowerCase().includes(q)) return false;
@@ -202,187 +257,229 @@ export default function FollowUps() {
     return true;
   });
 
-  // ── stats across ALL (unfiltered) ─────────────────────────────────────────
-  const now = new Date();
-  const overdueCt = contacts.filter(c => c.next_followup && new Date(c.next_followup) < now).length;
-  const todayCt   = contacts.filter(c => {
-    if (!c.next_followup) return false;
-    const d = new Date(c.next_followup);
-    return d >= now && d.toDateString() === now.toDateString();
-  }).length;
-  const stageCounts = {};
-  FOLLOWUP_STAGES.forEach(s => { stageCounts[s] = contacts.filter(c => c.status === s).length; });
-
-  // ── group filtered contacts by timing ─────────────────────────────────────
-  const groups = [
-    { key: 'overdue', label: '🔴 Overdue', color: '#dc2626', items: filtered.filter(c => timingBucket(c.next_followup) === 'overdue') },
-    { key: 'today',   label: '🟢 Due today', color: '#059669', items: filtered.filter(c => timingBucket(c.next_followup) === 'today') },
-    { key: 'week',    label: '🟡 This week', color: '#d97706', items: filtered.filter(c => timingBucket(c.next_followup) === 'week') },
-    { key: 'later',   label: '📅 Later',     color: '#6b7280', items: filtered.filter(c => timingBucket(c.next_followup) === 'later') },
-    { key: 'nodate',  label: '⏳ No date set', color: '#94a3b8', items: filtered.filter(c => timingBucket(c.next_followup) === 'nodate') },
-  ].filter(g => g.items.length > 0);
+  const groups = TIMING_GROUPS.map(g => {
+    const items = filtered.filter(c => c._bucket === g.key);
+    items.sort((a, b) => {
+      if (a._hasDraft !== b._hasDraft) return a._hasDraft ? -1 : 1;
+      if (a._due && b._due) return a._due - b._due;
+      return 0;
+    });
+    return { ...g, items };
+  }).filter(g => g.items.length > 0);
 
   const activeGroups = timingFilter === 'all' ? groups : groups.filter(g => g.key === timingFilter);
+  const anyFilter = search || stageFilter !== 'all' || timingFilter !== 'all' || responseFilter !== 'all' || companyFilter !== 'all';
+  function clearFilters() { setSearch(''); setStageFilter('all'); setTimingFilter('all'); setResponseFilter('all'); setCompanyFilter('all'); }
+
+  const sharedProps = {
+    accounts, drafts, drafting, draftOpen, copied, markingSent,
+    onGenerate:    c    => doGenerate(c),
+    onToggleDraft: c    => setDraftOpen(d => d === c.id ? null : c.id),
+    onRegenerate:  c    => doGenerate(c),
+    onMarkSent:    c    => markSent(c),
+    onSnooze:      (id, days) => snooze(id, days),
+    onCopy:        id   => copyDraft(id),
+    onView:        id   => navigate(`/contacts/${id}`),
+  };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: '#f8f9fa' }}>
+    <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:'#f8f9fb' }}>
 
-      {/* ── TOP BAR ─────────────────────────────────────────────────────── */}
-      <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '16px 24px', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14 }}>
+      {/* HEADER */}
+      <div style={{ background:'#fff', borderBottom:'1px solid #e5e7eb', flexShrink:0 }}>
+
+        {/* Title row */}
+        <div style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 24px 10px' }}>
           <div>
-            <h1 style={{ fontSize: 18, fontWeight: 700, color: '#111', margin: 0 }}>Follow-up Queue</h1>
-            <p style={{ fontSize: 12, color: '#6b7280', margin: '2px 0 0' }}>
-              Contacts in active outreach — Fresh leads not shown here
-            </p>
+            <h1 style={{ fontSize:18, fontWeight:700, color:'#111', margin:0, letterSpacing:'-0.01em' }}>📬 Follow-up Queue</h1>
+            <p style={{ fontSize:12, color:'#6b7280', margin:'2px 0 0' }}>F1→F5 active outreach — Fresh contacts arrive here after qualification</p>
           </div>
-          <div style={{ flex: 1 }} />
-          {/* Stats pills */}
-          {overdueCt > 0 && (
-            <div onClick={() => setTimingFilter(timingFilter === 'overdue' ? 'all' : 'overdue')}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 8,
-                background: timingFilter === 'overdue' ? '#fee2e2' : '#fff5f5',
-                border: `1px solid ${timingFilter === 'overdue' ? '#dc2626' : '#fca5a5'}`,
-                color: '#dc2626', cursor: 'pointer', fontWeight: 600, fontSize: 12 }}>
-              🔴 {overdueCt} overdue
+          <div style={{ flex:1 }} />
+          <div style={{ display:'flex', gap:7, alignItems:'center' }}>
+            {overdueCt > 0 && (
+              <div onClick={() => setTimingFilter(f => f==='overdue'?'all':'overdue')}
+                style={{ padding:'5px 12px', borderRadius:20, fontSize:12, fontWeight:700, color:'#dc2626', cursor:'pointer', userSelect:'none',
+                  background: timingFilter==='overdue' ? '#fee2e2' : '#fff5f5', border:`1.5px solid ${timingFilter==='overdue'?'#dc2626':'#fca5a5'}` }}>
+                🔴 {overdueCt} overdue
+              </div>
+            )}
+            {todayCt > 0 && (
+              <div onClick={() => setTimingFilter(f => f==='today'?'all':'today')}
+                style={{ padding:'5px 12px', borderRadius:20, fontSize:12, fontWeight:700, color:'#059669', cursor:'pointer', userSelect:'none',
+                  background: timingFilter==='today' ? '#d1fae5' : '#f0fdf4', border:`1.5px solid ${timingFilter==='today'?'#059669':'#6ee7b7'}` }}>
+                🟢 {todayCt} today
+              </div>
+            )}
+            {readyCt > 0 && (
+              <div style={{ padding:'5px 12px', borderRadius:20, fontSize:12, fontWeight:700, color:'#7c3aed', background:'#f5f3ff', border:'1.5px solid #c4b5fd' }}>
+                ✨ {readyCt} ready
+              </div>
+            )}
+            <div style={{ padding:'5px 12px', borderRadius:20, fontSize:12, fontWeight:500, color:'#6b7280', background:'#f9fafb', border:'1px solid #e5e7eb' }}>
+              {contacts.length} in queue
             </div>
-          )}
-          {todayCt > 0 && (
-            <div onClick={() => setTimingFilter(timingFilter === 'today' ? 'all' : 'today')}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 8,
-                background: timingFilter === 'today' ? '#d1fae5' : '#f0fdf4',
-                border: `1px solid ${timingFilter === 'today' ? '#059669' : '#6ee7b7'}`,
-                color: '#059669', cursor: 'pointer', fontWeight: 600, fontSize: 12 }}>
-              🟢 {todayCt} due today
-            </div>
-          )}
-          <div style={{ fontSize: 12, color: '#6b7280', background: '#f9fafb', padding: '5px 12px', borderRadius: 8, border: '1px solid #e5e7eb' }}>
-            {contacts.length} in queue
           </div>
+          <button onClick={() => setSettingsOpen(s => !s)}
+            style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 14px', borderRadius:8,
+              border:`1.5px solid ${settingsOpen?'#2563eb':'#e5e7eb'}`,
+              background:settingsOpen?'#dbeafe':'#fff', color:settingsOpen?'#1d4ed8':'#374151',
+              fontSize:12, fontWeight:600, cursor:'pointer' }}>
+            ⚙️ Settings {settingsOpen ? '▲' : '▼'}
+          </button>
         </div>
 
-        {/* ── FILTER ROW ────────────────────────────────────────────────── */}
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        {/* SETTINGS PANEL */}
+        {settingsOpen && (
+          <div style={{ borderTop:'1px solid #f3f4f6', background:'linear-gradient(to bottom,#f9fafb,#f3f4f6)', padding:'16px 24px 18px' }}>
+            <div style={{ display:'flex', gap:28, alignItems:'flex-start', flexWrap:'wrap' }}>
 
-          {/* Search */}
-          <div style={{ position: 'relative' }}>
-            <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#9ca3af' }}>🔍</span>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, company…"
-              style={{ paddingLeft: 30, paddingRight: 10, paddingTop: 6, paddingBottom: 6, borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12, width: 180, outline: 'none', background: '#f9fafb' }} />
+              {/* Cadence */}
+              <div>
+                <div style={{ fontSize:11, fontWeight:700, color:'#374151', marginBottom:10, textTransform:'uppercase', letterSpacing:'0.06em' }}>
+                  📅 Cadence (days between emails)
+                </div>
+                <div style={{ display:'flex', gap:8, alignItems:'flex-end' }}>
+                  {['Fresh','F1','F2','F3','F4'].map(key => (
+                    <div key={key} style={{ textAlign:'center' }}>
+                      <div style={{ fontSize:10, color:'#6b7280', marginBottom:4, fontWeight:600 }}>{key}</div>
+                      <input type="number" min="1" max="60"
+                        value={cadence[key] ?? DEFAULT_CADENCE[key]}
+                        onChange={e => saveCadence({ ...cadence, [key]: Number(e.target.value) })}
+                        style={{ width:52, padding:'5px 4px', textAlign:'center', borderRadius:7,
+                          border:`1.5px solid ${cadence[key]!==DEFAULT_CADENCE[key]?'#2563eb':'#d1d5db'}`,
+                          fontSize:14, fontWeight:700, color:'#1d4ed8', background:'#fff', outline:'none' }} />
+                    </div>
+                  ))}
+                  <button onClick={() => saveCadence({ ...DEFAULT_CADENCE })}
+                    style={{ padding:'5px 11px', borderRadius:7, border:'1px solid #d1d5db', background:'#fff', fontSize:11, color:'#6b7280', cursor:'pointer', marginBottom:1 }}>
+                    Reset
+                  </button>
+                </div>
+                <div style={{ fontSize:10, color:'#9ca3af', marginTop:6, lineHeight:1.5 }}>
+                  "Fresh" = days after qualifying before F1 email is due.<br />
+                  "F1" = days after F1 sent before F2 is due. And so on.
+                </div>
+              </div>
+
+              <div style={{ width:1, background:'#e5e7eb', alignSelf:'stretch', flexShrink:0 }} />
+
+              {/* Auto-generate toggle */}
+              <div>
+                <div style={{ fontSize:11, fontWeight:700, color:'#374151', marginBottom:10, textTransform:'uppercase', letterSpacing:'0.06em' }}>
+                  ✨ Auto-generation
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                  <div onClick={toggleAutoGen}
+                    style={{ position:'relative', width:46, height:26, borderRadius:13, cursor:'pointer',
+                      background:autoGenerate?'#2563eb':'#d1d5db', transition:'background 0.2s', flexShrink:0 }}>
+                    <div style={{ position:'absolute', top:3, left:autoGenerate?23:3, width:20, height:20,
+                      borderRadius:'50%', background:'#fff', boxShadow:'0 1px 4px rgba(0,0,0,0.25)', transition:'left 0.2s' }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:600, color:autoGenerate?'#2563eb':'#6b7280' }}>
+                      {autoGenerate ? 'On — auto-drafts overdue & today on page open' : 'Off — manual only'}
+                    </div>
+                    <div style={{ fontSize:11, color:'#9ca3af', marginTop:2 }}>
+                      {autoGenerate ? 'AI silently generates drafts when you open this queue' : 'Click "Draft Email" per contact to generate'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ width:1, background:'#e5e7eb', alignSelf:'stretch', flexShrink:0 }} />
+
+              {/* How it works */}
+              <div style={{ fontSize:11, color:'#6b7280', lineHeight:1.7, maxWidth:260 }}>
+                <div style={{ fontWeight:700, color:'#374151', marginBottom:4 }}>How it works</div>
+                <div>1. Contacts arrive as <b>F1</b> after being qualified on Accounts</div>
+                <div>2. Draft email → review → click <b style={{ color:'#059669' }}>Mark Sent</b></div>
+                <div>3. Stage advances (F1→F2…) and due date resets by cadence</div>
+                <div>4. <span style={{ color:'#7c3aed', fontWeight:600 }}>✨ Ready</span> contacts float to top of each timing group</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* FILTER ROW */}
+        <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', padding:'8px 24px 12px' }}>
+          <div style={{ position:'relative' }}>
+            <span style={{ position:'absolute', left:9, top:'50%', transform:'translateY(-50%)', fontSize:12, color:'#9ca3af', pointerEvents:'none' }}>🔍</span>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Name, company, email…"
+              style={{ paddingLeft:28, paddingRight:10, paddingTop:6, paddingBottom:6, borderRadius:8,
+                border:'1px solid #e5e7eb', fontSize:12, width:190, outline:'none', background:'#f9fafb', color:'#111' }} />
           </div>
 
-          {/* Stage filter */}
-          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-            <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>Stage:</span>
-            {['all', ...FOLLOWUP_STAGES].map(s => (
-              <button key={s} onClick={() => setStageFilter(s)} style={{
-                padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: 'none',
-                background: stageFilter === s ? (STAGE_COLORS[s]?.bg || '#2563eb22') : '#f3f4f6',
-                color: stageFilter === s ? (STAGE_COLORS[s]?.color || '#2563eb') : '#6b7280',
-              }}>
-                {s === 'all' ? 'All' : `${s} ${stageCounts[s] ? `(${stageCounts[s]})` : ''}`}
+          <div style={{ display:'flex', gap:4, alignItems:'center' }}>
+            <span style={{ fontSize:10, color:'#9ca3af', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.05em' }}>Stage:</span>
+            {['all', ...FOLLOWUP_STAGES].map(s => {
+              const m = STAGE_META[s]; const active = stageFilter === s;
+              return (
+                <button key={s} onClick={() => setStageFilter(s)}
+                  style={{ padding:'4px 10px', borderRadius:6, fontSize:11, fontWeight:600, cursor:'pointer', border:'none',
+                    background:active?(m?.bg||'#dbeafe'):'#f3f4f6', color:active?(m?.color||'#1d4ed8'):'#6b7280' }}>
+                  {s==='all'?`All (${contacts.length})`:`${s} (${stageCounts[s]||0})`}
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ display:'flex', gap:4 }}>
+            {['overdue','today','week','later'].map(t => (
+              <button key={t} onClick={() => setTimingFilter(f => f===t?'all':t)}
+                style={{ padding:'4px 9px', borderRadius:6, fontSize:11, fontWeight:600, cursor:'pointer', border:'none',
+                  background:timingFilter===t?'#dbeafe':'#f3f4f6', color:timingFilter===t?'#1d4ed8':'#6b7280' }}>
+                {t==='overdue'?'🔴':t==='today'?'🟢':t==='week'?'🟡':'📅'} {t}
               </button>
             ))}
           </div>
 
-          {/* Timing filter */}
-          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-            <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>Due:</span>
-            {TIMING_OPTIONS.filter(t => t.key !== 'all').map(t => (
-              <button key={t.key} onClick={() => setTimingFilter(timingFilter === t.key ? 'all' : t.key)} style={{
-                padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: 'none',
-                background: timingFilter === t.key ? '#dbeafe' : '#f3f4f6',
-                color: timingFilter === t.key ? '#1d4ed8' : '#6b7280',
-              }}>{t.label}</button>
-            ))}
-          </div>
-
-          {/* Response filter */}
           <select value={responseFilter} onChange={e => setResponseFilter(e.target.value)}
-            style={{ padding: '5px 8px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12, background: '#f9fafb', color: '#374151', cursor: 'pointer' }}>
+            style={{ padding:'5px 8px', borderRadius:8, border:'1px solid #e5e7eb', fontSize:12, background:'#f9fafb', color:'#374151', cursor:'pointer' }}>
             <option value="all">All responses</option>
-            {Object.entries(RESPONSE_COLORS).map(([k, v]) => (
-              <option key={k} value={k}>{v.label}</option>
-            ))}
+            {Object.entries(RESPONSE_META).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
 
-          {/* Company filter */}
           {uniqueCompanies.length > 1 && (
             <select value={companyFilter} onChange={e => setCompanyFilter(e.target.value)}
-              style={{ padding: '5px 8px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12, background: '#f9fafb', color: '#374151', cursor: 'pointer', maxWidth: 180 }}>
+              style={{ padding:'5px 8px', borderRadius:8, border:'1px solid #e5e7eb', fontSize:12, background:'#f9fafb', color:'#374151', cursor:'pointer', maxWidth:170 }}>
               <option value="all">All companies</option>
-              {uniqueCompanies.map(c => (
-                <option key={c} value={c}>{c}</option>
-              ))}
+              {uniqueCompanies.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           )}
 
-          {/* Clear filters */}
-          {(search || stageFilter !== 'all' || timingFilter !== 'all' || responseFilter !== 'all' || companyFilter !== 'all') && (
-            <button onClick={() => { setSearch(''); setStageFilter('all'); setTimingFilter('all'); setResponseFilter('all'); setCompanyFilter('all'); }}
-              style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, color: '#6b7280', background: '#f3f4f6', border: 'none', cursor: 'pointer' }}>
+          {anyFilter && (
+            <button onClick={clearFilters}
+              style={{ padding:'4px 10px', borderRadius:6, fontSize:11, fontWeight:500, color:'#dc2626', background:'#fef2f2', border:'none', cursor:'pointer' }}>
               ✕ Clear
             </button>
           )}
         </div>
       </div>
 
-      {/* ── CONTENT ─────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+      {/* CONTENT */}
+      <div style={{ flex:1, overflowY:'auto', padding:'20px 24px' }}>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}>
-            <div style={{ fontSize: 28, marginBottom: 10 }}>⏳</div>Loading queue…
+          <div style={{ textAlign:'center', padding:'80px 20px', color:'#9ca3af' }}>
+            <div style={{ fontSize:32, marginBottom:10 }}>⏳</div>Loading queue…
           </div>
         ) : contacts.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🎉</div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: '#374151' }}>Queue is empty!</div>
-            <div style={{ fontSize: 13, marginTop: 6 }}>Move contacts from Fresh → F1 in the Accounts page to start outreach</div>
+          <div style={{ textAlign:'center', padding:'80px 20px' }}>
+            <div style={{ fontSize:44, marginBottom:14 }}>🎉</div>
+            <div style={{ fontSize:16, fontWeight:700, color:'#374151' }}>Queue is empty!</div>
+            <div style={{ fontSize:13, color:'#6b7280', marginTop:6 }}>Qualify Fresh contacts on the Accounts page — they appear here as F1</div>
           </div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}>
-            <div style={{ fontSize: 32, marginBottom: 10 }}>🔍</div>
-            <div style={{ fontSize: 14, color: '#374151' }}>No contacts match these filters</div>
-            <button onClick={() => { setSearch(''); setStageFilter('all'); setTimingFilter('all'); setResponseFilter('all'); setCompanyFilter('all'); }}
-              style={{ marginTop: 14, padding: '8px 18px', background: '#2563eb', color: '#fff', borderRadius: 8, border: 'none', fontSize: 13, cursor: 'pointer' }}>
+          <div style={{ textAlign:'center', padding:'80px 20px' }}>
+            <div style={{ fontSize:32, marginBottom:10 }}>🔍</div>
+            <div style={{ fontSize:14, fontWeight:600, color:'#374151' }}>No matches</div>
+            <button onClick={clearFilters}
+              style={{ marginTop:14, padding:'8px 18px', background:'#2563eb', color:'#fff', borderRadius:8, border:'none', fontSize:13, cursor:'pointer', fontWeight:600 }}>
               Clear filters
             </button>
           </div>
         ) : (
           activeGroups.map(group => (
-            <div key={group.key} style={{ marginBottom: 28 }}>
-              {/* Group header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: group.color,
-                  padding: '4px 12px', background: group.color + '15', borderRadius: 20 }}>
-                  {group.label} · {group.items.length}
-                </span>
-                <div style={{ flex: 1, height: 1, background: '#e5e7eb' }} />
-              </div>
-
-              {/* Contact rows */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {group.items.map(c => (
-                  <ContactRow
-                    key={c.id}
-                    contact={c}
-                    account={accounts[c.account_id]}
-                    advancing={advancing === c.id}
-                    snoozingId={snoozingId === c.id}
-                    draftOpen={draftOpen === c.id}
-                    draft={drafts[c.id]}
-                    drafting={drafting === c.id}
-                    copied={copied === c.id}
-                    onAdvance={() => advanceStage(c)}
-                    onSnooze={(days) => snooze(c.id, days)}
-                    onDraft={() => generateEmail(c)}
-                    onToggleDraft={() => setDraftOpen(d => d === c.id ? null : c.id)}
-                    onCopy={() => copyEmail(c.id)}
-                    onViewContact={() => navigate(`/contacts/${c.id}`)}
-                  />
-                ))}
-              </div>
-            </div>
+            <TimingGroup key={group.key} group={group} {...sharedProps} />
           ))
         )}
       </div>
@@ -390,89 +487,142 @@ export default function FollowUps() {
   );
 }
 
-// ── ContactRow component ───────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 
-function ContactRow({ contact: c, account, advancing, snoozingId, draftOpen, draft, drafting, copied, onAdvance, onSnooze, onDraft, onToggleDraft, onCopy, onViewContact }) {
-  const sc = STAGE_COLORS[c.status] || { bg: '#f1f5f9', color: '#475569' };
-  const rc = c.response ? RESPONSE_COLORS[c.response] : null;
-  const next = NEXT_STAGE[c.status];
-  const ac = avatarColor(c.full_name);
-  const dueDate = c.next_followup ? new Date(c.next_followup) : null;
-  const isOverdue = dueDate && dueDate < new Date();
-  const hasDraft = !!draft;
+function TimingGroup({ group, ...props }) {
+  const readyItems = group.items.filter(c => c._hasDraft);
+  const needsItems = group.items.filter(c => !c._hasDraft);
 
   return (
-    <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', transition: 'box-shadow 0.15s' }}>
-      {/* Main row */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
+    <div style={{ marginBottom:28 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
+        <span style={{ fontSize:12, fontWeight:700, color:group.color, padding:'3px 14px',
+          background:group.color+'18', borderRadius:20, flexShrink:0 }}>
+          {group.label} · {group.items.length}
+        </span>
+        <div style={{ flex:1, height:1, background:'#e5e7eb' }} />
+        {readyItems.length > 0 && (
+          <span style={{ fontSize:11, fontWeight:600, color:'#7c3aed', padding:'2px 9px',
+            background:'#f5f3ff', borderRadius:12, border:'1px solid #ede9fe', flexShrink:0 }}>
+            {readyItems.length} ✨ ready to send
+          </span>
+        )}
+      </div>
 
-        {/* Avatar */}
-        <div onClick={onViewContact} style={{ width: 38, height: 38, borderRadius: '50%', background: ac, color: '#fff',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700,
-          flexShrink: 0, cursor: 'pointer', userSelect: 'none' }}>
+      {readyItems.length > 0 && (
+        <>
+          <div style={{ fontSize:10, fontWeight:700, color:'#7c3aed', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:5, paddingLeft:4 }}>
+            ✓ Ready to Send
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:7, marginBottom: needsItems.length ? 14 : 0 }}>
+            {readyItems.map(c => <ContactRow key={c.id} contact={c} {...props} />)}
+          </div>
+        </>
+      )}
+
+      {needsItems.length > 0 && (
+        <>
+          {readyItems.length > 0 && (
+            <div style={{ fontSize:10, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:5, paddingLeft:4 }}>
+              ⏳ Needs Email
+            </div>
+          )}
+          <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
+            {needsItems.map(c => <ContactRow key={c.id} contact={c} {...props} />)}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, markingSent,
+  onGenerate, onToggleDraft, onRegenerate, onMarkSent, onSnooze, onCopy, onView }) {
+
+  const sm       = STAGE_META[c.status] || { bg:'#f1f5f9', color:'#475569', label:c.status };
+  const rm       = c.response ? RESPONSE_META[c.response] : null;
+  const account  = accounts[c.account_id];
+  const draft    = drafts[c.id];
+  const hasDraft = !!draft;
+  const isOverdue    = c._bucket === 'overdue';
+  const isDrafting   = drafting === c.id;
+  const isDraftOpen  = draftOpen === c.id;
+  const isMarking    = markingSent === c.id;
+  const isCopied     = copied === c.id;
+  const ac = avatarColor(c.full_name);
+
+  return (
+    <div style={{
+      background:'#fff', borderRadius:10, overflow:'hidden',
+      border:`1px solid ${hasDraft?'#e9d5ff':'#e5e7eb'}`,
+      borderLeft:`3px solid ${hasDraft?'#7c3aed':isOverdue?'#ef4444':'#e5e7eb'}`,
+      boxShadow:hasDraft?'0 1px 6px rgba(124,58,237,0.09)':'0 1px 3px rgba(0,0,0,0.04)',
+    }}>
+
+      {/* Main row */}
+      <div style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 14px' }}>
+        <div onClick={() => onView(c.id)}
+          style={{ width:36, height:36, borderRadius:'50%', background:ac, color:'#fff',
+            display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700,
+            flexShrink:0, cursor:'pointer', userSelect:'none' }}>
           {getInitials(c.full_name)}
         </div>
 
-        {/* Name + company */}
-        <div style={{ flex: '0 0 220px', minWidth: 0, cursor: 'pointer' }} onClick={onViewContact}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div style={{ flex:'0 0 210px', minWidth:0, cursor:'pointer' }} onClick={() => onView(c.id)}>
+          <div style={{ fontSize:13, fontWeight:600, color:'#111', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
             {c.full_name}
           </div>
-          <div style={{ fontSize: 11, color: '#6b7280', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {c.title ? `${c.title} · ` : ''}{c.company || '—'}
+          <div style={{ fontSize:11, color:'#6b7280', marginTop:1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+            {c.title?`${c.title} · `:''}{c.company||'—'}
           </div>
         </div>
 
-        {/* Stage */}
-        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 6, background: sc.bg, color: sc.color, flexShrink: 0, whiteSpace: 'nowrap' }}>
-          {STAGE_LABELS[c.status] || c.status}
+        <span style={{ fontSize:11, fontWeight:700, padding:'3px 9px', borderRadius:6, background:sm.bg, color:sm.color, flexShrink:0, whiteSpace:'nowrap' }}>
+          {sm.label}
         </span>
 
-        {/* Response badge */}
-        {rc ? (
-          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: rc.bg, color: rc.color, fontWeight: 500, flexShrink: 0 }}>
-            {rc.label}
+        {rm && (
+          <span style={{ fontSize:11, padding:'2px 8px', borderRadius:6, background:rm.bg, color:rm.color, fontWeight:500, flexShrink:0 }}>
+            {rm.label}
           </span>
-        ) : <span style={{ width: 60, flexShrink: 0 }} />}
+        )}
 
-        {/* Account */}
         {account && (
-          <span style={{ fontSize: 11, color: '#6b7280', flexShrink: 0, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize:11, color:'#6b7280', flexShrink:0, maxWidth:130, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
             🏢 {account.name}
           </span>
         )}
 
-        <div style={{ flex: 1 }} />
+        <div style={{ flex:1 }} />
 
-        {/* Due date */}
-        <div style={{ fontSize: 11, fontWeight: 500, color: isOverdue ? '#dc2626' : dueDate ? '#6b7280' : '#d1d5db',
-          flexShrink: 0, width: 80, textAlign: 'right' }}>
-          {dueDate ? (isOverdue ? `⚠ ${dueDate.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}` : dueDate.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})) : 'No date'}
+        <div style={{ fontSize:11, fontWeight:600, flexShrink:0, width:72, textAlign:'right',
+          color:isOverdue?'#dc2626':c._due?'#374151':'#d1d5db' }}>
+          {isOverdue && '⚠ '}{formatDue(c._due)}
         </div>
 
-        {/* Actions */}
-        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-          {/* Draft email */}
-          <button onClick={hasDraft ? onToggleDraft : onDraft} disabled={drafting}
-            style={{ padding: '5px 11px', borderRadius: 7, fontSize: 11, fontWeight: 600, border: 'none', cursor: drafting ? 'wait' : 'pointer',
-              background: hasDraft ? (draftOpen ? '#ede9fe' : '#f3e8ff') : 'linear-gradient(135deg,#7c3aed,#2563eb)',
-              color: hasDraft ? '#7c3aed' : '#fff' }}>
-            {drafting ? '⏳' : hasDraft ? (draftOpen ? '✉️ Hide' : '✉️ Email') : '✨ Draft Email'}
+        <div style={{ display:'flex', gap:5, flexShrink:0, alignItems:'center' }}>
+          <button onClick={hasDraft ? () => onToggleDraft(c) : () => onGenerate(c)} disabled={isDrafting}
+            style={{ padding:'5px 11px', borderRadius:7, fontSize:11, fontWeight:600, border:'none',
+              cursor:isDrafting?'wait':'pointer',
+              background:hasDraft?(isDraftOpen?'#ede9fe':'#f5f3ff'):'linear-gradient(135deg,#7c3aed,#2563eb)',
+              color:hasDraft?'#7c3aed':'#fff',
+              boxShadow:!hasDraft?'0 1px 4px rgba(37,99,235,0.3)':'none' }}>
+            {isDrafting ? '✨ Drafting…' : hasDraft ? (isDraftOpen ? '📧 Hide' : '📧 Show Draft') : '✨ Draft Email'}
           </button>
 
-          {/* Advance stage */}
-          {next && (
-            <button onClick={onAdvance} disabled={advancing}
-              style={{ padding: '5px 11px', borderRadius: 7, fontSize: 11, fontWeight: 600, border: 'none',
-                background: '#2563eb', color: '#fff', cursor: advancing ? 'wait' : 'pointer' }}>
-              {advancing ? '…' : `→ ${next}`}
+          {hasDraft && (
+            <button onClick={() => onMarkSent(c)} disabled={isMarking}
+              style={{ padding:'5px 11px', borderRadius:7, fontSize:11, fontWeight:700, border:'none',
+                background:isMarking?'#d1fae5':'#059669', color:'#fff', cursor:isMarking?'wait':'pointer',
+                boxShadow:'0 1px 4px rgba(5,150,105,0.3)' }}>
+              {isMarking ? '✓ Sent!' : '✓ Mark Sent'}
             </button>
           )}
 
-          {/* Snooze */}
-          <select disabled={snoozingId}
-            onChange={e => { if (e.target.value) onSnooze(Number(e.target.value)); e.target.value = ''; }}
-            style={{ padding: '5px 7px', borderRadius: 7, border: '1px solid #e5e7eb', fontSize: 11, background: '#f9fafb', cursor: 'pointer', color: '#374151' }}>
+          <select onChange={e => { if(e.target.value){ onSnooze(c.id, Number(e.target.value)); e.target.value=''; } }}
+            style={{ padding:'5px 6px', borderRadius:7, border:'1px solid #e5e7eb', fontSize:11, background:'#f9fafb', color:'#374151', cursor:'pointer' }}>
             <option value="">Snooze…</option>
             <option value="1">Tomorrow</option>
             <option value="3">3 days</option>
@@ -480,51 +630,58 @@ function ContactRow({ contact: c, account, advancing, snoozingId, draftOpen, dra
             <option value="14">2 weeks</option>
           </select>
 
-          {/* View contact */}
-          <button onClick={onViewContact}
-            style={{ padding: '5px 9px', borderRadius: 7, fontSize: 11, border: '1px solid #e5e7eb', background: '#fff', color: '#6b7280', cursor: 'pointer' }}>
+          <button onClick={() => onView(c.id)}
+            style={{ padding:'5px 9px', borderRadius:7, fontSize:11, fontWeight:600, border:'1px solid #e5e7eb', background:'#fff', color:'#6b7280', cursor:'pointer' }}>
             →
           </button>
         </div>
       </div>
 
-      {/* Email draft panel */}
-      {draftOpen && (
-        <div style={{ borderTop: '1px solid #f0f0ee', background: '#fafaf9', padding: '16px 18px' }}>
-          {drafting ? (
-            <div style={{ textAlign: 'center', padding: '20px 0', color: '#7c3aed', fontSize: 13 }}>
-              <div style={{ fontSize: 22, marginBottom: 8 }}>✨</div>
-              Generating {STAGE_LABELS[c.status]} email…
+      {/* Draft panel */}
+      {isDraftOpen && (
+        <div style={{ borderTop:`1px solid ${hasDraft?'#ede9fe':'#f3f4f6'}`, background:'linear-gradient(to bottom,#fdf8ff,#faf5ff)', padding:'14px 16px' }}>
+          {isDrafting ? (
+            <div style={{ textAlign:'center', padding:'28px 0', color:'#7c3aed' }}>
+              <div style={{ fontSize:26, marginBottom:10 }}>✨</div>
+              <div style={{ fontSize:13, fontWeight:700 }}>Generating {sm.label} email…</div>
+              <div style={{ fontSize:11, color:'#9ca3af', marginTop:5 }}>Using account research + prior email context</div>
             </div>
           ) : draft ? (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', flex: 1 }}>
-                  ✉️ {STAGE_LABELS[c.status]} — AI Draft
-                </div>
-                <button onClick={onDraft} style={{ fontSize: 11, padding: '3px 9px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', color: '#7c3aed', cursor: 'pointer', fontWeight: 500 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'#374151', flex:1 }}>✉️ AI Draft — {sm.label}</div>
+                <button onClick={() => onRegenerate(c)}
+                  style={{ fontSize:11, padding:'3px 10px', borderRadius:6, border:'1px solid #e5e7eb', background:'#fff', color:'#7c3aed', cursor:'pointer', fontWeight:500 }}>
                   ↻ Regenerate
                 </button>
-                <button onClick={onCopy} style={{ fontSize: 11, padding: '3px 12px', borderRadius: 6, border: 'none', background: copied ? '#059669' : '#2563eb', color: '#fff', cursor: 'pointer', fontWeight: 600, transition: 'background 0.2s' }}>
-                  {copied ? '✓ Copied!' : '📋 Copy'}
+                <button onClick={() => onCopy(c.id)}
+                  style={{ fontSize:11, padding:'3px 12px', borderRadius:6, border:'none',
+                    background:isCopied?'#059669':'#6d28d9', color:'#fff', cursor:'pointer', fontWeight:600, transition:'background 0.2s' }}>
+                  {isCopied ? '✓ Copied!' : '📋 Copy'}
+                </button>
+                <button onClick={() => onMarkSent(c)} disabled={isMarking}
+                  style={{ fontSize:11, padding:'3px 12px', borderRadius:6, border:'none',
+                    background:isMarking?'#6ee7b7':'#059669', color:'#fff', cursor:isMarking?'wait':'pointer', fontWeight:700 }}>
+                  {isMarking ? '✓ Sent!' : '✓ Mark Sent'}
                 </button>
               </div>
-              {/* Subject */}
-              <div style={{ marginBottom: 10 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Subject</span>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#111', marginTop: 3, padding: '7px 10px', background: '#fff', borderRadius: 7, border: '1px solid #e5e7eb' }}>
+
+              <div style={{ marginBottom:10 }}>
+                <div style={{ fontSize:10, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Subject</div>
+                <div style={{ fontSize:13, fontWeight:600, color:'#111', padding:'8px 11px', background:'#fff', borderRadius:7, border:'1px solid #e5e7eb' }}>
                   {draft.subject}
                 </div>
               </div>
-              {/* Body */}
+
               <div>
-                <span style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Body</span>
-                <div style={{ fontSize: 12, lineHeight: 1.75, color: '#374151', marginTop: 4, padding: '10px 12px', background: '#fff', borderRadius: 7, border: '1px solid #e5e7eb', whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+                <div style={{ fontSize:10, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Body</div>
+                <div style={{ fontSize:12, lineHeight:1.85, color:'#374151', padding:'10px 13px', background:'#fff', borderRadius:7, border:'1px solid #e5e7eb', whiteSpace:'pre-wrap', fontFamily:'inherit' }}>
                   {draft.body}
                 </div>
               </div>
-              <div style={{ marginTop: 10, fontSize: 11, color: '#9ca3af' }}>
-                AI draft — review and personalise before sending
+
+              <div style={{ marginTop:10, fontSize:11, color:'#9ca3af' }}>
+                ⚠ Review and personalise before sending · click <strong style={{ color:'#059669' }}>Mark Sent</strong> after you send it to advance the stage
               </div>
             </>
           ) : null}
