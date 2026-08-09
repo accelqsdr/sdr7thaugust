@@ -50,7 +50,7 @@ export default function Contacts() {
 
   // Add contact modal
   const [showAddContact, setShowAddContact] = useState(false);
-  const [newContact, setNewContact] = useState({ full_name:'', email:'', company:'', title:'', country:'', status:'Fresh' });
+  const [newContact, setNewContact] = useState({ full_name:'', email:'', company:'', title:'', country:'', seniority:'', status:'Fresh' });
   const [adding, setAdding] = useState(false);
 
   const fetchContacts = useCallback(async () => {
@@ -130,9 +130,9 @@ export default function Contacts() {
   // ── Bulk: export CSV ──
   function bulkExport() {
     const rows = contacts.filter(c => selected.has(c.id));
-    const headers = ['Name','Email','Company','Title','Country','Stage','Response','Last Emailed','Next Follow-up'];
+    const headers = ['Name','Email','Company','Title','Seniority','Country','Stage','Response','Last Emailed','Next Follow-up'];
     const lines = rows.map(c => [
-      c.full_name, c.email, c.company, c.title || '', c.country || '',
+      c.full_name, c.email, c.company, c.title || '', c.seniority || '', c.country || '',
       c.status, c.response || '',
       c.last_contacted ? new Date(c.last_contacted).toLocaleDateString() : '',
       c.next_followup ? new Date(c.next_followup).toLocaleDateString() : '',
@@ -177,6 +177,7 @@ export default function Contacts() {
       email: newContact.email.trim() || null,
       company: newContact.company.trim() || null,
       title: newContact.title.trim() || null,
+      seniority: newContact.seniority.trim() || null,
       country: newContact.country.trim() || null,
       status: newContact.status,
       sequence_step: STEP_MAP[newContact.status] ?? 0,
@@ -279,7 +280,7 @@ export default function Contacts() {
                 <input type="checkbox" checked={allChecked} ref={el => { if (el) el.indeterminate = someChecked; }}
                   onChange={toggleAll} style={{ cursor: 'pointer', width: 14, height: 14 }} />
               </th>
-              {['Name','Company','Email','Stage','Response','Last emailed','Next follow-up','Actions'].map(h => (
+              {['Name','Company','Designation','Email','Stage','Response','Last emailed','Next follow-up','Actions'].map(h => (
                 <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, color: '#999', fontWeight: 500 }}>{h}</th>
               ))}
             </tr>
@@ -307,6 +308,7 @@ export default function Contacts() {
                     {c.bounced && <span style={{ marginLeft: 6, fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 10 }}>BOUNCED</span>}
                   </td>
                   <td style={{ padding: '10px 14px', color: '#555' }}>{c.company || '—'}</td>
+                  <td style={{ padding: '10px 14px', color: '#777', fontSize: 12 }}>{c.title || '—'}</td>
                   <td style={{ padding: '10px 14px', color: '#555', fontSize: 12 }}>{c.email || '—'}</td>
                   <td style={{ padding: '10px 14px' }}>
                     <span style={{ padding: '3px 9px', borderRadius: 10, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color }}>{c.status}</span>
@@ -368,6 +370,7 @@ export default function Contacts() {
                 { key: 'company', label: 'Company', placeholder: 'Infosys' },
                 { key: 'title', label: 'Title / Designation', placeholder: 'QA Lead' },
                 { key: 'country', label: 'Country', placeholder: 'India' },
+                { key: 'seniority', label: 'Seniority / Level', placeholder: 'VP / Director / Manager…' },
               ].map(f => (
                 <div key={f.key} style={{ gridColumn: f.full ? 'span 2' : 'span 1' }}>
                   <label style={{ fontSize: 11, color: '#666', display: 'block', marginBottom: 4 }}>{f.label}</label>
@@ -411,6 +414,7 @@ const CSV_FIELDS = [
   { key: 'phone',        label: 'Phone' },
   { key: 'industry',     label: 'Industry' },
   { key: 'linkedin_url', label: 'LinkedIn URL' },
+  { key: 'seniority',    label: 'Seniority / Level' },
 ];
 
 // Auto-guess mapping based on header name similarity
@@ -424,6 +428,7 @@ function guessField(header) {
   if (/phone|mobile|cell|tel/.test(h)) return 'phone';
   if (/industry|sector|vertical/.test(h)) return 'industry';
   if (/linkedin|profile/.test(h)) return 'linkedin_url';
+  if (/seniority|level|seniorit|grade|band/.test(h)) return 'seniority';
   return '';
 }
 
