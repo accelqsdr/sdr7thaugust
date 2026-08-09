@@ -106,7 +106,7 @@ export default function Accounts() {
     setLoading(true);
     const [{ data: accs }, { data: cts }] = await Promise.all([
       supabase.from('accounts').select('*').eq('owner_id', user.id),
-      supabase.from('contacts').select('id, account_id, full_name, title, status, response, email').eq('owner_id', user.id),
+      supabase.from('contacts').select('id, account_id, full_name, title, seniority, status, response, email, pitch, last_emailed').eq('owner_id', user.id),
     ]);
     const byAcct = {};
     (cts || []).forEach(c => {
@@ -219,7 +219,7 @@ export default function Accounts() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: '#111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.name}</div>
-                    <div style={{ fontSize: 11, color: '#888' }}>{ctcs.length} contact{ctcs.length !== 1 ? 's' : ''}{a.country ? ` · ${a.country}` : ''}</div>
+                    <div style={{ fontSize: 11, color: '#888' }}>{ctcs.length} contact{ctcs.length !== 1 ? 's' : ''}{a.country ? ` · ${a.country}` : ''}{a.revenue_millions ? ` · $${Number(a.revenue_millions).toLocaleString()}M` : ''}</div>
                   </div>
                   <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 6px', borderRadius: 5, background: sc.bg, color: sc.color, flexShrink: 0 }}>{score}</span>
                 </div>
@@ -306,6 +306,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
   const [showAddCustom, setShowAddCustom] = useState(false);
   const [notesValue, setNotesValue] = useState(account.notes || '');
   const notesTimer = useRef(null);
+  const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
 
   const score = calcScore(data, contacts);
   const sc = scoreColor(score);
@@ -372,6 +373,19 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
   }
   async function saveLinkedIn() { await patch({ linkedin_url: linkedInDraft }); setEditingLinkedIn(false); }
 
+  async function generateResearch(key, label) {
+    setResearchGenerating(g => ({ ...g, [key]: true }));
+    try {
+      const result = await supabase.functions.invoke('generate-research', {
+        body: { account: { name: data.name, industry: data.industry, country: data.country, revenue_millions: data.revenue_millions, signals: data.signals, testing_tools: data.testing_tools }, sectionKey: key, sectionLabel: label }
+      });
+      if (!result.error && result.data?.text) {
+        await saveResearch(key, result.data.text);
+      }
+    } catch(e) { console.error('Generate research error:', e); }
+    setResearchGenerating(g => ({ ...g, [key]: false }));
+  }
+
   const tools = data.testing_tools || [];
   const eApps = data.enterprise_apps || [];
   const saasApps = data.saas_apps || [];
@@ -394,7 +408,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 14, fontWeight: 700, padding: '4px 12px', borderRadius: 8, background: sc.bg, color: sc.color }}>{score}</span>
+          <button onClick={() => setShowScoreBreakdown(true)} title="Click to see breakdown" style={{ fontSize: 14, fontWeight: 700, padding: '4px 12px', borderRadius: 8, background: sc.bg, color: sc.color, border: 'none', cursor: 'pointer' }}>{score} ▾</button>
           {editingLinkedIn ? (
             <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
               <input value={linkedInDraft} onChange={e => setLinkedInDraft(e.target.value)}
@@ -431,6 +445,41 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
           {getSignalBadges(data).map(b => (
             <span key={b.label} style={{ fontSize: 11, fontWeight: 600, padding: '2px 9px', borderRadius: 10, background: b.bg, color: b.color }}>{b.label}</span>
           ))}
+        </div>
+      )}
+
+      {/* Dashboard Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 12 }}>
+        <div style={{ background: '#f8faff', border: '1px solid #dbeafe', borderRadius: 10, padding: '12px 14px' }}>
+          <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 500, marginBottom: 3 }}>Total Contacts</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: '#111' }}>{contacts.length}</div>
+        </div>
+        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '12px 14px' }}>
+          <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 500, marginBottom: 3 }}>Contacted</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: '#16a34a' }}>{contacts.filter(c => c.status !== 'Fresh').length}</div>
+        </div>
+        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 14px' }}>
+          <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 500, marginBottom: 3 }}>Remaining</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: '#d97706' }}>{contacts.filter(c => c.status === 'Fresh').length}</div>
+        </div>
+        <div style={{ background: '#fdf4ff', border: '1px solid #e9d5ff', borderRadius: 10, padding: '12px 14px' }}>
+          <div style={{ fontSize: 11, color: '#6b7280', fontWeight: 500, marginBottom: 3 }}>Warm / Prospect</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: '#7c3aed' }}>{contacts.filter(c => c.response === 'warm' || c.response === 'prospect').length}</div>
+        </div>
+      </div>
+      {contacts.length > 0 && (
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 14, alignItems: 'center' }}>
+          {['F1','F2','F3','F4','F5','won','lost','bounced','unsubscribed'].map(s => {
+            const cnt = contacts.filter(c => c.status === s).length;
+            if (!cnt) return null;
+            const sc2 = STAGE_COLORS[s] || { bg: '#f1f5f9', color: '#475569' };
+            return <span key={s} style={{ fontSize: 11, fontWeight: 600, padding: '2px 9px', borderRadius: 10, background: sc2.bg, color: sc2.color }}>{s}: {cnt}</span>;
+          })}
+          {data.revenue_millions && (
+            <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 9px', borderRadius: 10, background: '#f0f9ff', color: '#0369a1', marginLeft: 'auto' }}>
+              💰 ${Number(data.revenue_millions).toLocaleString()}M revenue
+            </span>
+          )}
         </div>
       )}
 
@@ -570,7 +619,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
         {RESEARCH_DEFAULTS.map(r => (
           <ResearchCard key={r.key} label={r.label} value={research[r.key] || ''}
             generating={!!researchGenerating[r.key]}
-            onGenerate={() => {}}
+            onGenerate={() => generateResearch(r.key, r.label)}
             onSave={val => saveResearch(r.key, val)} />
         ))}
 
@@ -613,21 +662,69 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
         ) : contacts.map(c => {
           const sc2 = STAGE_COLORS[c.status] || { bg: '#f1f5f9', color: '#475569' };
           return (
-            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderBottom: '1px solid #f0f0ee' }}>
+            <div key={c.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', borderBottom: '1px solid #f0f0ee' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>{c.full_name}</div>
-                {c.title && <div style={{ fontSize: 11, color: '#888' }}>{c.title}</div>}
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.full_name}</div>
+                <div style={{ fontSize: 11, color: '#888' }}>{[c.title, c.seniority].filter(Boolean).join(' · ')}</div>
+                {c.pitch && <div style={{ fontSize: 11, color: '#7c3aed', marginTop: 2, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 300 }}>"{c.pitch}"</div>}
               </div>
-              <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: sc2.bg, color: sc2.color, flexShrink: 0 }}>{c.status}</span>
-              {c.email && <span style={{ fontSize: 11, color: '#2563eb', flexShrink: 0 }}>{c.email}</span>}
-              <button onClick={() => navigate(`/contacts/${c.id}`)}
-                style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, border: '1px solid #e0e0e0', background: '#fff', color: '#2563eb', cursor: 'pointer', fontWeight: 500, flexShrink: 0 }}>
-                View →
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: sc2.bg, color: sc2.color }}>{c.status}</span>
+                {c.email ? (
+                  <span style={{ fontSize: 11, color: '#555', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.email}>✉️ {c.email}</span>
+                ) : (
+                  <button onClick={() => window.open(`https://app.apollo.io/#/people?name=${encodeURIComponent(c.full_name)}&organization_name=${encodeURIComponent(data.name)}`, '_blank')}
+                    style={{ fontSize: 10, padding: '2px 7px', borderRadius: 5, border: '1px dashed #d97706', background: 'none', color: '#d97706', cursor: 'pointer' }}>
+                    🔍 Find Email
+                  </button>
+                )}
+                <button onClick={() => navigate(`/contacts/${c.id}`)}
+                  style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '1px solid #e0e0e0', background: '#fff', color: '#2563eb', cursor: 'pointer', fontWeight: 500 }}>
+                  View →
+                </button>
+              </div>
             </div>
           );
         })}
       </div>
+      {/* Score Breakdown Popup */}
+      {showScoreBreakdown && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setShowScoreBreakdown(false)}>
+          <div style={{ background: '#fff', borderRadius: 14, padding: 24, width: 380, maxWidth: '95vw', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 18 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, flex: 1 }}>Score Breakdown</div>
+              <button onClick={() => setShowScoreBreakdown(false)} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#888' }}>✕</button>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
+              <span style={{ fontSize: 36, fontWeight: 800, padding: '8px 20px', borderRadius: 12, background: sc.bg, color: sc.color }}>{score}</span>
+            </div>
+            {[
+              { label: '🔧 Tool Fit', pts: tools.some(t => t.status === 'Legacy') ? 30 : tools.some(t => t.status === 'Evaluating') ? 20 : tools.length > 0 ? 15 : 0, max: 30,
+                detail: tools.some(t => t.status === 'Legacy') ? `Legacy: ${tools.filter(t=>t.status==='Legacy').map(t=>t.tool).join(', ')}` : tools.some(t=>t.status==='Evaluating') ? 'Evaluating tools' : tools.length > 0 ? 'Modern tools' : 'No tools recorded' },
+              { label: '📡 Intent Signals', pts: Math.min([signals.hiringQA&&10,signals.funding&&10,signals.outage&&8,signals.recentLaunch&&6,signals.leadershipChange&&6,signals.cicd&&5].filter(Boolean).reduce((a,b)=>a+b,0),45), max: 45,
+                detail: SIGNAL_DEFS.filter(s=>signals[s.key]).map(s=>s.label).join(', ') || 'No signals active' },
+              { label: '💬 Engagement', pts: Math.min(contacts.filter(c=>c.response==='warm'||c.response==='prospect').length*5,15), max: 15,
+                detail: `${contacts.filter(c=>c.response==='warm'||c.response==='prospect').length} warm/prospect contacts` },
+              { label: '🔬 Research', pts: Math.min(Object.values(data.research||{}).filter(v=>v&&v.length>10).length*2,10), max: 10,
+                detail: `${Object.values(data.research||{}).filter(v=>v&&v.length>10).length} research sections filled` },
+            ].map(row => (
+              <div key={row.label} style={{ marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, flex: 1 }}>{row.label}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: row.pts > 0 ? '#2563eb' : '#ccc' }}>{row.pts}<span style={{ fontSize: 11, fontWeight: 400, color: '#aaa' }}>/{row.max}</span></span>
+                </div>
+                <div style={{ height: 6, background: '#f0f0f0', borderRadius: 4, overflow: 'hidden', marginBottom: 3 }}>
+                  <div style={{ height: '100%', width: `${row.max > 0 ? (row.pts/row.max)*100 : 0}%`, background: row.pts > 0 ? '#2563eb' : '#f0f0f0', borderRadius: 4, transition: 'width 0.4s' }} />
+                </div>
+                <div style={{ fontSize: 11, color: '#888' }}>{row.detail}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
