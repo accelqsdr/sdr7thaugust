@@ -124,7 +124,30 @@ export default function FollowUps() {
   const [companyFilter,  setCompanyFilter]  = useState('all');
 
   // Email draft
-  const [drafts,      setDrafts]      = useState({});
+  const [drafts, setDraftsRaw] = useState(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem('sdr_drafts') || '{}');
+      // Prune entries older than 7 days so localStorage stays lean
+      const cutoff = Date.now() - 7 * 86400000;
+      const pruned = {};
+      Object.entries(raw).forEach(([id, val]) => {
+        if (!val._savedAt || val._savedAt > cutoff) pruned[id] = val;
+      });
+      return pruned;
+    } catch { return {}; }
+  });
+  function setDrafts(updater) {
+    setDraftsRaw(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      // Stamp each new/changed draft with _savedAt for expiry
+      const stamped = {};
+      Object.entries(next).forEach(([id, val]) => {
+        stamped[id] = val._savedAt ? val : { ...val, _savedAt: Date.now() };
+      });
+      try { localStorage.setItem('sdr_drafts', JSON.stringify(stamped)); } catch {}
+      return stamped;
+    });
+  }
   const [drafting,    setDrafting]    = useState(null);
   const [draftOpen,   setDraftOpen]   = useState(null);
   const [copied,      setCopied]      = useState(null);
@@ -173,17 +196,27 @@ export default function FollowUps() {
     return rows || [];
   }
 
-  // Auto-generate on first load
+  // Auto-generate on first load — throttled: one at a time, 400ms gap
   useEffect(() => {
     if (loading || autoGenRanRef.current || !autoGenerate) return;
     autoGenRanRef.current = true;
-    contacts.forEach(c => {
+
+    const queue = contacts.filter(c => {
       const due = computeDue(c, cadence);
       const b = getBucket(due);
-      if ((b === 'overdue' || b === 'today') && !drafts[c.id]) {
-        doGenerate(c, true);
-      }
+      return (b === 'overdue' || b === 'today') && !drafts[c.id];
     });
+
+    if (queue.length === 0) return;
+
+    let i = 0;
+    async function runNext() {
+      if (i >= queue.length) return;
+      const contact = queue[i++];
+      await doGenerate(contact, true);
+      setTimeout(runNext, 400); // 400ms gap between calls
+    }
+    runNext();
   }, [loading]);
 
   function saveCadence(next) {
