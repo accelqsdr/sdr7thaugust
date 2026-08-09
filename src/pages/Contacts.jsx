@@ -96,12 +96,10 @@ export default function Contacts() {
     setTotalCount(count || 0);
     setSelected(new Set());
 
-    // Stage counts (separate query, no pagination)
-    const { data: allForCount } = await supabase
-      .from('contacts').select('status, bounced')
-      .eq('owner_id', user.id);
+    // Stage counts via RPC (bypasses 1000-row cap)
+    const { data: countRows } = await supabase.rpc('get_contact_stage_counts');
     const counts = {};
-    STAGES.forEach(s => { counts[s] = (allForCount || []).filter(c => c.status === s).length; });
+    (countRows || []).forEach(r => { counts[r.status] = Number(r.cnt); });
     setStageCounts(counts);
 
     setLoading(false);
