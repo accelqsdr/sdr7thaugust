@@ -10,6 +10,7 @@ const navByRole = {
     { to: '/followups', icon: '🕐', label: 'Follow-ups' },
     { to: '/pipeline', icon: '📊', label: 'Pipeline' },
     { to: '/sequences', icon: '🔁', label: 'Sequences' },
+    { to: '/settings', icon: '⚙️', label: 'Settings' },
   ],
   poc: [
     { to: '/', icon: '⊞', label: 'Dashboard', end: true },
@@ -19,6 +20,7 @@ const navByRole = {
     { to: '/followups', icon: '🕐', label: 'Follow-ups' },
     { to: '/activity', icon: '📡', label: 'Activity feed' },
     { to: '/reports', icon: '📈', label: 'Reports' },
+    { to: '/settings', icon: '⚙️', label: 'Settings' },
   ],
   manager: [
     { to: '/', icon: '⊞', label: 'Dashboard', end: true },
@@ -28,6 +30,7 @@ const navByRole = {
     { to: '/analytics', icon: '📈', label: 'Analytics' },
     { to: '/activity', icon: '📡', label: 'Activity' },
     { to: '/reports', icon: '📄', label: 'Reports' },
+    { to: '/settings', icon: '⚙️', label: 'Settings' },
   ],
   director: [
     { to: '/', icon: '⊞', label: 'Overview', end: true },
@@ -44,7 +47,8 @@ const roleColors = { director: '#7c3aed', manager: '#d97706', poc: '#2563eb', sd
 const roleLabels = { director: 'Director', manager: 'Manager', poc: 'POC', sdr: 'SDR' };
 
 export default function Sidebar() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
+  const displayName = profile?.full_name || user?.email?.split('@')[0] || '—';
   const role = profile?.role || 'sdr';
   const nav = navByRole[role] || navByRole.sdr;
   const color = roleColors[role];
@@ -76,7 +80,7 @@ export default function Sidebar() {
       {/* Role badge */}
       <div style={{ padding: '10px 16px', borderBottom: '0.5px solid #e8e8e4' }}>
         <div style={{ fontSize: 11, color: '#999', marginBottom: 4 }}>Signed in as</div>
-        <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{profile?.full_name || '—'}</div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{displayName}</div>
         <span style={{ display: 'inline-block', marginTop: 4, fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: color + '20', color }}>
           {roleLabels[role]}
         </span>
