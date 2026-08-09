@@ -5,6 +5,7 @@ import { signOut } from '../../lib/auth';
 const navByRole = {
   sdr: [
     { to: '/', icon: '⊞', label: 'Dashboard', end: true },
+    { to: '/discover', icon: '🔍', label: 'Prospect Discovery' },
     { to: '/contacts', icon: '👥', label: 'My contacts' },
     { to: '/accounts', icon: '🏢', label: 'Accounts' },
     { to: '/followups', icon: '🕐', label: 'Follow-ups' },
