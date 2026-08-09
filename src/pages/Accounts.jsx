@@ -345,6 +345,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
   const [editingLinkedIn, setEditingLinkedIn] = useState(false);
   const [linkedInDraft, setLinkedInDraft] = useState(account.linkedin_url || '');
   const [researchGenerating, setResearchGenerating] = useState({});
+  const [aiResearching, setAiResearching] = useState(false);
   const [newToolName, setNewToolName] = useState('');
   const [newToolStatus, setNewToolStatus] = useState('Legacy');
   const [showAddTool, setShowAddTool] = useState(false);
@@ -427,6 +428,79 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
       if (!research[r.key]) await generateResearch(r.key, r.label);
     }
   }
+  async function runFullAIResearch() {
+    setAiResearching(true);
+    try {
+      const result = await supabase.functions.invoke('generate-research', {
+        body: {
+          mode: 'full',
+          account: {
+            name: data.name,
+            industry: data.industry,
+            country: data.country,
+            revenue_millions: data.revenue_millions,
+            notes: data.notes,
+            testing_tools: data.testing_tools,
+            contacts: contacts.slice(0, 5).map(c => ({ full_name: c.full_name, title: c.title })),
+          }
+        }
+      });
+      if (result.error || !result.data?.full) {
+        console.error('AI Research error:', result.error || result.data?.error);
+        return;
+      }
+      const r = result.data.full;
+      const updates = {};
+      // Research text sections
+      const newResearch = { ...research };
+      if (r.why)  { newResearch.whyTarget  = r.why; }
+      if (r.tech) { newResearch.techStack   = r.tech; }
+      if (r.qaHiring) { newResearch.qaHiring = r.qaHiring; }
+      if (r.news) { newResearch.recentNews  = r.news; }
+      if (r.pain) { newResearch.painPoints  = r.pain; }
+      updates.research = newResearch;
+      // Testing tools — merge with existing, don't overwrite manually added ones
+      if (Array.isArray(r.tools) && r.tools.length > 0) {
+        const existingNames = (data.testing_tools || []).map(t => t.tool.toLowerCase());
+        const newTools = r.tools
+          .filter(t => !existingNames.includes(t.toLowerCase()))
+          .map(t => ({ tool: t, status: 'Legacy', addedAt: new Date().toISOString().slice(0, 10), source: 'ai' }));
+        if (newTools.length > 0) {
+          updates.testing_tools = [...(data.testing_tools || []), ...newTools];
+        }
+      }
+      // Enterprise apps — merge
+      if (Array.isArray(r.enterpriseApps) && r.enterpriseApps.length > 0) {
+        const existingApps = (data.enterprise_apps || []).map(a => a.app.toLowerCase());
+        const newApps = r.enterpriseApps
+          .filter(a => !existingApps.includes(a.toLowerCase()))
+          .map(a => ({ app: a, addedAt: new Date().toISOString().slice(0, 10), source: 'ai' }));
+        if (newApps.length > 0) {
+          updates.enterprise_apps = [...(data.enterprise_apps || []), ...newApps];
+        }
+      }
+      // SaaS apps — merge
+      if (Array.isArray(r.saasApps) && r.saasApps.length > 0) {
+        const existingSaas = (data.saas_apps || []).map(a => a.app.toLowerCase());
+        const newSaas = r.saasApps
+          .filter(a => !existingSaas.includes(a.toLowerCase()))
+          .map(a => ({ app: a, addedAt: new Date().toISOString().slice(0, 10), source: 'ai' }));
+        if (newSaas.length > 0) {
+          updates.saas_apps = [...(data.saas_apps || []), ...newSaas];
+        }
+      }
+      // Intent signals — merge (only set true, don't clear existing trues)
+      const sigMap = { funding: 'funding', hiringQA: 'hiringQA', launch: 'recentLaunch', leadership: 'leadershipChange', outage: 'outage', cicd: 'cicd' };
+      const newSignals = { ...signals };
+      let signalsChanged = false;
+      for (const [aiKey, sigKey] of Object.entries(sigMap)) {
+        if (r[aiKey] === true && !newSignals[sigKey]) { newSignals[sigKey] = true; signalsChanged = true; }
+      }
+      if (signalsChanged) updates.signals = newSignals;
+      await patch(updates);
+    } catch(e) { console.error('runFullAIResearch error:', e); }
+    setAiResearching(false);
+  }
 
   const TABS = [
     { key: 'overview',  label: 'Overview'  },
@@ -484,6 +558,13 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
               a.download = `${data.name.replace(/[^a-z0-9]/gi,'_')}.csv`; a.click();
             }} style={{ padding: '6px 13px', background: '#f5f5f5', borderRadius: 8, fontSize: 12, border: '1px solid #e5e7eb', cursor: 'pointer', color: '#555' }}>
               ⬇️ Export
+            </button>
+            <button onClick={runFullAIResearch} disabled={aiResearching} title="AI populates tools, apps, signals & research in one shot" style={{
+              padding: '6px 14px', background: aiResearching ? '#e5e7eb' : 'linear-gradient(135deg, #7c3aed, #2563eb)',
+              color: aiResearching ? '#9ca3af' : '#fff', borderRadius: 8, fontSize: 12, fontWeight: 600,
+              border: 'none', cursor: aiResearching ? 'wait' : 'pointer', whiteSpace: 'nowrap',
+            }}>
+              {aiResearching ? '⏳ Researching…' : '🤖 AI Research'}
             </button>
             {saving && <span style={{ fontSize: 11, color: '#9ca3af' }}>Saving…</span>}
           </div>
@@ -628,11 +709,25 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
         {/* ── TECH STACK TAB ── */}
         {activeTab === 'techstack' && (
           <div style={{ maxWidth: 860 }}>
+            {/* AI generate bar */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, padding: '12px 16px', background: 'linear-gradient(135deg, #f5f3ff, #eff6ff)', borderRadius: 12, border: '1px solid #ddd6fe' }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#5b21b6' }}>🤖 AI-Powered Tech Intelligence</div>
+                <div style={{ fontSize: 11, color: '#7c3aed', marginTop: 2 }}>Auto-detect testing tools, enterprise apps & SaaS platforms. Manual add always available below.</div>
+              </div>
+              <button onClick={runFullAIResearch} disabled={aiResearching} style={{
+                padding: '8px 18px', background: aiResearching ? '#e5e7eb' : 'linear-gradient(135deg, #7c3aed, #2563eb)',
+                color: aiResearching ? '#9ca3af' : '#fff', borderRadius: 9, fontSize: 13, fontWeight: 600,
+                border: 'none', cursor: aiResearching ? 'wait' : 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+              }}>
+                {aiResearching ? '⏳ Generating…' : '✨ Generate with AI'}
+              </button>
+            </div>
             {/* Testing Tools */}
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 20px', marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
                 <span style={{ fontSize: 14, fontWeight: 700, color: '#111', flex: 1 }}>⚙️ Testing Tools</span>
-                <button onClick={() => setShowAddTool(t => !t)} style={{ padding: '5px 12px', fontSize: 12, borderRadius: 7, border: '1px dashed #2563eb', color: '#2563eb', background: 'none', cursor: 'pointer' }}>+ Add Tool</button>
+                <button onClick={() => setShowAddTool(t => !t)} style={{ padding: '5px 12px', fontSize: 12, borderRadius: 7, border: '1px dashed #2563eb', color: '#2563eb', background: 'none', cursor: 'pointer' }}>+ Add Manually</button>
               </div>
               {tools.length === 0 && !showAddTool && <div style={{ fontSize: 13, color: '#9ca3af', padding: '8px 0' }}>No tools recorded yet</div>}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -640,7 +735,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
                   const tc = TOOL_STATUS_COLORS[t.status] || TOOL_STATUS_COLORS.Active;
                   return (
                     <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 9, background: '#f9fafb', border: '1px solid #f0f0ee' }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, flex: 1, color: '#374151' }}>{t.status === 'Legacy' ? '⚠️' : '🔵'} {t.tool}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, flex: 1, color: '#374151' }}>{t.status === 'Legacy' ? '⚠️' : '🔵'} {t.tool}{t.source === 'ai' && <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: '#ede9fe', color: '#7c3aed', marginLeft: 5 }}>AI</span>}</span>
                       <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: tc.bg, color: tc.color }}>{t.status}</span>
                       <select value={t.status} onChange={e => updateToolStatus(idx, e.target.value)}
                         style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}>
@@ -670,13 +765,13 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 20px', marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
                 <span style={{ fontSize: 14, fontWeight: 700, color: '#111', flex: 1 }}>🏢 Enterprise Apps</span>
-                <button onClick={() => setShowAddEnterprise(t => !t)} style={{ padding: '5px 12px', fontSize: 12, borderRadius: 7, border: '1px dashed #0891b2', color: '#0891b2', background: 'none', cursor: 'pointer' }}>+ Add</button>
+                <button onClick={() => setShowAddEnterprise(t => !t)} style={{ padding: '5px 12px', fontSize: 12, borderRadius: 7, border: '1px dashed #0891b2', color: '#0891b2', background: 'none', cursor: 'pointer' }}>+ Add Manually</button>
               </div>
               {eApps.length === 0 && !showAddEnterprise && <div style={{ fontSize: 13, color: '#9ca3af' }}>No enterprise apps recorded</div>}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: eApps.length > 0 ? 10 : 0 }}>
                 {eApps.map((a, idx) => (
                   <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 20, background: '#e0f2fe', color: '#0369a1', fontSize: 12, fontWeight: 600 }}>
-                    {a.app}
+                    {a.app}{a.source === 'ai' && <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: '#dbeafe', color: '#1d4ed8', marginLeft: 4 }}>AI</span>}
                     <button onClick={() => removeEnterpriseApp(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#0369a1', fontSize: 11, padding: 0, lineHeight: 1 }}>✕</button>
                   </span>
                 ))}
@@ -704,13 +799,13 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
                 <span style={{ fontSize: 14, fontWeight: 700, color: '#111', flex: 1 }}>📦 SaaS & Industry Apps</span>
-                <button onClick={() => setShowAddSaas(t => !t)} style={{ padding: '5px 12px', fontSize: 12, borderRadius: 7, border: '1px dashed #7c3aed', color: '#7c3aed', background: 'none', cursor: 'pointer' }}>+ Add</button>
+                <button onClick={() => setShowAddSaas(t => !t)} style={{ padding: '5px 12px', fontSize: 12, borderRadius: 7, border: '1px dashed #7c3aed', color: '#7c3aed', background: 'none', cursor: 'pointer' }}>+ Add Manually</button>
               </div>
               {saasApps.length === 0 && !showAddSaas && <div style={{ fontSize: 13, color: '#9ca3af' }}>No SaaS apps recorded</div>}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: saasApps.length > 0 ? 10 : 0 }}>
                 {saasApps.map((a, idx) => (
                   <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 20, background: '#ede9fe', color: '#7c3aed', fontSize: 12, fontWeight: 600 }}>
-                    {a.app}
+                    {a.app}{a.source === 'ai' && <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: '#f3e8ff', color: '#7c3aed', marginLeft: 4 }}>AI</span>}
                     <button onClick={() => removeSaasApp(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7c3aed', fontSize: 11, padding: 0, lineHeight: 1 }}>✕</button>
                   </span>
                 ))}
