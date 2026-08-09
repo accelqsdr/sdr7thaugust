@@ -415,6 +415,7 @@ const CSV_FIELDS = [
   { key: 'industry',     label: 'Industry' },
   { key: 'linkedin_url', label: 'LinkedIn URL' },
   { key: 'seniority',    label: 'Seniority / Level' },
+  { key: 'pitch',        label: 'Pitch / Opening Line' },
 ];
 
 // Auto-guess mapping based on header name similarity
@@ -429,6 +430,7 @@ function guessField(header) {
   if (/industry|sector|vertical/.test(h)) return 'industry';
   if (/linkedin|profile/.test(h)) return 'linkedin_url';
   if (/seniority|level|seniorit|grade|band/.test(h)) return 'seniority';
+  if (/pitch|opening|intro|hook|message/.test(h)) return 'pitch';
   return '';
 }
 
