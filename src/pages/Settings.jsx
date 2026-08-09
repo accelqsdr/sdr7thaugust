@@ -11,6 +11,27 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // Clear all data
+  const [showClear, setShowClear] = useState(false);
+  const [clearInput, setClearInput] = useState('');
+  const [clearing, setClearing] = useState(false);
+  const [clearMsg, setClearMsg] = useState('');
+
+  async function clearAllData() {
+    if (clearInput !== 'DELETE') return;
+    setClearing(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    // Delete contacts first (cascade removes emails, activity_log, contact_notes)
+    await supabase.from('contacts').delete().eq('owner_id', user.id);
+    // Delete accounts
+    await supabase.from('accounts').delete().eq('owner_id', user.id);
+    setClearing(false);
+    setShowClear(false);
+    setClearInput('');
+    setClearMsg('All contacts and accounts deleted.');
+    setTimeout(() => setClearMsg(''), 5000);
+  }
+
   useEffect(() => {
     async function load() {
       const { data } = await supabase.from('org_config').select('ai_api_key, ai_provider').single();
@@ -93,6 +114,47 @@ export default function Settings() {
               <div style={{ marginTop: 12, fontSize: 13, color: saved.startsWith('Error') ? '#dc2626' : '#059669' }}>{saved}</div>
             )}
           </>
+        )}
+      </div>
+
+      {/* Danger Zone */}
+      <div style={{ background: '#fff', border: '1px solid #fecaca', borderRadius: 12, padding: 20, maxWidth: 560, marginTop: 16 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#dc2626', marginBottom: 6 }}>Danger Zone</div>
+        <p style={{ fontSize: 13, color: '#888', marginBottom: 14, lineHeight: 1.6 }}>
+          Permanently delete all your contacts and accounts. This cannot be undone.
+        </p>
+        {clearMsg && (
+          <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: '#854d0e', marginBottom: 12 }}>
+            {clearMsg}
+          </div>
+        )}
+        {!showClear ? (
+          <button onClick={() => setShowClear(true)}
+            style={{ padding: '8px 18px', background: '#fff', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+            🗑 Clear All Data
+          </button>
+        ) : (
+          <div style={{ background: '#fff5f5', border: '1px solid #fecaca', borderRadius: 10, padding: 16 }}>
+            <p style={{ fontSize: 13, color: '#dc2626', fontWeight: 600, marginBottom: 10 }}>
+              Type DELETE to confirm. This will erase all your contacts, accounts, emails and activity.
+            </p>
+            <input
+              value={clearInput}
+              onChange={e => setClearInput(e.target.value)}
+              placeholder='Type DELETE'
+              style={{ padding: '8px 12px', borderRadius: 7, border: '1px solid #fca5a5', fontSize: 13, width: '100%', boxSizing: 'border-box', outline: 'none', marginBottom: 12, letterSpacing: 1 }}
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={clearAllData} disabled={clearInput !== 'DELETE' || clearing}
+                style={{ padding: '8px 18px', background: clearInput === 'DELETE' ? '#dc2626' : '#e5e7eb', color: clearInput === 'DELETE' ? '#fff' : '#9ca3af', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: clearInput === 'DELETE' ? 'pointer' : 'not-allowed' }}>
+                {clearing ? 'Deleting…' : 'Yes, delete everything'}
+              </button>
+              <button onClick={() => { setShowClear(false); setClearInput(''); }}
+                style={{ padding: '8px 16px', background: '#f5f5f5', color: '#555', border: 'none', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
+                Cancel
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
