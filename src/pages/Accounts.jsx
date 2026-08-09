@@ -339,7 +339,9 @@ export default function Accounts() {
 /*  ACCOUNT DETAIL                                            */
 /* ─────────────────────────────────────────────────────────── */
 function AccountDetail({ account, contacts, onUpdate, navigate }) {
+  const { user } = useAuth();
   const [data, setData] = useState(account);
+  const [qualifying, setQualifying] = useState(null); // contact id being qualified
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [editingLinkedIn, setEditingLinkedIn] = useState(false);
@@ -413,6 +415,23 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
     notesTimer.current = setTimeout(() => patch({ notes: val }), 800);
   }
   async function saveLinkedIn() { await patch({ linkedin_url: linkedInDraft }); setEditingLinkedIn(false); }
+
+  async function qualifyContact(c) {
+    if (c.status !== 'Fresh') return;
+    setQualifying(c.id);
+    const now = new Date().toISOString();
+    const nextDue = new Date(); nextDue.setDate(nextDue.getDate() + 3);
+    await supabase.from('contacts').update({
+      status: 'F1', sequence_step: 1,
+      last_contacted: now, next_followup: nextDue.toISOString(),
+    }).eq('id', c.id);
+    await supabase.from('activity_log').insert({
+      actor_id: user.id, contact_id: c.id,
+      activity_type: 'stage_advanced', details: { from: 'Fresh', to: 'F1', qualified_from: 'accounts' }
+    });
+    setQualifying(null);
+    onUpdate();
+  }
   async function generateResearch(key, label) {
     setResearchGenerating(g => ({ ...g, [key]: true }));
     try {
@@ -691,6 +710,19 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
                         <button onClick={() => window.open(`https://app.apollo.io/#/people?name=${encodeURIComponent(c.full_name)}&organization_name=${encodeURIComponent(data.name)}`, '_blank')}
                           style={{ fontSize: 11, padding: '4px 10px', borderRadius: 7, border: '1px dashed #d97706', background: 'none', color: '#d97706', cursor: 'pointer', flexShrink: 0 }}>
                           🔍 Find Email
+                        </button>
+                      )}
+                      {/* Qualify → F1 button (Fresh contacts only) */}
+                      {c.status === 'Fresh' && (
+                        <button
+                          onClick={() => qualifyContact(c)}
+                          disabled={qualifying === c.id}
+                          title="Move to Follow-up Queue as F1"
+                          style={{ fontSize: 12, padding: '6px 14px', borderRadius: 8, border: 'none',
+                            background: qualifying === c.id ? '#d1fae5' : 'linear-gradient(135deg, #059669, #0891b2)',
+                            color: '#fff', cursor: qualifying === c.id ? 'wait' : 'pointer', fontWeight: 600, flexShrink: 0,
+                            boxShadow: '0 1px 4px rgba(5,150,105,0.3)' }}>
+                          {qualifying === c.id ? '✓ Qualifying…' : '✅ Qualify → F1'}
                         </button>
                       )}
                       {/* View button */}
