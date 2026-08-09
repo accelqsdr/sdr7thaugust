@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
 const STAGES = ['Fresh','F1','F2','F3','F4','F5','won','lost','bounced','unsubscribed'];
+const STEP_MAP = { Fresh:0, F1:1, F2:2, F3:3, F4:4, F5:5 };
 
 const STAGE_COLORS = {
   Fresh:        { bg: '#e0f2fe', color: '#0369a1' },
@@ -35,46 +36,30 @@ export default function Contacts() {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [showBounced, setShowBounced] = useState(false);
-  const [marking, setMarking] = useState(null);
 
-  useEffect(() => { fetchContacts(); }, [filter]);
+  // Bulk select
+  const [selected, setSelected] = useState(new Set());
+  const [bulkStage, setBulkStage] = useState('');
+  const [bulkWorking, setBulkWorking] = useState(false);
 
-  async function fetchContacts() {
+  // Add contact modal
+  const [showAddContact, setShowAddContact] = useState(false);
+  const [newContact, setNewContact] = useState({ full_name:'', email:'', company:'', title:'', country:'', status:'Fresh' });
+  const [adding, setAdding] = useState(false);
+
+  const fetchContacts = useCallback(async () => {
     setLoading(true);
     let q = supabase.from('contacts').select('*').eq('owner_id', user.id).order('created_at', { ascending: false });
     if (filter !== 'all') q = q.eq('status', filter);
     const { data } = await q;
     setContacts(data || []);
+    setSelected(new Set());
     setLoading(false);
-  }
+  }, [user.id, filter]);
 
-  async function markBounced(id) {
-    setMarking(id);
-    await supabase.from('contacts').update({
-      status: 'bounced', bounced: true,
-      bounce_reason: 'Manual', bounced_at: new Date().toISOString()
-    }).eq('id', id);
-    await supabase.from('activity_log').insert({
-      actor_id: user.id, contact_id: id,
-      activity_type: 'bounce_detected', details: { reason: 'Manual' }
-    });
-    setMarking(null);
-    fetchContacts();
-  }
+  useEffect(() => { fetchContacts(); }, [fetchContacts]);
 
-  async function updateStatus(id, status) {
-    const update = { status };
-    // auto-advance sequence_step when moving to F-stages
-    const stepMap = { Fresh: 0, F1: 1, F2: 2, F3: 3, F4: 4, F5: 5 };
-    if (stepMap[status] !== undefined) update.sequence_step = stepMap[status];
-    await supabase.from('contacts').update(update).eq('id', id);
-    await supabase.from('activity_log').insert({
-      actor_id: user.id, contact_id: id,
-      activity_type: 'status_changed', details: { status }
-    });
-    fetchContacts();
-  }
-
+  // ── Filtered list ──
   const filtered = contacts.filter(c => {
     if (!showBounced && c.bounced) return false;
     if (!search) return true;
@@ -86,28 +71,137 @@ export default function Contacts() {
 
   const filterCounts = {};
   STAGES.forEach(s => { filterCounts[s] = contacts.filter(c => c.status === s).length; });
-  const activeCount = contacts.filter(c => !c.bounced).length;
+
+  // ── Selection helpers ──
+  const allChecked = filtered.length > 0 && filtered.every(c => selected.has(c.id));
+  const someChecked = filtered.some(c => selected.has(c.id)) && !allChecked;
+
+  function toggleOne(id) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (allChecked) {
+      setSelected(prev => { const n = new Set(prev); filtered.forEach(c => n.delete(c.id)); return n; });
+    } else {
+      setSelected(prev => { const n = new Set(prev); filtered.forEach(c => n.add(c.id)); return n; });
+    }
+  }
+
+  // ── Bulk: change stage ──
+  async function bulkChangeStage() {
+    if (!bulkStage || selected.size === 0) return;
+    setBulkWorking(true);
+    const ids = Array.from(selected);
+    const update = { status: bulkStage };
+    if (STEP_MAP[bulkStage] !== undefined) update.sequence_step = STEP_MAP[bulkStage];
+    await supabase.from('contacts').update(update).in('id', ids);
+    setBulkStage('');
+    await fetchContacts();
+    setBulkWorking(false);
+  }
+
+  // ── Bulk: delete ──
+  async function bulkDelete() {
+    if (selected.size === 0) return;
+    if (!window.confirm(`Delete ${selected.size} contact${selected.size !== 1 ? 's' : ''}? This cannot be undone.`)) return;
+    setBulkWorking(true);
+    await supabase.from('contacts').delete().in('id', Array.from(selected));
+    await fetchContacts();
+    setBulkWorking(false);
+  }
+
+  // ── Bulk: export CSV ──
+  function bulkExport() {
+    const rows = contacts.filter(c => selected.has(c.id));
+    const headers = ['Name','Email','Company','Title','Country','Stage','Response','Last Emailed','Next Follow-up'];
+    const lines = rows.map(c => [
+      c.full_name, c.email, c.company, c.title || '', c.country || '',
+      c.status, c.response || '',
+      c.last_contacted ? new Date(c.last_contacted).toLocaleDateString() : '',
+      c.next_followup ? new Date(c.next_followup).toLocaleDateString() : '',
+    ].map(v => `"${String(v||'').replace(/"/g,'""')}"`).join(','));
+    const blob = new Blob([[headers.join(','), ...lines].join('\n')], { type: 'text/csv' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `contacts_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  }
+
+  // ── Single: update status ──
+  async function updateStatus(id, status) {
+    const update = { status };
+    if (STEP_MAP[status] !== undefined) update.sequence_step = STEP_MAP[status];
+    await supabase.from('contacts').update(update).eq('id', id);
+    await supabase.from('activity_log').insert({
+      actor_id: user.id, contact_id: id, activity_type: 'status_changed', details: { status }
+    });
+    fetchContacts();
+  }
+
+  // ── Add contact ──
+  async function addContact() {
+    if (!newContact.full_name.trim()) return;
+    setAdding(true);
+    // Try to find/create account
+    let account_id = null;
+    if (newContact.company.trim()) {
+      const { data: existing } = await supabase.from('accounts')
+        .select('id').eq('owner_id', user.id).ilike('name', newContact.company.trim()).single();
+      if (existing) {
+        account_id = existing.id;
+      } else {
+        const { data: created } = await supabase.from('accounts').insert({
+          name: newContact.company.trim(), owner_id: user.id
+        }).select('id').single();
+        if (created) account_id = created.id;
+      }
+    }
+    await supabase.from('contacts').insert({
+      owner_id: user.id,
+      full_name: newContact.full_name.trim(),
+      email: newContact.email.trim() || null,
+      company: newContact.company.trim() || null,
+      title: newContact.title.trim() || null,
+      country: newContact.country.trim() || null,
+      status: newContact.status,
+      sequence_step: STEP_MAP[newContact.status] ?? 0,
+      account_id,
+    });
+    setAdding(false);
+    setShowAddContact(false);
+    setNewContact({ full_name:'', email:'', company:'', title:'', country:'', status:'Fresh' });
+    fetchContacts();
+  }
+
+  const selCount = selected.size;
 
   return (
     <div style={{ padding: 24 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 600, color: '#111', margin: 0 }}>Contacts</h1>
+          <h1 style={{ fontSize: 20, fontWeight: 600, color: '#111', margin: 0 }}>My Contacts</h1>
           <p style={{ fontSize: 13, color: '#888', margin: '3px 0 0' }}>
-            {activeCount} active · {contacts.filter(c => c.bounced).length} bounced
+            {contacts.filter(c => !c.bounced).length} active · {contacts.filter(c => c.bounced).length} bounced
           </p>
         </div>
-        <UploadCSV userId={user.id} onDone={fetchContacts} />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button onClick={() => setShowAddContact(true)}
+            style={{ padding: '8px 16px', background: '#fff', border: '1px solid #e0e0e0', color: '#111', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+            + Add Contact
+          </button>
+          <UploadCSV userId={user.id} onDone={fetchContacts} />
+        </div>
       </div>
 
       {/* Stage filter bar */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-        <input
-          value={search} onChange={e => setSearch(e.target.value)}
+        <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search name, email, company…"
-          style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13, width: 220, outline: 'none', marginRight: 4 }}
-        />
+          style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13, width: 220, outline: 'none', marginRight: 4 }} />
         <button onClick={() => setFilter('all')}
           style={{ padding: '6px 12px', borderRadius: 8, border: 'none', fontSize: 12, cursor: 'pointer',
             background: filter === 'all' ? '#111' : '#f0f0ee', color: filter === 'all' ? '#fff' : '#666', fontWeight: 500 }}>
@@ -130,11 +224,49 @@ export default function Contacts() {
         </label>
       </div>
 
+      {/* Bulk action bar */}
+      {selCount > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#1d4ed8' }}>{selCount} contact{selCount !== 1 ? 's' : ''} selected</span>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginLeft: 8, flexWrap: 'wrap' }}>
+            {/* Change stage */}
+            <select value={bulkStage} onChange={e => setBulkStage(e.target.value)}
+              style={{ fontSize: 12, padding: '5px 8px', borderRadius: 6, border: '1px solid #bfdbfe', background: '#fff', cursor: 'pointer' }}>
+              <option value="">Change stage…</option>
+              {STAGES.filter(s => s !== 'bounced').map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <button onClick={bulkChangeStage} disabled={!bulkStage || bulkWorking}
+              style={{ padding: '5px 12px', background: bulkStage ? '#2563eb' : '#e0e0e0', color: bulkStage ? '#fff' : '#999', borderRadius: 6, fontSize: 12, border: 'none', cursor: bulkStage ? 'pointer' : 'not-allowed', fontWeight: 600 }}>
+              {bulkWorking ? '…' : 'Apply'}
+            </button>
+            <div style={{ width: 1, height: 24, background: '#bfdbfe' }} />
+            {/* Export */}
+            <button onClick={bulkExport}
+              style={{ padding: '5px 12px', background: '#fff', color: '#2563eb', borderRadius: 6, fontSize: 12, border: '1px solid #bfdbfe', cursor: 'pointer', fontWeight: 500 }}>
+              ⬇️ Export CSV
+            </button>
+            {/* Delete */}
+            <button onClick={bulkDelete} disabled={bulkWorking}
+              style={{ padding: '5px 12px', background: '#fff', color: '#dc2626', borderRadius: 6, fontSize: 12, border: '1px solid #fecaca', cursor: 'pointer', fontWeight: 500 }}>
+              🗑 Delete
+            </button>
+            <button onClick={() => setSelected(new Set())}
+              style={{ padding: '5px 10px', background: 'none', color: '#888', borderRadius: 6, fontSize: 12, border: 'none', cursor: 'pointer' }}>
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e4', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: '0.5px solid #e8e8e4' }}>
+              <th style={{ padding: '10px 14px', width: 36 }}>
+                <input type="checkbox" checked={allChecked} ref={el => { if (el) el.indeterminate = someChecked; }}
+                  onChange={toggleAll} style={{ cursor: 'pointer', width: 14, height: 14 }} />
+              </th>
               {['Name','Company','Email','Stage','Response','Last emailed','Next follow-up','Actions'].map(h => (
                 <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, color: '#999', fontWeight: 500 }}>{h}</th>
               ))}
@@ -142,32 +274,34 @@ export default function Contacts() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} style={{ padding: 32, textAlign: 'center', color: '#aaa' }}>Loading…</td></tr>
+              <tr><td colSpan={9} style={{ padding: 32, textAlign: 'center', color: '#aaa' }}>Loading…</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={8} style={{ padding: 32, textAlign: 'center', color: '#aaa' }}>No contacts found</td></tr>
+              <tr><td colSpan={9} style={{ padding: 32, textAlign: 'center', color: '#aaa' }}>No contacts found</td></tr>
             ) : filtered.map(c => {
               const sc = STAGE_COLORS[c.status] || { bg: '#f1f5f9', color: '#475569' };
               const rc = c.response ? RESPONSE_COLORS[c.response] : null;
+              const isSelected = selected.has(c.id);
               return (
-                <tr key={c.id} style={{ borderBottom: '0.5px solid #f0f0ee', opacity: c.bounced ? 0.6 : 1,
-                  cursor: 'pointer' }} onClick={() => navigate(`/contacts/${c.id}`)}>
+                <tr key={c.id}
+                  style={{ borderBottom: '0.5px solid #f0f0ee', opacity: c.bounced ? 0.6 : 1,
+                    background: isSelected ? '#eff6ff' : 'transparent', cursor: 'pointer' }}
+                  onClick={() => navigate(`/contacts/${c.id}`)}>
+                  <td style={{ padding: '10px 14px' }} onClick={e => { e.stopPropagation(); toggleOne(c.id); }}>
+                    <input type="checkbox" checked={isSelected} onChange={() => toggleOne(c.id)}
+                      style={{ cursor: 'pointer', width: 14, height: 14 }} />
+                  </td>
                   <td style={{ padding: '10px 14px', fontWeight: 500 }}>
                     {c.full_name}
                     {c.bounced && <span style={{ marginLeft: 6, fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 10 }}>BOUNCED</span>}
                   </td>
-                  <td style={{ padding: '10px 14px', color: '#555' }}>{c.company}</td>
-                  <td style={{ padding: '10px 14px', color: '#555', fontSize: 12 }}>{c.email}</td>
+                  <td style={{ padding: '10px 14px', color: '#555' }}>{c.company || '—'}</td>
+                  <td style={{ padding: '10px 14px', color: '#555', fontSize: 12 }}>{c.email || '—'}</td>
                   <td style={{ padding: '10px 14px' }}>
-                    <span style={{ padding: '3px 9px', borderRadius: 10, fontSize: 11, fontWeight: 600,
-                      background: sc.bg, color: sc.color }}>
-                      {c.status}
-                    </span>
+                    <span style={{ padding: '3px 9px', borderRadius: 10, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color }}>{c.status}</span>
                   </td>
                   <td style={{ padding: '10px 14px' }}>
-                    {rc ? (
-                      <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11,
-                        background: rc.bg, color: rc.color }}>{rc.label}</span>
-                    ) : <span style={{ color: '#ccc', fontSize: 12 }}>—</span>}
+                    {rc ? <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, background: rc.bg, color: rc.color }}>{rc.label}</span>
+                       : <span style={{ color: '#ccc', fontSize: 12 }}>—</span>}
                   </td>
                   <td style={{ padding: '10px 14px', color: '#888', fontSize: 12 }}>
                     {c.last_contacted ? new Date(c.last_contacted).toLocaleDateString() : '—'}
@@ -182,24 +316,12 @@ export default function Contacts() {
                         : <span style={{ color: '#ccc' }}>—</span>}
                   </td>
                   <td style={{ padding: '10px 14px' }} onClick={e => e.stopPropagation()}>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      {!c.bounced && (
-                        <>
-                          <select value={c.status}
-                            onChange={e => updateStatus(c.id, e.target.value)}
-                            style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '1px solid #e0e0e0', cursor: 'pointer' }}>
-                            {STAGES.filter(s => s !== 'bounced').map(s => (
-                              <option key={s} value={s}>{s}</option>
-                            ))}
-                          </select>
-                          <button onClick={() => markBounced(c.id)} disabled={marking === c.id}
-                            style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6,
-                              border: '1px solid #fecaca', background: '#fff', color: '#dc2626', cursor: 'pointer' }}>
-                            {marking === c.id ? '…' : '⛔'}
-                          </button>
-                        </>
-                      )}
-                    </div>
+                    {!c.bounced && (
+                      <select value={c.status} onChange={e => updateStatus(c.id, e.target.value)}
+                        style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '1px solid #e0e0e0', cursor: 'pointer' }}>
+                        {STAGES.filter(s => s !== 'bounced').map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    )}
                   </td>
                 </tr>
               );
@@ -207,6 +329,49 @@ export default function Contacts() {
           </tbody>
         </table>
       </div>
+
+      {/* Add Contact Modal */}
+      {showAddContact && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={e => e.target === e.currentTarget && setShowAddContact(false)}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: 460, maxWidth: '95vw', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Add Contact</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {[
+                { key: 'full_name', label: 'Full Name *', placeholder: 'Jane Smith', full: true },
+                { key: 'email', label: 'Email', placeholder: 'jane@company.com' },
+                { key: 'company', label: 'Company', placeholder: 'Infosys' },
+                { key: 'title', label: 'Title / Designation', placeholder: 'QA Lead' },
+                { key: 'country', label: 'Country', placeholder: 'India' },
+              ].map(f => (
+                <div key={f.key} style={{ gridColumn: f.full ? 'span 2' : 'span 1' }}>
+                  <label style={{ fontSize: 11, color: '#666', display: 'block', marginBottom: 4 }}>{f.label}</label>
+                  <input value={newContact[f.key]} onChange={e => setNewContact({ ...newContact, [f.key]: e.target.value })}
+                    placeholder={f.placeholder}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: 7, border: '1px solid #e0e0e0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+              ))}
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={{ fontSize: 11, color: '#666', display: 'block', marginBottom: 4 }}>Stage</label>
+                <select value={newContact.status} onChange={e => setNewContact({ ...newContact, status: e.target.value })}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 7, border: '1px solid #e0e0e0', fontSize: 13, cursor: 'pointer' }}>
+                  {STAGES.filter(s => !['bounced','unsubscribed'].includes(s)).map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
+              <button onClick={addContact} disabled={adding || !newContact.full_name.trim()}
+                style={{ flex: 1, padding: '9px 0', background: '#2563eb', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none', opacity: adding || !newContact.full_name.trim() ? 0.6 : 1 }}>
+                {adding ? 'Adding…' : 'Add Contact'}
+              </button>
+              <button onClick={() => setShowAddContact(false)}
+                style={{ padding: '9px 18px', background: '#f5f5f5', color: '#555', borderRadius: 8, fontSize: 13, cursor: 'pointer', border: 'none' }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -218,8 +383,7 @@ function UploadCSV({ userId, onDone }) {
   function handleFile(e) {
     const file = e.target.files[0];
     if (!file) return;
-    setUploading(true);
-    setMsg('');
+    setUploading(true); setMsg('');
     const reader = new FileReader();
     reader.onload = async (ev) => {
       const lines = ev.target.result.trim().split('\n');
@@ -242,7 +406,6 @@ function UploadCSV({ userId, onDone }) {
           sequence_step: 0,
         };
       }).filter(r => r.full_name || r.email);
-
       const { error } = await supabase.from('contacts').insert(rows);
       setUploading(false);
       if (error) { setMsg('Upload failed: ' + error.message); }
