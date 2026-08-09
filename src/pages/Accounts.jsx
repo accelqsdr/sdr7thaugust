@@ -416,18 +416,17 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
   }
   async function saveLinkedIn() { await patch({ linkedin_url: linkedInDraft }); setEditingLinkedIn(false); }
 
-  async function qualifyContact(c) {
-    if (c.status !== 'Fresh') return;
+  async function startContact(c) {
     setQualifying(c.id);
+    // Keep status as Fresh — contact will appear in Follow-up Queue "New Contacts" section
     const now = new Date().toISOString();
-    const nextDue = new Date(); nextDue.setDate(nextDue.getDate() + 3);
     await supabase.from('contacts').update({
-      status: 'F1', sequence_step: 1,
-      last_contacted: now, next_followup: nextDue.toISOString(),
+      status: 'Fresh',
+      next_followup: now,  // mark as "ready to start" so queue picks it up
     }).eq('id', c.id);
     await supabase.from('activity_log').insert({
       actor_id: user.id, contact_id: c.id,
-      activity_type: 'stage_advanced', details: { from: 'Fresh', to: 'F1', qualified_from: 'accounts' }
+      activity_type: 'outreach_started', details: { started_from: 'accounts' }
     });
     setQualifying(null);
     onUpdate();
@@ -712,18 +711,26 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
                           🔍 Find Email
                         </button>
                       )}
-                      {/* Qualify → F1 button (Fresh contacts only) */}
-                      {c.status === 'Fresh' && (
+                      {/* Start button — Fresh contacts not yet queued */}
+                      {c.status === 'Fresh' && !c.next_followup && (
                         <button
-                          onClick={() => qualifyContact(c)}
+                          onClick={() => startContact(c)}
                           disabled={qualifying === c.id}
-                          title="Move to Follow-up Queue as F1"
+                          title="Add to Follow-up Queue as Fresh"
                           style={{ fontSize: 12, padding: '6px 14px', borderRadius: 8, border: 'none',
-                            background: qualifying === c.id ? '#d1fae5' : 'linear-gradient(135deg, #059669, #0891b2)',
+                            background: qualifying === c.id ? '#d1fae5' : 'linear-gradient(135deg, #2563eb, #7c3aed)',
                             color: '#fff', cursor: qualifying === c.id ? 'wait' : 'pointer', fontWeight: 600, flexShrink: 0,
-                            boxShadow: '0 1px 4px rgba(5,150,105,0.3)' }}>
-                          {qualifying === c.id ? '✓ Qualifying…' : '✅ Qualify → F1'}
+                            boxShadow: '0 1px 4px rgba(37,99,235,0.3)' }}>
+                          {qualifying === c.id ? '⏳ Starting…' : '🚀 Start'}
                         </button>
+                      )}
+                      {/* In Queue badge — Fresh contacts already started */}
+                      {c.status === 'Fresh' && c.next_followup && (
+                        <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8,
+                          background: '#d1fae5', color: '#059669', fontWeight: 600, flexShrink: 0,
+                          border: '1px solid #6ee7b7' }}>
+                          📬 In Queue
+                        </span>
                       )}
                       {/* View button */}
                       <button onClick={() => navigate(`/contacts/${c.id}`, { state: { from: 'account', accountId: data.id, accountName: data.name } })}

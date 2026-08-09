@@ -6,6 +6,11 @@ const corsHeaders = {
 }
 
 const STAGE_CONTEXT: Record<string, { label: string; intent: string; tone: string }> = {
+  Fresh: {
+    label: 'Initial cold email (Fresh)',
+    intent: 'Very first outreach to this prospect. Establish relevance with one sharp, researched hook. One pain point, one proof, one low-friction CTA.',
+    tone: 'Confident and concise. Lead with something specific about their world — never with "I" or "My name is".',
+  },
   F1: {
     label: 'Initial outreach (F1)',
     intent: 'First cold email — establish relevance, hook with a specific insight, low-friction CTA.',

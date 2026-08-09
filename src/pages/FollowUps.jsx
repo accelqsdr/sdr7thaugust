@@ -3,18 +3,26 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
-// ── CADENCE: days from last email sent to next email due ──────────────────────
-const DEFAULT_CADENCE = { Fresh: 3, F1: 3, F2: 4, F3: 7, F4: 7 };
+// ── CADENCE ───────────────────────────────────────────────────────────────────
+// Fresh contact: CADENCE.Fresh days until initial email is due (usually 0 = immediately)
+// F1 contact: CADENCE.F1 days after marking Fresh sent before F2 email is due
+// etc.
+const DEFAULT_CADENCE = { Fresh: 0, F1: 3, F2: 4, F3: 7, F4: 7 };
+
+// For a contact in status X, look up cadence from this key (what was just sent)
 const STATUS_CADENCE_KEY = { F1: 'Fresh', F2: 'F1', F3: 'F2', F4: 'F3', F5: 'F4' };
-const NEXT_STAGE = { F1: 'F2', F2: 'F3', F3: 'F4', F4: 'F5', F5: null };
+
+const NEXT_STAGE = { Fresh: 'F1', F1: 'F2', F2: 'F3', F3: 'F4', F4: 'F5', F5: null };
 const FOLLOWUP_STAGES = ['F1', 'F2', 'F3', 'F4', 'F5'];
+const ALL_STAGES = ['Fresh', ...FOLLOWUP_STAGES];
 
 const STAGE_META = {
-  F1: { bg: '#dbeafe', color: '#1d4ed8', label: 'F1 — Initial' },
-  F2: { bg: '#d1fae5', color: '#065f46', label: 'F2 — Follow-up 1' },
-  F3: { bg: '#fef9c3', color: '#854d0e', label: 'F3 — Follow-up 2' },
-  F4: { bg: '#ffedd5', color: '#9a3412', label: 'F4 — Follow-up 3' },
-  F5: { bg: '#fee2e2', color: '#991b1b', label: 'F5 — Break-up' },
+  Fresh: { bg: '#dbeafe', color: '#1d4ed8', label: 'Fresh — New' },
+  F1:    { bg: '#d1fae5', color: '#065f46', label: 'F1 — Initial' },
+  F2:    { bg: '#fef9c3', color: '#854d0e', label: 'F2 — Follow-up 1' },
+  F3:    { bg: '#ffedd5', color: '#9a3412', label: 'F3 — Follow-up 2' },
+  F4:    { bg: '#fee2e2', color: '#991b1b', label: 'F4 — Follow-up 3' },
+  F5:    { bg: '#f1f5f9', color: '#475569', label: 'F5 — Break-up' },
 };
 
 const RESPONSE_META = {
@@ -33,6 +41,8 @@ const TIMING_GROUPS = [
   { key: 'nodate',  label: '⏳ No Date Set', color: '#94a3b8' },
 ];
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 function getInitials(name) {
   return (name || '').split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
 }
@@ -45,6 +55,11 @@ function avatarColor(str) {
 }
 
 function computeDue(contact, cadence) {
+  // Fresh contacts: use next_followup directly (set when "Start" is clicked)
+  if (contact.status === 'Fresh') {
+    return contact.next_followup ? new Date(contact.next_followup) : null;
+  }
+  // F1-F5: compute from last_contacted + cadence for the previous stage
   const key = STATUS_CADENCE_KEY[contact.status];
   if (!key) return null;
   const days = (cadence || DEFAULT_CADENCE)[key] ?? 3;
@@ -85,6 +100,7 @@ export default function FollowUps() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
 
+  // Settings
   const [cadence, setCadence] = useState(() => {
     try { return { ...DEFAULT_CADENCE, ...JSON.parse(localStorage.getItem('sdr_cadence') || '{}') }; }
     catch { return DEFAULT_CADENCE; }
@@ -94,17 +110,20 @@ export default function FollowUps() {
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
 
+  // Data
   const [contacts,   setContacts]   = useState([]);
   const [accounts,   setAccounts]   = useState({});
   const [sentEmails, setSentEmails] = useState({});
   const [loading,    setLoading]    = useState(true);
 
+  // Filters
   const [search,         setSearch]         = useState('');
   const [stageFilter,    setStageFilter]    = useState('all');
   const [timingFilter,   setTimingFilter]   = useState('all');
   const [responseFilter, setResponseFilter] = useState('all');
   const [companyFilter,  setCompanyFilter]  = useState('all');
 
+  // Email draft
   const [drafts,      setDrafts]      = useState({});
   const [drafting,    setDrafting]    = useState(null);
   const [draftOpen,   setDraftOpen]   = useState(null);
@@ -118,16 +137,29 @@ export default function FollowUps() {
   async function fetchData() {
     setLoading(true);
     const [cRes, aRes, lRes] = await Promise.all([
-      supabase.from('contacts').select('*').eq('owner_id', user.id)
-        .in('status', FOLLOWUP_STAGES)
+      supabase.from('contacts').select('*')
+        .eq('owner_id', user.id)
+        .or('status.in.(F1,F2,F3,F4,F5),and(status.eq.Fresh,next_followup.not.is.null)')
         .order('last_contacted', { ascending: false, nullsFirst: false }),
       supabase.from('accounts').select('id, name, industry, research').eq('owner_id', user.id),
       supabase.from('activity_log').select('contact_id, details, created_at')
         .eq('actor_id', user.id).eq('activity_type', 'email_sent')
         .order('created_at', { ascending: false }),
     ]);
-    const rows = cRes.data || [];
-    setContacts(rows);
+
+    // Fallback: if the complex OR query fails, try simpler approach
+    let rows = cRes.data;
+    if (cRes.error || !rows) {
+      const fallback = await supabase.from('contacts').select('*')
+        .eq('owner_id', user.id)
+        .in('status', ALL_STAGES)
+        .order('last_contacted', { ascending: false, nullsFirst: false });
+      rows = (fallback.data || []).filter(c =>
+        c.status !== 'Fresh' || (c.status === 'Fresh' && c.next_followup)
+      );
+    }
+
+    setContacts(rows || []);
     const accMap = {};
     (aRes.data || []).forEach(a => { accMap[a.id] = a; });
     setAccounts(accMap);
@@ -138,9 +170,10 @@ export default function FollowUps() {
     });
     setSentEmails(emailMap);
     setLoading(false);
-    return rows;
+    return rows || [];
   }
 
+  // Auto-generate on first load
   useEffect(() => {
     if (loading || autoGenRanRef.current || !autoGenerate) return;
     autoGenRanRef.current = true;
@@ -169,6 +202,8 @@ export default function FollowUps() {
     const account    = accounts[contact.account_id] || {};
     const senderName = profile?.full_name || user?.email?.split('@')[0] || 'SDR';
     const priorBodies = (sentEmails[contact.id] || []).slice(0, 3).map(e => e.body);
+    // Fresh contacts use 'Fresh' stage (initial email)
+    const emailStage = contact.status === 'Fresh' ? 'Fresh' : contact.status;
     try {
       const res = await supabase.functions.invoke('generate-email', {
         body: {
@@ -178,7 +213,7 @@ export default function FollowUps() {
             response: contact.response, pitch: contact.pitch,
             industry: account.industry,
           },
-          stage: contact.status,
+          stage: emailStage,
           accountResearch: account.research || {},
           senderName,
           priorEmailBodies: priorBodies,
@@ -198,19 +233,28 @@ export default function FollowUps() {
     setMarkingSent(contact.id);
     const draft = drafts[contact.id];
     const now   = new Date().toISOString();
-    const daysToNext = cadence[contact.status] ?? 3;
+
+    // For Fresh: next due = now + CADENCE.Fresh days (0 = immediately in F1 queue)
+    // For F1-F5: next due = now + CADENCE[currentStage] days
+    const cadenceKey = contact.status; // cadence for what was just sent
+    const daysToNext = (cadence[cadenceKey] ?? 3);
     const nextDue = new Date();
     nextDue.setDate(nextDue.getDate() + daysToNext);
 
     await supabase.from('contacts').update({
-      status: next, sequence_step: FOLLOWUP_STAGES.indexOf(next) + 1,
-      last_contacted: now, next_followup: nextDue.toISOString(),
+      status:         next,
+      sequence_step:  ALL_STAGES.indexOf(next),
+      last_contacted: now,
+      next_followup:  nextDue.toISOString(),
     }).eq('id', contact.id);
 
     await supabase.from('activity_log').insert({
       actor_id: user.id, contact_id: contact.id,
       activity_type: 'email_sent',
-      details: { from_stage: contact.status, to_stage: next, subject: draft?.subject || '', body: draft?.body || '' },
+      details: {
+        from_stage: contact.status, to_stage: next,
+        subject: draft?.subject || '', body: draft?.body || '',
+      },
     });
 
     setDrafts(d => { const nd = { ...d }; delete nd[contact.id]; return nd; });
@@ -221,7 +265,10 @@ export default function FollowUps() {
 
   async function snooze(id, days) {
     const d = new Date(); d.setDate(d.getDate() + days);
-    await supabase.from('contacts').update({ next_followup: d.toISOString(), last_contacted: d.toISOString() }).eq('id', id);
+    await supabase.from('contacts').update({
+      next_followup:  d.toISOString(),
+      last_contacted: d.toISOString(),
+    }).eq('id', id);
     fetchData();
   }
 
@@ -232,33 +279,50 @@ export default function FollowUps() {
     setTimeout(() => setCopied(c => c === id ? null : c), 2000);
   }
 
-  // Enrich contacts with computed due date
-  const enriched = contacts.map(c => {
+  // ── Computed values ───────────────────────────────────────────────────────
+  const freshContacts  = contacts.filter(c => c.status === 'Fresh');
+  const activeContacts = contacts.filter(c => c.status !== 'Fresh');
+
+  const enriched = activeContacts.map(c => {
     const due = computeDue(c, cadence);
     return { ...c, _due: due, _bucket: getBucket(due), _hasDraft: !!drafts[c.id] };
   });
 
-  const stageCounts    = {};
-  FOLLOWUP_STAGES.forEach(s => { stageCounts[s] = enriched.filter(c => c.status === s).length; });
-  const overdueCt      = enriched.filter(c => c._bucket === 'overdue').length;
-  const todayCt        = enriched.filter(c => c._bucket === 'today').length;
-  const readyCt        = enriched.filter(c => c._hasDraft).length;
+  const enrichedFresh = freshContacts.map(c => ({
+    ...c,
+    _due: computeDue(c, cadence),
+    _bucket: getBucket(computeDue(c, cadence)),
+    _hasDraft: !!drafts[c.id],
+  }));
+
+  const stageCounts = {};
+  ALL_STAGES.forEach(s => { stageCounts[s] = contacts.filter(c => c.status === s).length; });
+
+  const overdueCt = [...enriched, ...enrichedFresh].filter(c => c._bucket === 'overdue').length;
+  const todayCt   = [...enriched, ...enrichedFresh].filter(c => c._bucket === 'today').length;
+  const readyCt   = [...enriched, ...enrichedFresh].filter(c => c._hasDraft).length;
   const uniqueCompanies = [...new Set(contacts.map(c => c.company).filter(Boolean))].sort();
 
-  const filtered = enriched.filter(c => {
-    if (stageFilter    !== 'all' && c.status   !== stageFilter)    return false;
-    if (timingFilter   !== 'all' && c._bucket  !== timingFilter)   return false;
-    if (responseFilter !== 'all' && c.response !== responseFilter) return false;
-    if (companyFilter  !== 'all' && c.company  !== companyFilter)  return false;
-    if (search) {
-      const q = search.toLowerCase();
-      if (!c.full_name?.toLowerCase().includes(q) && !c.company?.toLowerCase().includes(q) && !c.email?.toLowerCase().includes(q)) return false;
-    }
-    return true;
-  });
+  function applyFilters(list) {
+    return list.filter(c => {
+      if (stageFilter    !== 'all' && c.status   !== stageFilter)    return false;
+      if (timingFilter   !== 'all' && c._bucket  !== timingFilter)   return false;
+      if (responseFilter !== 'all' && c.response !== responseFilter) return false;
+      if (companyFilter  !== 'all' && c.company  !== companyFilter)  return false;
+      if (search) {
+        const q = search.toLowerCase();
+        if (!c.full_name?.toLowerCase().includes(q) && !c.company?.toLowerCase().includes(q) && !c.email?.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+  }
 
+  const filteredFresh  = applyFilters(enrichedFresh);
+  const filteredActive = applyFilters(enriched);
+
+  // Build timing groups for F1-F5
   const groups = TIMING_GROUPS.map(g => {
-    const items = filtered.filter(c => c._bucket === g.key);
+    const items = filteredActive.filter(c => c._bucket === g.key);
     items.sort((a, b) => {
       if (a._hasDraft !== b._hasDraft) return a._hasDraft ? -1 : 1;
       if (a._due && b._due) return a._due - b._due;
@@ -268,57 +332,76 @@ export default function FollowUps() {
   }).filter(g => g.items.length > 0);
 
   const activeGroups = timingFilter === 'all' ? groups : groups.filter(g => g.key === timingFilter);
+  const showFresh = stageFilter === 'all' || stageFilter === 'Fresh';
   const anyFilter = search || stageFilter !== 'all' || timingFilter !== 'all' || responseFilter !== 'all' || companyFilter !== 'all';
   function clearFilters() { setSearch(''); setStageFilter('all'); setTimingFilter('all'); setResponseFilter('all'); setCompanyFilter('all'); }
 
+  const totalInQueue = contacts.length;
   const sharedProps = {
     accounts, drafts, drafting, draftOpen, copied, markingSent,
-    onGenerate:    c    => doGenerate(c),
-    onToggleDraft: c    => setDraftOpen(d => d === c.id ? null : c.id),
-    onRegenerate:  c    => doGenerate(c),
-    onMarkSent:    c    => markSent(c),
+    onGenerate:    c => doGenerate(c),
+    onToggleDraft: c => setDraftOpen(d => d === c.id ? null : c.id),
+    onRegenerate:  c => doGenerate(c),
+    onMarkSent:    c => markSent(c),
     onSnooze:      (id, days) => snooze(id, days),
-    onCopy:        id   => copyDraft(id),
-    onView:        id   => navigate(`/contacts/${id}`),
+    onCopy:        id => copyDraft(id),
+    onView:        id => navigate(`/contacts/${id}`),
   };
+
+  const noResults = filteredFresh.length === 0 && filteredActive.length === 0;
 
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:'#f8f9fb' }}>
 
-      {/* HEADER */}
+      {/* ══════════════════ HEADER ══════════════════════════════════════ */}
       <div style={{ background:'#fff', borderBottom:'1px solid #e5e7eb', flexShrink:0 }}>
 
         {/* Title row */}
         <div style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 24px 10px' }}>
           <div>
             <h1 style={{ fontSize:18, fontWeight:700, color:'#111', margin:0, letterSpacing:'-0.01em' }}>📬 Follow-up Queue</h1>
-            <p style={{ fontSize:12, color:'#6b7280', margin:'2px 0 0' }}>F1→F5 active outreach — Fresh contacts arrive here after qualification</p>
+            <p style={{ fontSize:12, color:'#6b7280', margin:'2px 0 0' }}>
+              Fresh → F1 → F2 → F3 → F4 → F5 — draft, review, mark sent
+            </p>
           </div>
           <div style={{ flex:1 }} />
+
+          {/* Stat pills */}
           <div style={{ display:'flex', gap:7, alignItems:'center' }}>
             {overdueCt > 0 && (
               <div onClick={() => setTimingFilter(f => f==='overdue'?'all':'overdue')}
-                style={{ padding:'5px 12px', borderRadius:20, fontSize:12, fontWeight:700, color:'#dc2626', cursor:'pointer', userSelect:'none',
-                  background: timingFilter==='overdue' ? '#fee2e2' : '#fff5f5', border:`1.5px solid ${timingFilter==='overdue'?'#dc2626':'#fca5a5'}` }}>
+                style={{ padding:'5px 12px', borderRadius:20, fontSize:12, fontWeight:700, color:'#dc2626', cursor:'pointer',
+                  background:timingFilter==='overdue'?'#fee2e2':'#fff5f5', border:`1.5px solid ${timingFilter==='overdue'?'#dc2626':'#fca5a5'}` }}>
                 🔴 {overdueCt} overdue
               </div>
             )}
             {todayCt > 0 && (
               <div onClick={() => setTimingFilter(f => f==='today'?'all':'today')}
-                style={{ padding:'5px 12px', borderRadius:20, fontSize:12, fontWeight:700, color:'#059669', cursor:'pointer', userSelect:'none',
-                  background: timingFilter==='today' ? '#d1fae5' : '#f0fdf4', border:`1.5px solid ${timingFilter==='today'?'#059669':'#6ee7b7'}` }}>
+                style={{ padding:'5px 12px', borderRadius:20, fontSize:12, fontWeight:700, color:'#059669', cursor:'pointer',
+                  background:timingFilter==='today'?'#d1fae5':'#f0fdf4', border:`1.5px solid ${timingFilter==='today'?'#059669':'#6ee7b7'}` }}>
                 🟢 {todayCt} today
               </div>
             )}
             {readyCt > 0 && (
-              <div style={{ padding:'5px 12px', borderRadius:20, fontSize:12, fontWeight:700, color:'#7c3aed', background:'#f5f3ff', border:'1.5px solid #c4b5fd' }}>
+              <div style={{ padding:'5px 12px', borderRadius:20, fontSize:12, fontWeight:700, color:'#7c3aed',
+                background:'#f5f3ff', border:'1.5px solid #c4b5fd' }}>
                 ✨ {readyCt} ready
               </div>
             )}
-            <div style={{ padding:'5px 12px', borderRadius:20, fontSize:12, fontWeight:500, color:'#6b7280', background:'#f9fafb', border:'1px solid #e5e7eb' }}>
-              {contacts.length} in queue
+            {freshContacts.length > 0 && (
+              <div onClick={() => setStageFilter(f => f==='Fresh'?'all':'Fresh')}
+                style={{ padding:'5px 12px', borderRadius:20, fontSize:12, fontWeight:700, color:'#1d4ed8', cursor:'pointer',
+                  background:stageFilter==='Fresh'?'#dbeafe':'#eff6ff', border:`1.5px solid ${stageFilter==='Fresh'?'#2563eb':'#93c5fd'}` }}>
+                📩 {freshContacts.length} new
+              </div>
+            )}
+            <div style={{ padding:'5px 12px', borderRadius:20, fontSize:12, fontWeight:500, color:'#6b7280',
+              background:'#f9fafb', border:'1px solid #e5e7eb' }}>
+              {totalInQueue} in queue
             </div>
           </div>
+
+          {/* Settings */}
           <button onClick={() => setSettingsOpen(s => !s)}
             style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 14px', borderRadius:8,
               border:`1.5px solid ${settingsOpen?'#2563eb':'#e5e7eb'}`,
@@ -328,12 +411,10 @@ export default function FollowUps() {
           </button>
         </div>
 
-        {/* SETTINGS PANEL */}
+        {/* ══ SETTINGS PANEL ══════════════════════════════════════════ */}
         {settingsOpen && (
           <div style={{ borderTop:'1px solid #f3f4f6', background:'linear-gradient(to bottom,#f9fafb,#f3f4f6)', padding:'16px 24px 18px' }}>
             <div style={{ display:'flex', gap:28, alignItems:'flex-start', flexWrap:'wrap' }}>
-
-              {/* Cadence */}
               <div>
                 <div style={{ fontSize:11, fontWeight:700, color:'#374151', marginBottom:10, textTransform:'uppercase', letterSpacing:'0.06em' }}>
                   📅 Cadence (days between emails)
@@ -342,7 +423,7 @@ export default function FollowUps() {
                   {['Fresh','F1','F2','F3','F4'].map(key => (
                     <div key={key} style={{ textAlign:'center' }}>
                       <div style={{ fontSize:10, color:'#6b7280', marginBottom:4, fontWeight:600 }}>{key}</div>
-                      <input type="number" min="1" max="60"
+                      <input type="number" min="0" max="60"
                         value={cadence[key] ?? DEFAULT_CADENCE[key]}
                         onChange={e => saveCadence({ ...cadence, [key]: Number(e.target.value) })}
                         style={{ width:52, padding:'5px 4px', textAlign:'center', borderRadius:7,
@@ -356,14 +437,13 @@ export default function FollowUps() {
                   </button>
                 </div>
                 <div style={{ fontSize:10, color:'#9ca3af', marginTop:6, lineHeight:1.5 }}>
-                  "Fresh" = days after qualifying before F1 email is due.<br />
-                  "F1" = days after F1 sent before F2 is due. And so on.
+                  "Fresh" = days after Start before initial email is due (0 = immediately).<br />
+                  "F1" = days after initial email sent before F2 is due. And so on.
                 </div>
               </div>
 
               <div style={{ width:1, background:'#e5e7eb', alignSelf:'stretch', flexShrink:0 }} />
 
-              {/* Auto-generate toggle */}
               <div>
                 <div style={{ fontSize:11, fontWeight:700, color:'#374151', marginBottom:10, textTransform:'uppercase', letterSpacing:'0.06em' }}>
                   ✨ Auto-generation
@@ -380,7 +460,7 @@ export default function FollowUps() {
                       {autoGenerate ? 'On — auto-drafts overdue & today on page open' : 'Off — manual only'}
                     </div>
                     <div style={{ fontSize:11, color:'#9ca3af', marginTop:2 }}>
-                      {autoGenerate ? 'AI silently generates drafts when you open this queue' : 'Click "Draft Email" per contact to generate'}
+                      {autoGenerate ? 'AI silently generates drafts when you open this queue' : 'Click "Draft Email" per contact'}
                     </div>
                   </div>
                 </div>
@@ -388,36 +468,35 @@ export default function FollowUps() {
 
               <div style={{ width:1, background:'#e5e7eb', alignSelf:'stretch', flexShrink:0 }} />
 
-              {/* How it works */}
               <div style={{ fontSize:11, color:'#6b7280', lineHeight:1.7, maxWidth:260 }}>
-                <div style={{ fontWeight:700, color:'#374151', marginBottom:4 }}>How it works</div>
-                <div>1. Contacts arrive as <b>F1</b> after being qualified on Accounts</div>
-                <div>2. Draft email → review → click <b style={{ color:'#059669' }}>Mark Sent</b></div>
-                <div>3. Stage advances (F1→F2…) and due date resets by cadence</div>
-                <div>4. <span style={{ color:'#7c3aed', fontWeight:600 }}>✨ Ready</span> contacts float to top of each timing group</div>
+                <div style={{ fontWeight:700, color:'#374151', marginBottom:4 }}>Journey</div>
+                <div>1. Click <b>🚀 Start</b> on Accounts → contact appears here as <b>Fresh</b></div>
+                <div>2. Draft initial email → <b>✓ Mark Sent</b> → becomes F1</div>
+                <div>3. F1→F2→F3→F4→F5 with AI drafts each step</div>
+                <div>4. <span style={{ color:'#7c3aed', fontWeight:600 }}>✨ Ready</span> contacts float to top of each group</div>
               </div>
             </div>
           </div>
         )}
 
-        {/* FILTER ROW */}
+        {/* ══ FILTER ROW ══════════════════════════════════════════════ */}
         <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', padding:'8px 24px 12px' }}>
           <div style={{ position:'relative' }}>
             <span style={{ position:'absolute', left:9, top:'50%', transform:'translateY(-50%)', fontSize:12, color:'#9ca3af', pointerEvents:'none' }}>🔍</span>
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Name, company, email…"
-              style={{ paddingLeft:28, paddingRight:10, paddingTop:6, paddingBottom:6, borderRadius:8,
-                border:'1px solid #e5e7eb', fontSize:12, width:190, outline:'none', background:'#f9fafb', color:'#111' }} />
+              style={{ paddingLeft:28, paddingRight:10, paddingTop:6, paddingBottom:6,
+                borderRadius:8, border:'1px solid #e5e7eb', fontSize:12, width:190, outline:'none', background:'#f9fafb' }} />
           </div>
 
           <div style={{ display:'flex', gap:4, alignItems:'center' }}>
             <span style={{ fontSize:10, color:'#9ca3af', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.05em' }}>Stage:</span>
-            {['all', ...FOLLOWUP_STAGES].map(s => {
+            {['all', ...ALL_STAGES].map(s => {
               const m = STAGE_META[s]; const active = stageFilter === s;
               return (
                 <button key={s} onClick={() => setStageFilter(s)}
                   style={{ padding:'4px 10px', borderRadius:6, fontSize:11, fontWeight:600, cursor:'pointer', border:'none',
                     background:active?(m?.bg||'#dbeafe'):'#f3f4f6', color:active?(m?.color||'#1d4ed8'):'#6b7280' }}>
-                  {s==='all'?`All (${contacts.length})`:`${s} (${stageCounts[s]||0})`}
+                  {s==='all' ? `All (${totalInQueue})` : `${s} (${stageCounts[s]||0})`}
                 </button>
               );
             })}
@@ -456,19 +535,21 @@ export default function FollowUps() {
         </div>
       </div>
 
-      {/* CONTENT */}
+      {/* ══════════════════ CONTENT ════════════════════════════════════ */}
       <div style={{ flex:1, overflowY:'auto', padding:'20px 24px' }}>
         {loading ? (
           <div style={{ textAlign:'center', padding:'80px 20px', color:'#9ca3af' }}>
             <div style={{ fontSize:32, marginBottom:10 }}>⏳</div>Loading queue…
           </div>
-        ) : contacts.length === 0 ? (
+        ) : totalInQueue === 0 ? (
           <div style={{ textAlign:'center', padding:'80px 20px' }}>
             <div style={{ fontSize:44, marginBottom:14 }}>🎉</div>
             <div style={{ fontSize:16, fontWeight:700, color:'#374151' }}>Queue is empty!</div>
-            <div style={{ fontSize:13, color:'#6b7280', marginTop:6 }}>Qualify Fresh contacts on the Accounts page — they appear here as F1</div>
+            <div style={{ fontSize:13, color:'#6b7280', marginTop:6 }}>
+              Go to Accounts → select a contact → click <strong>🚀 Start</strong> to begin outreach
+            </div>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : noResults ? (
           <div style={{ textAlign:'center', padding:'80px 20px' }}>
             <div style={{ fontSize:32, marginBottom:10 }}>🔍</div>
             <div style={{ fontSize:14, fontWeight:600, color:'#374151' }}>No matches</div>
@@ -478,16 +559,66 @@ export default function FollowUps() {
             </button>
           </div>
         ) : (
-          activeGroups.map(group => (
-            <TimingGroup key={group.key} group={group} {...sharedProps} />
-          ))
+          <>
+            {/* ── FRESH / NEW CONTACTS SECTION ───────────────────── */}
+            {showFresh && filteredFresh.length > 0 && (
+              <FreshSection
+                contacts={filteredFresh}
+                {...sharedProps}
+              />
+            )}
+
+            {/* ── F1-F5 TIMING GROUPS ─────────────────────────────── */}
+            {(stageFilter === 'all' || stageFilter !== 'Fresh') && activeGroups.map(group => (
+              <TimingGroup key={group.key} group={group} {...sharedProps} />
+            ))}
+          </>
         )}
       </div>
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ── FreshSection ──────────────────────────────────────────────────────────────
+
+function FreshSection({ contacts, ...props }) {
+  const readyItems = contacts.filter(c => c._hasDraft);
+  const needsItems = contacts.filter(c => !c._hasDraft);
+
+  // Sort: ready first, then by due date
+  const sorted = [
+    ...readyItems.sort((a, b) => (a._due || 0) - (b._due || 0)),
+    ...needsItems.sort((a, b) => (a._due || 0) - (b._due || 0)),
+  ];
+
+  return (
+    <div style={{ marginBottom:28 }}>
+      {/* Section header */}
+      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
+        <span style={{ fontSize:12, fontWeight:700, color:'#1d4ed8', padding:'3px 14px',
+          background:'#dbeafe', borderRadius:20, flexShrink:0 }}>
+          📩 New Contacts · {contacts.length}
+        </span>
+        <div style={{ flex:1, height:1, background:'#e5e7eb' }} />
+        <span style={{ fontSize:11, color:'#6b7280', flexShrink:0 }}>Draft initial email → Mark Sent → moves to F1</span>
+        {readyItems.length > 0 && (
+          <span style={{ fontSize:11, fontWeight:600, color:'#7c3aed', padding:'2px 9px',
+            background:'#f5f3ff', borderRadius:12, border:'1px solid #ede9fe', flexShrink:0 }}>
+            {readyItems.length} ✨ ready
+          </span>
+        )}
+      </div>
+
+      <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
+        {sorted.map(c => (
+          <ContactRow key={c.id} contact={c} {...props} isFresh />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── TimingGroup ───────────────────────────────────────────────────────────────
 
 function TimingGroup({ group, ...props }) {
   const readyItems = group.items.filter(c => c._hasDraft);
@@ -536,29 +667,35 @@ function TimingGroup({ group, ...props }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ── ContactRow ────────────────────────────────────────────────────────────────
 
 function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, markingSent,
-  onGenerate, onToggleDraft, onRegenerate, onMarkSent, onSnooze, onCopy, onView }) {
+  onGenerate, onToggleDraft, onRegenerate, onMarkSent, onSnooze, onCopy, onView, isFresh }) {
 
   const sm       = STAGE_META[c.status] || { bg:'#f1f5f9', color:'#475569', label:c.status };
   const rm       = c.response ? RESPONSE_META[c.response] : null;
   const account  = accounts[c.account_id];
   const draft    = drafts[c.id];
   const hasDraft = !!draft;
-  const isOverdue    = c._bucket === 'overdue';
-  const isDrafting   = drafting === c.id;
-  const isDraftOpen  = draftOpen === c.id;
-  const isMarking    = markingSent === c.id;
-  const isCopied     = copied === c.id;
+  const isOverdue   = c._bucket === 'overdue';
+  const isDrafting  = drafting === c.id;
+  const isDraftOpen = draftOpen === c.id;
+  const isMarking   = markingSent === c.id;
+  const isCopied    = copied === c.id;
   const ac = avatarColor(c.full_name);
+
+  const markSentLabel = c.status === 'Fresh' ? '✓ Send → F1' : '✓ Mark Sent';
+  const draftBtnLabel = isDrafting ? '✨ Drafting…'
+    : hasDraft ? (isDraftOpen ? '📧 Hide' : '📧 Show Draft')
+    : c.status === 'Fresh' ? '✨ Draft Initial Email'
+    : '✨ Draft Email';
 
   return (
     <div style={{
       background:'#fff', borderRadius:10, overflow:'hidden',
-      border:`1px solid ${hasDraft?'#e9d5ff':'#e5e7eb'}`,
-      borderLeft:`3px solid ${hasDraft?'#7c3aed':isOverdue?'#ef4444':'#e5e7eb'}`,
-      boxShadow:hasDraft?'0 1px 6px rgba(124,58,237,0.09)':'0 1px 3px rgba(0,0,0,0.04)',
+      border:`1px solid ${hasDraft?'#e9d5ff':isFresh?'#bfdbfe':'#e5e7eb'}`,
+      borderLeft:`3px solid ${hasDraft?'#7c3aed':isFresh?'#2563eb':isOverdue?'#ef4444':'#e5e7eb'}`,
+      boxShadow:hasDraft?'0 1px 6px rgba(124,58,237,0.09)':isFresh?'0 1px 4px rgba(37,99,235,0.07)':'0 1px 3px rgba(0,0,0,0.04)',
     }}>
 
       {/* Main row */}
@@ -609,7 +746,7 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
               background:hasDraft?(isDraftOpen?'#ede9fe':'#f5f3ff'):'linear-gradient(135deg,#7c3aed,#2563eb)',
               color:hasDraft?'#7c3aed':'#fff',
               boxShadow:!hasDraft?'0 1px 4px rgba(37,99,235,0.3)':'none' }}>
-            {isDrafting ? '✨ Drafting…' : hasDraft ? (isDraftOpen ? '📧 Hide' : '📧 Show Draft') : '✨ Draft Email'}
+            {draftBtnLabel}
           </button>
 
           {hasDraft && (
@@ -617,7 +754,7 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
               style={{ padding:'5px 11px', borderRadius:7, fontSize:11, fontWeight:700, border:'none',
                 background:isMarking?'#d1fae5':'#059669', color:'#fff', cursor:isMarking?'wait':'pointer',
                 boxShadow:'0 1px 4px rgba(5,150,105,0.3)' }}>
-              {isMarking ? '✓ Sent!' : '✓ Mark Sent'}
+              {isMarking ? '✓ Done!' : markSentLabel}
             </button>
           )}
 
@@ -643,13 +780,17 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
           {isDrafting ? (
             <div style={{ textAlign:'center', padding:'28px 0', color:'#7c3aed' }}>
               <div style={{ fontSize:26, marginBottom:10 }}>✨</div>
-              <div style={{ fontSize:13, fontWeight:700 }}>Generating {sm.label} email…</div>
+              <div style={{ fontSize:13, fontWeight:700 }}>
+                {c.status === 'Fresh' ? 'Generating initial cold email…' : `Generating ${sm.label} email…`}
+              </div>
               <div style={{ fontSize:11, color:'#9ca3af', marginTop:5 }}>Using account research + prior email context</div>
             </div>
           ) : draft ? (
             <>
               <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
-                <div style={{ fontSize:12, fontWeight:700, color:'#374151', flex:1 }}>✉️ AI Draft — {sm.label}</div>
+                <div style={{ fontSize:12, fontWeight:700, color:'#374151', flex:1 }}>
+                  ✉️ {c.status === 'Fresh' ? 'AI Draft — Initial Email' : `AI Draft — ${sm.label}`}
+                </div>
                 <button onClick={() => onRegenerate(c)}
                   style={{ fontSize:11, padding:'3px 10px', borderRadius:6, border:'1px solid #e5e7eb', background:'#fff', color:'#7c3aed', cursor:'pointer', fontWeight:500 }}>
                   ↻ Regenerate
@@ -662,7 +803,7 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
                 <button onClick={() => onMarkSent(c)} disabled={isMarking}
                   style={{ fontSize:11, padding:'3px 12px', borderRadius:6, border:'none',
                     background:isMarking?'#6ee7b7':'#059669', color:'#fff', cursor:isMarking?'wait':'pointer', fontWeight:700 }}>
-                  {isMarking ? '✓ Sent!' : '✓ Mark Sent'}
+                  {isMarking ? '✓ Done!' : markSentLabel}
                 </button>
               </div>
 
@@ -681,7 +822,7 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
               </div>
 
               <div style={{ marginTop:10, fontSize:11, color:'#9ca3af' }}>
-                ⚠ Review and personalise before sending · click <strong style={{ color:'#059669' }}>Mark Sent</strong> after you send it to advance the stage
+                ⚠ Review and personalise before sending · click <strong style={{ color:'#059669' }}>{markSentLabel}</strong> after you send it
               </div>
             </>
           ) : null}
