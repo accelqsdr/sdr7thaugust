@@ -401,52 +401,196 @@ export default function Contacts() {
   );
 }
 
+// ── CSV field targets ──
+const CSV_FIELDS = [
+  { key: 'full_name',    label: 'Full Name' },
+  { key: 'email',        label: 'Email' },
+  { key: 'company',      label: 'Company' },
+  { key: 'title',        label: 'Title / Designation' },
+  { key: 'country',      label: 'Country' },
+  { key: 'phone',        label: 'Phone' },
+  { key: 'industry',     label: 'Industry' },
+  { key: 'linkedin_url', label: 'LinkedIn URL' },
+];
+
+// Auto-guess mapping based on header name similarity
+function guessField(header) {
+  const h = header.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (/fullname|name|firstname|lastname/.test(h)) return 'full_name';
+  if (/email|mail/.test(h)) return 'email';
+  if (/company|org|organisation|organization|employer|account/.test(h)) return 'company';
+  if (/title|jobtitle|designation|position|role/.test(h)) return 'title';
+  if (/country|location|geo|region/.test(h)) return 'country';
+  if (/phone|mobile|cell|tel/.test(h)) return 'phone';
+  if (/industry|sector|vertical/.test(h)) return 'industry';
+  if (/linkedin|profile/.test(h)) return 'linkedin_url';
+  return '';
+}
+
+// Parse a CSV line respecting quoted fields
+function parseCSVLine(line) {
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQ = !inQ; }
+    else if (ch === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
+    else { cur += ch; }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
 function UploadCSV({ userId, onDone }) {
-  const [uploading, setUploading] = useState(false);
+  const [step, setStep] = useState('idle'); // idle | mapping | importing | done
+  const [headers, setHeaders] = useState([]);
+  const [rows, setRows] = useState([]);
+  const [mapping, setMapping] = useState({});
+  const [importing, setImporting] = useState(false);
   const [msg, setMsg] = useState('');
 
   function handleFile(e) {
     const file = e.target.files[0];
     if (!file) return;
-    setUploading(true); setMsg('');
     const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const lines = ev.target.result.trim().split('\n');
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s+/g, '_'));
-      const rows = lines.slice(1).map(line => {
-        const vals = line.split(',');
-        const obj = {};
-        headers.forEach((h, i) => { obj[h] = (vals[i] || '').trim().replace(/^"|"$/g, ''); });
-        return {
-          owner_id: userId,
-          full_name: obj.name || obj.full_name || '',
-          email: obj.email || '',
-          company: obj.company || '',
-          title: obj.title || obj.job_title || obj.designation || '',
-          phone: obj.phone || '',
-          industry: obj.industry || '',
-          country: obj.country || '',
-          linkedin_url: obj.linkedin || obj.linkedin_url || '',
-          status: 'Fresh',
-          sequence_step: 0,
-        };
-      }).filter(r => r.full_name || r.email);
-      const { error } = await supabase.from('contacts').insert(rows);
-      setUploading(false);
-      if (error) { setMsg('Upload failed: ' + error.message); }
-      else { setMsg(`✓ ${rows.length} contacts imported`); onDone(); }
+    reader.onload = (ev) => {
+      const lines = ev.target.result.trim().split('\n').filter(l => l.trim());
+      const hdrs = parseCSVLine(lines[0]);
+      const dataRows = lines.slice(1).map(l => parseCSVLine(l));
+      const autoMap = {};
+      hdrs.forEach(h => { autoMap[h] = guessField(h); });
+      setHeaders(hdrs);
+      setRows(dataRows);
+      setMapping(autoMap);
+      setStep('mapping');
     };
     reader.readAsText(file);
     e.target.value = '';
   }
 
+  async function doImport() {
+    setImporting(true);
+    const contacts = rows.map(row => {
+      const obj = { owner_id: userId, status: 'Fresh', sequence_step: 0 };
+      headers.forEach((h, i) => {
+        const field = mapping[h];
+        if (field) obj[field] = (row[i] || '').trim();
+      });
+      return obj;
+    }).filter(r => r.full_name || r.email);
+
+    // Batch insert in chunks of 500
+    let total = 0;
+    for (let i = 0; i < contacts.length; i += 500) {
+      const chunk = contacts.slice(i, i + 500);
+      const { error } = await supabase.from('contacts').insert(chunk);
+      if (error) { setMsg('Import failed: ' + error.message); setImporting(false); return; }
+      total += chunk.length;
+    }
+    setImporting(false);
+    setStep('done');
+    setMsg(`✓ ${total} contacts imported`);
+    onDone();
+    setTimeout(() => { setStep('idle'); setMsg(''); }, 4000);
+  }
+
+  function reset() { setStep('idle'); setHeaders([]); setRows([]); setMapping({}); setMsg(''); }
+
+  // Preview: first 3 data rows
+  const preview = rows.slice(0, 3);
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      {msg && <span style={{ fontSize: 12, color: msg.includes('failed') ? '#dc2626' : '#059669' }}>{msg}</span>}
-      <label style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
-        {uploading ? 'Uploading…' : '+ Import CSV'}
-        <input type="file" accept=".csv" onChange={handleFile} style={{ display: 'none' }} />
-      </label>
-    </div>
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {msg && <span style={{ fontSize: 12, color: msg.includes('failed') ? '#dc2626' : '#059669' }}>{msg}</span>}
+        <label style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+          + Import CSV
+          <input type="file" accept=".csv" onChange={handleFile} style={{ display: 'none' }} />
+        </label>
+      </div>
+
+      {/* Mapping modal */}
+      {step === 'mapping' && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+          onClick={e => e.target === e.currentTarget && reset()}>
+          <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 680, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 8px 40px rgba(0,0,0,0.2)' }}>
+            {/* Header */}
+            <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #f0f0ee' }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>Map CSV columns</div>
+              <div style={{ fontSize: 13, color: '#888', marginTop: 3 }}>
+                {rows.length} rows detected · Match each column to a contact field
+              </div>
+            </div>
+
+            {/* Mapping table */}
+            <div style={{ padding: '16px 24px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px', marginBottom: 4 }}>
+                <div style={{ fontSize: 11, color: '#999', fontWeight: 500, marginBottom: 8 }}>YOUR CSV COLUMN</div>
+                <div style={{ fontSize: 11, color: '#999', fontWeight: 500, marginBottom: 8 }}>MAPS TO</div>
+              </div>
+              {headers.map(h => (
+                <div key={h} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px', marginBottom: 10, alignItems: 'center' }}>
+                  <div style={{ padding: '8px 12px', background: '#f8f8f6', borderRadius: 7, fontSize: 13, color: '#333', fontFamily: 'monospace' }}>
+                    {h}
+                  </div>
+                  <select value={mapping[h] || ''} onChange={e => setMapping({ ...mapping, [h]: e.target.value })}
+                    style={{ padding: '8px 10px', borderRadius: 7, border: `1px solid ${mapping[h] ? '#bfdbfe' : '#e0e0e0'}`, fontSize: 13, cursor: 'pointer', background: mapping[h] ? '#eff6ff' : '#fff', color: mapping[h] ? '#1d4ed8' : '#555' }}>
+                    <option value="">— Skip —</option>
+                    {CSV_FIELDS.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
+                  </select>
+                </div>
+              ))}
+            </div>
+
+            {/* Preview */}
+            {preview.length > 0 && (
+              <div style={{ padding: '0 24px 16px' }}>
+                <div style={{ fontSize: 11, color: '#999', fontWeight: 500, marginBottom: 8 }}>PREVIEW (first {preview.length} rows)</div>
+                <div style={{ overflowX: 'auto', border: '1px solid #f0f0ee', borderRadius: 8 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                    <thead>
+                      <tr style={{ background: '#f8f8f6' }}>
+                        {headers.map(h => (
+                          <th key={h} style={{ padding: '6px 10px', textAlign: 'left', color: '#888', fontWeight: 500, borderBottom: '1px solid #f0f0ee', whiteSpace: 'nowrap' }}>
+                            {mapping[h] ? CSV_FIELDS.find(f => f.key === mapping[h])?.label : <span style={{ color: '#ccc' }}>Skip</span>}
+                            <div style={{ color: '#bbb', fontWeight: 400, fontSize: 10 }}>{h}</div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preview.map((row, i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid #f8f8f6' }}>
+                          {row.map((cell, j) => (
+                            <td key={j} style={{ padding: '6px 10px', color: mapping[headers[j]] ? '#333' : '#ccc', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {cell || '—'}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{ padding: '14px 24px 20px', borderTop: '1px solid #f0f0ee', display: 'flex', gap: 10, alignItems: 'center' }}>
+              <button onClick={doImport} disabled={importing}
+                style={{ padding: '9px 22px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: importing ? 0.7 : 1 }}>
+                {importing ? `Importing…` : `Import ${rows.length} contacts`}
+              </button>
+              <button onClick={reset}
+                style={{ padding: '9px 16px', background: '#f5f5f5', color: '#555', border: 'none', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <span style={{ fontSize: 12, color: '#aaa', marginLeft: 4 }}>
+                {Object.values(mapping).filter(Boolean).length} of {headers.length} columns mapped
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
