@@ -117,11 +117,11 @@ export default function Contacts() {
     if (!window.confirm(`Delete ${selected.size} contact${selected.size !== 1 ? 's' : ''}? This cannot be undone.`)) return;
     setBulkWorking(true);
     const ids = Array.from(selected);
-    const { error } = await supabase.from('contacts').delete().in('id', ids);
+    const { data: deletedCount, error } = await supabase.rpc('bulk_delete_contacts', { contact_ids: ids });
     if (error) {
       showToast('Delete failed: ' + error.message, 'error');
     } else {
-      showToast(`${ids.length} contact${ids.length !== 1 ? 's' : ''} deleted`);
+      showToast(`${deletedCount} contact${deletedCount !== 1 ? 's' : ''} deleted`);
     }
     await fetchContacts();
     setBulkWorking(false);
