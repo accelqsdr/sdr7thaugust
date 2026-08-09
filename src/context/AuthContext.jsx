@@ -10,19 +10,24 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user);
-        getUserRole(session.user.id).then(setProfile);
-      }
-      setLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(({ data }) => {
+        const session = data?.session ?? null;
+        if (session?.user) {
+          setUser(session.user);
+          getUserRole(session.user.id).then(setProfile).catch(() => {});
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         setUser(session.user);
-        const p = await getUserRole(session.user.id);
-        setProfile(p);
+        try {
+          const p = await getUserRole(session.user.id);
+          setProfile(p);
+        } catch {}
       } else {
         setUser(null);
         setProfile(null);
