@@ -171,6 +171,27 @@ export default function Contacts() {
     setBulkWorking(false);
   }
 
+  // ── Bulk: start outreach ──
+  async function bulkStart() {
+    const eligible = contacts.filter(c => selected.has(c.id) && c.status === 'Fresh' && !c.next_followup);
+    if (eligible.length === 0) return;
+    setBulkWorking(true);
+    const now = new Date().toISOString();
+    const ids = eligible.map(c => c.id);
+    await supabase.from('contacts').update({ next_followup: now }).in('id', ids);
+    await supabase.from('activity_log').insert(
+      eligible.map(c => ({
+        actor_id: user.id,
+        contact_id: c.id,
+        activity_type: 'outreach_started',
+        details: { started_from: 'contacts_bulk' },
+      }))
+    );
+    showToast(`🚀 ${eligible.length} contact${eligible.length !== 1 ? 's' : ''} added to Follow-up Queue`);
+    await fetchContacts();
+    setBulkWorking(false);
+  }
+
   // ── Bulk: export CSV ──
   function bulkExport() {
     const rows = contacts.filter(c => selected.has(c.id));
@@ -232,6 +253,7 @@ export default function Contacts() {
   }
 
   const selCount = selected.size;
+  const startEligibleCount = contacts.filter(c => selected.has(c.id) && c.status === 'Fresh' && !c.next_followup).length;
   const activeCount = stageCounts ? Object.entries(stageCounts).filter(([s]) => !['bounced','unsubscribed'].includes(s)).reduce((a,b) => a + b[1], 0) : 0;
 
   return (
@@ -298,6 +320,11 @@ export default function Contacts() {
             <button onClick={bulkExport}
               style={{ padding: '5px 12px', background: '#fff', color: '#2563eb', borderRadius: 6, fontSize: 12, border: '1px solid #bfdbfe', cursor: 'pointer', fontWeight: 500 }}>
               ⬇️ Export CSV
+            </button>
+            <button onClick={bulkStart} disabled={bulkWorking || startEligibleCount === 0}
+              title={startEligibleCount === 0 ? 'Select Fresh contacts with no outreach started' : ''}
+              style={{ padding: '5px 12px', background: startEligibleCount > 0 ? '#059669' : '#e0e0e0', color: startEligibleCount > 0 ? '#fff' : '#999', borderRadius: 6, fontSize: 12, border: 'none', cursor: startEligibleCount > 0 ? 'pointer' : 'not-allowed', fontWeight: 600 }}>
+              🚀 Start ({startEligibleCount})
             </button>
             <button onClick={bulkDelete} disabled={bulkWorking}
               style={{ padding: '5px 12px', background: '#fff', color: '#dc2626', borderRadius: 6, fontSize: 12, border: '1px solid #fecaca', cursor: 'pointer', fontWeight: 500 }}>
