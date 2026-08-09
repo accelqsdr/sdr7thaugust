@@ -1,10 +1,11 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
 const STAGES = ['Fresh','F1','F2','F3','F4','F5','won','lost','bounced','unsubscribed'];
 const STEP_MAP = { Fresh:0, F1:1, F2:2, F3:3, F4:4, F5:5 };
+const PAGE_SIZE_OPTIONS = [25, 50, 100, 250];
 
 const STAGE_COLORS = {
   Fresh:        { bg: '#e0f2fe', color: '#0369a1' },
@@ -31,11 +32,17 @@ const RESPONSE_COLORS = {
 export default function Contacts() {
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  // Data + pagination
   const [contacts, setContacts] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [stageCounts, setStageCounts] = useState({});
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [showBounced, setShowBounced] = useState(false);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(50);
 
   // Bulk select
   const [selected, setSelected] = useState(new Set());
@@ -43,59 +50,101 @@ export default function Contacts() {
   const [bulkWorking, setBulkWorking] = useState(false);
   const [toast, setToast] = useState(null);
 
-  function showToast(msg, type='success') {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 4000);
-  }
+  // Smart select popover
+  const [showSmartSelect, setShowSmartSelect] = useState(false);
+  const [smartN, setSmartN] = useState(25);
+  const [smartMaxPerCompany, setSmartMaxPerCompany] = useState(false);
+  const [smartMaxN, setSmartMaxN] = useState(1);
+  const smartRef = useRef(null);
 
   // Add contact modal
   const [showAddContact, setShowAddContact] = useState(false);
   const [newContact, setNewContact] = useState({ full_name:'', email:'', company:'', title:'', country:'', seniority:'', status:'Fresh' });
   const [adding, setAdding] = useState(false);
 
+  function showToast(msg, type='success') {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 4000);
+  }
+
+  // Close smart select on outside click
+  useEffect(() => {
+    function handleClick(e) {
+      if (smartRef.current && !smartRef.current.contains(e.target)) setShowSmartSelect(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  // Fetch page + stage counts
   const fetchContacts = useCallback(async () => {
     setLoading(true);
-    let q = supabase.from('contacts').select('*').eq('owner_id', user.id).order('created_at', { ascending: false });
+
+    // Build base query
+    let q = supabase.from('contacts').select('*', { count: 'exact' })
+      .eq('owner_id', user.id)
+      .order('created_at', { ascending: false });
+
     if (filter !== 'all') q = q.eq('status', filter);
-    const { data } = await q;
+    if (!showBounced) q = q.eq('bounced', false);
+    if (search) q = q.or(`full_name.ilike.%${search}%,email.ilike.%${search}%,company.ilike.%${search}%`);
+
+    q = q.range(page * pageSize, (page + 1) * pageSize - 1);
+
+    const { data, count } = await q;
     setContacts(data || []);
+    setTotalCount(count || 0);
     setSelected(new Set());
+
+    // Stage counts (separate query, no pagination)
+    const { data: allForCount } = await supabase
+      .from('contacts').select('status, bounced')
+      .eq('owner_id', user.id);
+    const counts = {};
+    STAGES.forEach(s => { counts[s] = (allForCount || []).filter(c => c.status === s).length; });
+    setStageCounts(counts);
+
     setLoading(false);
-  }, [user.id, filter]);
+  }, [user.id, filter, search, page, pageSize, showBounced]);
 
   useEffect(() => { fetchContacts(); }, [fetchContacts]);
 
-  // ── Filtered list ──
-  const filtered = contacts.filter(c => {
-    if (!showBounced && c.bounced) return false;
-    if (!search) return true;
-    const s = search.toLowerCase();
-    return c.full_name?.toLowerCase().includes(s) ||
-           c.email?.toLowerCase().includes(s) ||
-           c.company?.toLowerCase().includes(s);
-  });
+  // Reset to page 0 when filter/search changes
+  useEffect(() => { setPage(0); }, [filter, search, showBounced, pageSize]);
 
-  const filterCounts = {};
-  STAGES.forEach(s => { filterCounts[s] = contacts.filter(c => c.status === s).length; });
+  const totalPages = Math.ceil(totalCount / pageSize);
 
   // ── Selection helpers ──
-  const allChecked = filtered.length > 0 && filtered.every(c => selected.has(c.id));
-  const someChecked = filtered.some(c => selected.has(c.id)) && !allChecked;
+  const allChecked = contacts.length > 0 && contacts.every(c => selected.has(c.id));
+  const someChecked = contacts.some(c => selected.has(c.id)) && !allChecked;
 
   function toggleOne(id) {
-    setSelected(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
 
   function toggleAll() {
     if (allChecked) {
-      setSelected(prev => { const n = new Set(prev); filtered.forEach(c => n.delete(c.id)); return n; });
+      setSelected(prev => { const n = new Set(prev); contacts.forEach(c => n.delete(c.id)); return n; });
     } else {
-      setSelected(prev => { const n = new Set(prev); filtered.forEach(c => n.add(c.id)); return n; });
+      setSelected(prev => { const n = new Set(prev); contacts.forEach(c => n.add(c.id)); return n; });
     }
+  }
+
+  // Smart select: pick N contacts with optional max-per-company
+  function applySmartSelect() {
+    const companyCounts = {};
+    const picked = new Set();
+    for (const c of contacts) {
+      if (picked.size >= smartN) break;
+      if (smartMaxPerCompany) {
+        const key = (c.company || '').toLowerCase();
+        if ((companyCounts[key] || 0) >= smartMaxN) continue;
+        companyCounts[key] = (companyCounts[key] || 0) + 1;
+      }
+      picked.add(c.id);
+    }
+    setSelected(picked);
+    setShowSmartSelect(false);
   }
 
   // ── Bulk: change stage ──
@@ -118,11 +167,8 @@ export default function Contacts() {
     setBulkWorking(true);
     const ids = Array.from(selected);
     const { data: deletedCount, error } = await supabase.rpc('bulk_delete_contacts', { contact_ids: ids });
-    if (error) {
-      showToast('Delete failed: ' + error.message, 'error');
-    } else {
-      showToast(`${deletedCount} contact${deletedCount !== 1 ? 's' : ''} deleted`);
-    }
+    if (error) showToast('Delete failed: ' + error.message, 'error');
+    else showToast(`${deletedCount} contact${deletedCount !== 1 ? 's' : ''} deleted`);
     await fetchContacts();
     setBulkWorking(false);
   }
@@ -157,14 +203,12 @@ export default function Contacts() {
   async function addContact() {
     if (!newContact.full_name.trim()) return;
     setAdding(true);
-    // Try to find/create account
     let account_id = null;
     if (newContact.company.trim()) {
       const { data: existing } = await supabase.from('accounts')
         .select('id').eq('owner_id', user.id).ilike('name', newContact.company.trim()).single();
-      if (existing) {
-        account_id = existing.id;
-      } else {
+      if (existing) account_id = existing.id;
+      else {
         const { data: created } = await supabase.from('accounts').insert({
           name: newContact.company.trim(), owner_id: user.id
         }).select('id').single();
@@ -185,11 +229,12 @@ export default function Contacts() {
     });
     setAdding(false);
     setShowAddContact(false);
-    setNewContact({ full_name:'', email:'', company:'', title:'', country:'', status:'Fresh' });
+    setNewContact({ full_name:'', email:'', company:'', title:'', country:'', seniority:'', status:'Fresh' });
     fetchContacts();
   }
 
   const selCount = selected.size;
+  const activeCount = stageCounts ? Object.entries(stageCounts).filter(([s]) => !['bounced','unsubscribed'].includes(s)).reduce((a,b) => a + b[1], 0) : 0;
 
   return (
     <div style={{ padding: 24 }}>
@@ -198,7 +243,7 @@ export default function Contacts() {
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 600, color: '#111', margin: 0 }}>My Contacts</h1>
           <p style={{ fontSize: 13, color: '#888', margin: '3px 0 0' }}>
-            {contacts.filter(c => !c.bounced).length} active · {contacts.filter(c => c.bounced).length} bounced
+            {totalCount} total · {stageCounts['bounced'] || 0} bounced
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -210,7 +255,7 @@ export default function Contacts() {
         </div>
       </div>
 
-      {/* Stage filter bar */}
+      {/* Filters */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search name, email, company…"
@@ -218,16 +263,16 @@ export default function Contacts() {
         <button onClick={() => setFilter('all')}
           style={{ padding: '6px 12px', borderRadius: 8, border: 'none', fontSize: 12, cursor: 'pointer',
             background: filter === 'all' ? '#111' : '#f0f0ee', color: filter === 'all' ? '#fff' : '#666', fontWeight: 500 }}>
-          All ({contacts.length})
+          All ({totalCount})
         </button>
-        {STAGES.filter(s => filterCounts[s] > 0 || filter === s).map(s => {
+        {STAGES.filter(s => stageCounts[s] > 0 || filter === s).map(s => {
           const sc = STAGE_COLORS[s];
           return (
             <button key={s} onClick={() => setFilter(s)}
               style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${filter === s ? sc.color : '#e0e0e0'}`,
                 fontSize: 12, cursor: 'pointer', fontWeight: filter === s ? 600 : 400,
                 background: filter === s ? sc.bg : '#fff', color: filter === s ? sc.color : '#666' }}>
-              {s} {filterCounts[s] > 0 ? `(${filterCounts[s]})` : ''}
+              {s} ({stageCounts[s] || 0})
             </button>
           );
         })}
@@ -240,9 +285,8 @@ export default function Contacts() {
       {/* Bulk action bar */}
       {selCount > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#1d4ed8' }}>{selCount} contact{selCount !== 1 ? 's' : ''} selected</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#1d4ed8' }}>{selCount} selected</span>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginLeft: 8, flexWrap: 'wrap' }}>
-            {/* Change stage */}
             <select value={bulkStage} onChange={e => setBulkStage(e.target.value)}
               style={{ fontSize: 12, padding: '5px 8px', borderRadius: 6, border: '1px solid #bfdbfe', background: '#fff', cursor: 'pointer' }}>
               <option value="">Change stage…</option>
@@ -253,12 +297,10 @@ export default function Contacts() {
               {bulkWorking ? '…' : 'Apply'}
             </button>
             <div style={{ width: 1, height: 24, background: '#bfdbfe' }} />
-            {/* Export */}
             <button onClick={bulkExport}
               style={{ padding: '5px 12px', background: '#fff', color: '#2563eb', borderRadius: 6, fontSize: 12, border: '1px solid #bfdbfe', cursor: 'pointer', fontWeight: 500 }}>
               ⬇️ Export CSV
             </button>
-            {/* Delete */}
             <button onClick={bulkDelete} disabled={bulkWorking}
               style={{ padding: '5px 12px', background: '#fff', color: '#dc2626', borderRadius: 6, fontSize: 12, border: '1px solid #fecaca', cursor: 'pointer', fontWeight: 500 }}>
               🗑 Delete
@@ -276,21 +318,71 @@ export default function Contacts() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: '0.5px solid #e8e8e4' }}>
+              {/* Checkbox with smart select */}
               <th style={{ padding: '10px 14px', width: 36 }}>
-                <input type="checkbox" checked={allChecked} ref={el => { if (el) el.indeterminate = someChecked; }}
-                  onChange={toggleAll} style={{ cursor: 'pointer', width: 14, height: 14 }} />
+                <div style={{ position: 'relative' }} ref={smartRef}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <input type="checkbox" checked={allChecked}
+                      ref={el => { if (el) el.indeterminate = someChecked; }}
+                      onChange={toggleAll} style={{ cursor: 'pointer', width: 14, height: 14 }} />
+                    <span onClick={() => setShowSmartSelect(v => !v)}
+                      style={{ fontSize: 10, cursor: 'pointer', color: '#aaa', userSelect: 'none' }}>▾</span>
+                  </div>
+                  {/* Smart select popover */}
+                  {showSmartSelect && (
+                    <div style={{ position: 'absolute', top: 28, left: 0, background: '#fff', border: '1px solid #e0e0e0', borderRadius: 10, padding: 16, width: 240, zIndex: 100, boxShadow: '0 4px 20px rgba(0,0,0,0.12)' }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Select contacts</div>
+                      {/* Option 1: Select N */}
+                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 12, cursor: 'pointer' }}>
+                        <input type="radio" name="smartMode" defaultChecked style={{ marginTop: 2 }} />
+                        <div>
+                          <div style={{ fontSize: 13, color: '#111', marginBottom: 6 }}>Select number of people</div>
+                          <input type="number" min={1} max={totalCount} value={smartN}
+                            onChange={e => setSmartN(Number(e.target.value))}
+                            style={{ width: 70, padding: '4px 8px', borderRadius: 6, border: '1px solid #e0e0e0', fontSize: 13 }} />
+                          <div style={{ marginTop: 8 }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#666', cursor: 'pointer' }}>
+                              <input type="checkbox" checked={smartMaxPerCompany} onChange={e => setSmartMaxPerCompany(e.target.checked)} />
+                              Max per company
+                              <input type="number" min={1} value={smartMaxN}
+                                onChange={e => setSmartMaxN(Number(e.target.value))}
+                                disabled={!smartMaxPerCompany}
+                                style={{ width: 45, padding: '3px 6px', borderRadius: 5, border: '1px solid #e0e0e0', fontSize: 12, opacity: smartMaxPerCompany ? 1 : 0.4 }} />
+                            </label>
+                          </div>
+                        </div>
+                      </label>
+                      {/* Option 2: Select all visible */}
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, cursor: 'pointer' }}
+                        onClick={() => { contacts.forEach(c => selected.add(c.id)); setSelected(new Set(selected)); setShowSmartSelect(false); }}>
+                        <input type="radio" name="smartMode" />
+                        <span style={{ fontSize: 13, color: '#111' }}>Select all visible <span style={{ color: '#888' }}>{contacts.length}</span></span>
+                      </label>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={applySmartSelect}
+                          style={{ flex: 1, padding: '7px 0', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                          Apply
+                        </button>
+                        <button onClick={() => setShowSmartSelect(false)}
+                          style={{ padding: '7px 12px', background: '#f5f5f5', color: '#555', border: 'none', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </th>
-              {['Name','Company','Designation','Email','Stage','Response','Last emailed','Next follow-up','Actions'].map(h => (
+              {['Name','Company','Designation','Level','Email','Stage','Response','Last emailed','Next follow-up','Actions'].map(h => (
                 <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, color: '#999', fontWeight: 500 }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} style={{ padding: 32, textAlign: 'center', color: '#aaa' }}>Loading…</td></tr>
-            ) : filtered.length === 0 ? (
-              <tr><td colSpan={9} style={{ padding: 32, textAlign: 'center', color: '#aaa' }}>No contacts found</td></tr>
-            ) : filtered.map(c => {
+              <tr><td colSpan={11} style={{ padding: 32, textAlign: 'center', color: '#aaa' }}>Loading…</td></tr>
+            ) : contacts.length === 0 ? (
+              <tr><td colSpan={11} style={{ padding: 32, textAlign: 'center', color: '#aaa' }}>No contacts found</td></tr>
+            ) : contacts.map(c => {
               const sc = STAGE_COLORS[c.status] || { bg: '#f1f5f9', color: '#475569' };
               const rc = c.response ? RESPONSE_COLORS[c.response] : null;
               const isSelected = selected.has(c.id);
@@ -308,7 +400,12 @@ export default function Contacts() {
                     {c.bounced && <span style={{ marginLeft: 6, fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 10 }}>BOUNCED</span>}
                   </td>
                   <td style={{ padding: '10px 14px', color: '#555' }}>{c.company || '—'}</td>
-                  <td style={{ padding: '10px 14px', color: '#777', fontSize: 12 }}>{c.title || '—'}</td>
+                  <td style={{ padding: '10px 14px', color: '#666', fontSize: 12 }}>{c.title || '—'}</td>
+                  <td style={{ padding: '10px 14px' }}>
+                    {c.seniority ? (
+                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#f1f5f9', color: '#475569', fontWeight: 500 }}>{c.seniority}</span>
+                    ) : <span style={{ color: '#ccc', fontSize: 12 }}>—</span>}
+                  </td>
                   <td style={{ padding: '10px 14px', color: '#555', fontSize: 12 }}>{c.email || '—'}</td>
                   <td style={{ padding: '10px 14px' }}>
                     <span style={{ padding: '3px 9px', borderRadius: 10, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color }}>{c.status}</span>
@@ -321,8 +418,7 @@ export default function Contacts() {
                     {c.last_contacted ? new Date(c.last_contacted).toLocaleDateString() : '—'}
                   </td>
                   <td style={{ padding: '10px 14px', fontSize: 12 }}>
-                    {c.bounced
-                      ? <span style={{ color: '#991b1b', fontSize: 11 }}>Excluded</span>
+                    {c.bounced ? <span style={{ color: '#991b1b', fontSize: 11 }}>Excluded</span>
                       : c.next_followup
                         ? <span style={{ color: new Date(c.next_followup) < new Date() ? '#dc2626' : '#555' }}>
                             {new Date(c.next_followup).toLocaleDateString()}
@@ -344,8 +440,35 @@ export default function Contacts() {
         </table>
       </div>
 
+      {/* Pagination */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 13, color: '#888' }}>Rows per page:</span>
+          {PAGE_SIZE_OPTIONS.map(n => (
+            <button key={n} onClick={() => setPageSize(n)}
+              style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #e0e0e0', fontSize: 12, cursor: 'pointer',
+                background: pageSize === n ? '#111' : '#fff', color: pageSize === n ? '#fff' : '#555', fontWeight: pageSize === n ? 600 : 400 }}>
+              {n}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 13, color: '#888' }}>
+            {page * pageSize + 1}–{Math.min((page + 1) * pageSize, totalCount)} of {totalCount}
+          </span>
+          <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
+            style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid #e0e0e0', fontSize: 13, cursor: page === 0 ? 'not-allowed' : 'pointer', background: '#fff', color: page === 0 ? '#ccc' : '#111' }}>
+            ← Prev
+          </button>
+          <span style={{ fontSize: 13, color: '#555' }}>Page {page + 1} of {totalPages || 1}</span>
+          <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
+            style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid #e0e0e0', fontSize: 13, cursor: page >= totalPages - 1 ? 'not-allowed' : 'pointer', background: '#fff', color: page >= totalPages - 1 ? '#ccc' : '#111' }}>
+            Next →
+          </button>
+        </div>
+      </div>
 
-      {/* Toast notification */}
+      {/* Toast */}
       {toast && (
         <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
           background: toast.type === 'error' ? '#fee2e2' : '#d1fae5',
@@ -369,8 +492,8 @@ export default function Contacts() {
                 { key: 'email', label: 'Email', placeholder: 'jane@company.com' },
                 { key: 'company', label: 'Company', placeholder: 'Infosys' },
                 { key: 'title', label: 'Title / Designation', placeholder: 'QA Lead' },
-                { key: 'country', label: 'Country', placeholder: 'India' },
                 { key: 'seniority', label: 'Seniority / Level', placeholder: 'VP / Director / Manager…' },
+                { key: 'country', label: 'Country', placeholder: 'India' },
               ].map(f => (
                 <div key={f.key} style={{ gridColumn: f.full ? 'span 2' : 'span 1' }}>
                   <label style={{ fontSize: 11, color: '#666', display: 'block', marginBottom: 4 }}>{f.label}</label>
