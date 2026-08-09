@@ -41,6 +41,12 @@ export default function Contacts() {
   const [selected, setSelected] = useState(new Set());
   const [bulkStage, setBulkStage] = useState('');
   const [bulkWorking, setBulkWorking] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  function showToast(msg, type='success') {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 4000);
+  }
 
   // Add contact modal
   const [showAddContact, setShowAddContact] = useState(false);
@@ -110,7 +116,13 @@ export default function Contacts() {
     if (selected.size === 0) return;
     if (!window.confirm(`Delete ${selected.size} contact${selected.size !== 1 ? 's' : ''}? This cannot be undone.`)) return;
     setBulkWorking(true);
-    await supabase.from('contacts').delete().in('id', Array.from(selected));
+    const ids = Array.from(selected);
+    const { error } = await supabase.from('contacts').delete().in('id', ids);
+    if (error) {
+      showToast('Delete failed: ' + error.message, 'error');
+    } else {
+      showToast(`${ids.length} contact${ids.length !== 1 ? 's' : ''} deleted`);
+    }
     await fetchContacts();
     setBulkWorking(false);
   }
@@ -329,6 +341,19 @@ export default function Contacts() {
           </tbody>
         </table>
       </div>
+
+
+      {/* Toast notification */}
+      {toast && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          background: toast.type === 'error' ? '#fee2e2' : '#d1fae5',
+          color: toast.type === 'error' ? '#991b1b' : '#065f46',
+          border: `1px solid ${toast.type === 'error' ? '#fca5a5' : '#6ee7b7'}`,
+          borderRadius: 10, padding: '10px 20px', fontSize: 13, fontWeight: 500,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 2000 }}>
+          {toast.msg}
+        </div>
+      )}
 
       {/* Add Contact Modal */}
       {showAddContact && (
