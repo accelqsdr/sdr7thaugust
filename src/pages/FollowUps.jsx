@@ -152,6 +152,7 @@ export default function FollowUps() {
   const [draftOpen,   setDraftOpen]   = useState(null);
   const [copied,      setCopied]      = useState(null);
   const [markingSent, setMarkingSent] = useState(null);
+  const [customPrompts, setCustomPrompts] = useState({});
 
   const autoGenRanRef = useRef(false);
 
@@ -230,7 +231,7 @@ export default function FollowUps() {
     localStorage.setItem('sdr_auto_generate', String(next));
   }
 
-  async function doGenerate(contact, silent = false) {
+  async function doGenerate(contact, silent = false, customPrompt = null) {
     if (!silent) { setDrafting(contact.id); setDraftOpen(contact.id); }
     const account    = accounts[contact.account_id] || {};
     const senderName = profile?.full_name || user?.email?.split('@')[0] || 'SDR';
@@ -247,6 +248,7 @@ export default function FollowUps() {
             industry: account.industry,
           },
           stage: emailStage,
+          customPrompt: customPrompt || null,
           accountResearch: account.research || {},
           senderName,
           priorEmailBodies: priorBodies,
@@ -372,13 +374,14 @@ export default function FollowUps() {
   const totalInQueue = contacts.length;
   const sharedProps = {
     accounts, drafts, drafting, draftOpen, copied, markingSent,
-    onGenerate:    c => doGenerate(c),
+    onGenerate:    (c, cp) => doGenerate(c, false, cp),
     onToggleDraft: c => setDraftOpen(d => d === c.id ? null : c.id),
-    onRegenerate:  c => doGenerate(c),
+    onRegenerate:  (c, cp) => doGenerate(c, false, cp),
     onMarkSent:    c => markSent(c),
     onSnooze:      (id, days) => snooze(id, days),
     onCopy:        id => copyDraft(id),
     onView:        id => navigate(`/contacts/${id}`),
+    customPrompts, onCustomPromptChange: (id, val) => setCustomPrompts(p => ({ ...p, [id]: val })),
   };
 
   const noResults = filteredFresh.length === 0 && filteredActive.length === 0;
@@ -703,7 +706,10 @@ function TimingGroup({ group, ...props }) {
 // ── ContactRow ────────────────────────────────────────────────────────────────
 
 function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, markingSent,
-  onGenerate, onToggleDraft, onRegenerate, onMarkSent, onSnooze, onCopy, onView, isFresh }) {
+  onGenerate, onToggleDraft, onRegenerate, onMarkSent, onSnooze, onCopy, onView, isFresh,
+  customPrompts, onCustomPromptChange }) {
+
+  const customPrompt = customPrompts?.[c.id] || '';
 
   const sm       = STAGE_META[c.status] || { bg:'#f1f5f9', color:'#475569', label:c.status };
   const rm       = c.response_type ? RESPONSE_META[c.response_type] : null;
@@ -773,7 +779,7 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
         </div>
 
         <div style={{ display:'flex', gap:5, flexShrink:0, alignItems:'center' }}>
-          <button onClick={hasDraft ? () => onToggleDraft(c) : () => onGenerate(c)} disabled={isDrafting}
+          <button onClick={hasDraft ? () => onToggleDraft(c) : () => onGenerate(c, customPrompt)} disabled={isDrafting}
             style={{ padding:'5px 11px', borderRadius:7, fontSize:11, fontWeight:600, border:'none',
               cursor:isDrafting?'wait':'pointer',
               background:hasDraft?(isDraftOpen?'#ede9fe':'#f5f3ff'):'linear-gradient(135deg,#7c3aed,#2563eb)',
@@ -820,11 +826,22 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
             </div>
           ) : draft ? (
             <>
+              <div style={{ marginBottom:12 }}>
+                <textarea
+                  value={customPrompt}
+                  onChange={e => onCustomPromptChange(c.id, e.target.value)}
+                  placeholder="Add custom instructions… (e.g. 'mention their Selenium migration', 'keep under 80 words', 'focus on ROI')"
+                  rows={2}
+                  style={{ width:'100%', fontSize:12, padding:'8px 10px', borderRadius:7, border:'1px solid #d8b4fe',
+                    background:'#faf5ff', color:'#374151', resize:'vertical', fontFamily:'inherit',
+                    outline:'none', boxSizing:'border-box', lineHeight:1.5 }}
+                />
+              </div>
               <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
                 <div style={{ fontSize:12, fontWeight:700, color:'#374151', flex:1 }}>
                   ✉️ {c.status === 'Fresh' ? 'AI Draft — Initial Email' : `AI Draft — ${sm.label}`}
                 </div>
-                <button onClick={() => onRegenerate(c)}
+                <button onClick={() => onRegenerate(c, customPrompt)}
                   style={{ fontSize:11, padding:'3px 10px', borderRadius:6, border:'1px solid #e5e7eb', background:'#fff', color:'#7c3aed', cursor:'pointer', fontWeight:500 }}>
                   ↻ Regenerate
                 </button>
@@ -838,6 +855,13 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
                     background:isMarking?'#6ee7b7':'#059669', color:'#fff', cursor:isMarking?'wait':'pointer', fontWeight:700 }}>
                   {isMarking ? '✓ Done!' : markSentLabel}
                 </button>
+                <a href={`mailto:${c.email || ''}?subject=${encodeURIComponent(draft?.subject || '')}&body=${encodeURIComponent(draft?.body || '')}`}
+                  target="_blank" rel="noopener noreferrer"
+                  style={{ fontSize:11, padding:'3px 12px', borderRadius:6, border:'1px solid #0078d4',
+                    background:'#fff', color:'#0078d4', cursor:'pointer', fontWeight:600,
+                    textDecoration:'none', display:'inline-block', whiteSpace:'nowrap' }}>
+                  📧 Draft in Outlook
+                </a>
               </div>
 
               <div style={{ marginBottom:10 }}>
@@ -858,6 +882,24 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
                 ⚠ Review and personalise before sending · click <strong style={{ color:'#059669' }}>{markSentLabel}</strong> after you send it
               </div>
             </>
+          ) : !isDrafting ? (
+            <div style={{ padding:'8px 0 4px' }}>
+              <textarea
+                value={customPrompt}
+                onChange={e => onCustomPromptChange(c.id, e.target.value)}
+                placeholder="Optional: add instructions before generating… (e.g. 'focus on cost savings', 'mention their SAP stack')"
+                rows={2}
+                style={{ width:'100%', fontSize:12, padding:'8px 10px', borderRadius:7, border:'1px solid #d8b4fe',
+                  background:'#faf5ff', color:'#374151', resize:'vertical', fontFamily:'inherit',
+                  outline:'none', boxSizing:'border-box', lineHeight:1.5, marginBottom:10 }}
+              />
+              <button onClick={() => onGenerate(c, customPrompt)}
+                style={{ padding:'7px 18px', borderRadius:8, fontSize:12, fontWeight:700, border:'none',
+                  background:'linear-gradient(135deg,#7c3aed,#2563eb)', color:'#fff', cursor:'pointer',
+                  boxShadow:'0 1px 4px rgba(37,99,235,0.3)' }}>
+                ✨ Generate Email
+              </button>
+            </div>
           ) : null}
         </div>
       )}

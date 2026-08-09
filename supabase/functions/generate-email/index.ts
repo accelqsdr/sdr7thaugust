@@ -44,7 +44,7 @@ serve(async (req) => {
   }
 
   try {
-    const { contact, stage, accountResearch, senderName, priorEmailBodies } = await req.json()
+    const { contact, stage, accountResearch, senderName, priorEmailBodies, customPrompt } = await req.json()
     const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')
 
     if (!ANTHROPIC_API_KEY) {
@@ -56,9 +56,12 @@ serve(async (req) => {
     const ctx = STAGE_CONTEXT[stage] || STAGE_CONTEXT.F1
     const research = accountResearch || {}
 
-    // Build prior emails section if we have sent history
     const priorEmails = Array.isArray(priorEmailBodies) && priorEmailBodies.length > 0
-      ? `\nPRIOR EMAILS ALREADY SENT (use a COMPLETELY DIFFERENT angle — never repeat the same hook, angle, or proof point):\n${priorEmailBodies.map((b, i) => `--- Email ${i + 1} ---\n${b}`).join('\n\n')}\n`
+      ? `\nPRIOR EMAILS ALREADY SENT (use a COMPLETELY DIFFERENT angle — never repeat the same hook, angle, or proof point):\n${priorEmailBodies.map((b: string, i: number) => `--- Email ${i + 1} ---\n${b}`).join('\n\n')}\n`
+      : ''
+
+    const customInstructions = customPrompt?.trim()
+      ? `\nSDR CUSTOM INSTRUCTIONS (follow these exactly — they override defaults):\n${customPrompt.trim()}\n`
       : ''
 
     const prompt = `You are an expert SDR at ACCELQ, an AI-powered test automation platform helping QA teams move from manual/legacy testing to intelligent automation.
@@ -79,7 +82,7 @@ ACCOUNT INTELLIGENCE:
 - Pain points: ${research.painPoints || 'manual testing overhead, slow release cycles, legacy tools'}
 - Tech stack: ${research.techStack || 'enterprise stack'}
 - Recent news / triggers: ${research.recentNews || 'digital transformation'}
-- Testing tools in use: ${(research.testingTools || []).join(', ') || 'unknown'}${priorEmails}
+- Testing tools in use: ${(research.testingTools || []).join(', ') || 'unknown'}${priorEmails}${customInstructions}
 STAGE INSTRUCTIONS:
 Intent: ${ctx.intent}
 Tone: ${ctx.tone}
@@ -95,6 +98,7 @@ RULES (non-negotiable):
 - CTA = a low-friction question (e.g. "Worth a quick 15-min chat?") — never "book a demo on my Calendly"
 - Plain text only — no bullets, no bold, no markdown in the body
 - If prior emails exist above, use a completely fresh angle not used before
+- If SDR CUSTOM INSTRUCTIONS are provided above, prioritise them over these defaults
 
 Return ONLY a valid JSON object with exactly two fields:
 {"subject": "the subject line", "body": "full email body including greeting and sign-off"}`
