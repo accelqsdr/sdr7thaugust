@@ -106,7 +106,7 @@ export default function Accounts() {
     setLoading(true);
     const [{ data: accs }, { data: cts }] = await Promise.all([
       supabase.from('accounts').select('*').eq('owner_id', user.id),
-      supabase.from('contacts').select('id, account_id, full_name, title, seniority, status, response, email, pitch, last_emailed').eq('owner_id', user.id),
+      supabase.from('contacts').select('id, account_id, full_name, title, seniority, status, response, email, pitch, last_contacted, next_followup').eq('owner_id', user.id),
     ]);
     const byAcct = {};
     (cts || []).forEach(c => {
