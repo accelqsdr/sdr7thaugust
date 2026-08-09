@@ -241,9 +241,9 @@ export default function FollowUps() {
       const res = await supabase.functions.invoke('generate-email', {
         body: {
           contact: {
-            full_name: contact.full_name, title: contact.title,
+            full_name: ((contact.first_name || '') + ' ' + (contact.last_name || '')).trim(), title: contact.title,
             company: contact.company, email: contact.email,
-            response: contact.response, pitch: contact.pitch,
+            response: contact.response_type, pitch: contact.notes,
             industry: account.industry,
           },
           stage: emailStage,
@@ -340,11 +340,11 @@ export default function FollowUps() {
     return list.filter(c => {
       if (stageFilter    !== 'all' && c.status   !== stageFilter)    return false;
       if (timingFilter   !== 'all' && c._bucket  !== timingFilter)   return false;
-      if (responseFilter !== 'all' && c.response !== responseFilter) return false;
+      if (responseFilter !== 'all' && c.response_type !== responseFilter) return false;
       if (companyFilter  !== 'all' && c.company  !== companyFilter)  return false;
       if (search) {
         const q = search.toLowerCase();
-        if (!c.full_name?.toLowerCase().includes(q) && !c.company?.toLowerCase().includes(q) && !c.email?.toLowerCase().includes(q)) return false;
+        if (!((c.first_name || '') + ' ' + (c.last_name || '')).trim()?.toLowerCase().includes(q) && !c.company?.toLowerCase().includes(q) && !c.email?.toLowerCase().includes(q)) return false;
       }
       return true;
     });
@@ -706,7 +706,7 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
   onGenerate, onToggleDraft, onRegenerate, onMarkSent, onSnooze, onCopy, onView, isFresh }) {
 
   const sm       = STAGE_META[c.status] || { bg:'#f1f5f9', color:'#475569', label:c.status };
-  const rm       = c.response ? RESPONSE_META[c.response] : null;
+  const rm       = c.response_type ? RESPONSE_META[c.response_type] : null;
   const account  = accounts[c.account_id];
   const draft    = drafts[c.id];
   const hasDraft = !!draft;
@@ -715,7 +715,7 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
   const isDraftOpen = draftOpen === c.id;
   const isMarking   = markingSent === c.id;
   const isCopied    = copied === c.id;
-  const ac = avatarColor(c.full_name);
+  const ac = avatarColor(((c.first_name || '') + ' ' + (c.last_name || '')).trim());
 
   const markSentLabel = c.status === 'Fresh' ? '✓ Send → F1' : '✓ Mark Sent';
   const draftBtnLabel = isDrafting ? '✨ Drafting…'
@@ -737,12 +737,12 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
           style={{ width:36, height:36, borderRadius:'50%', background:ac, color:'#fff',
             display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700,
             flexShrink:0, cursor:'pointer', userSelect:'none' }}>
-          {getInitials(c.full_name)}
+          {getInitials(((c.first_name || '') + ' ' + (c.last_name || '')).trim())}
         </div>
 
         <div style={{ flex:'0 0 210px', minWidth:0, cursor:'pointer' }} onClick={() => onView(c.id)}>
           <div style={{ fontSize:13, fontWeight:600, color:'#111', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-            {c.full_name}
+            {((c.first_name || '') + ' ' + (c.last_name || '')).trim()}
           </div>
           <div style={{ fontSize:11, color:'#6b7280', marginTop:1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
             {c.title?`${c.title} · `:''}{c.company||'—'}
