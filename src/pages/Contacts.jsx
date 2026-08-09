@@ -3,73 +3,57 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
-const STATUS_COLORS = {
-  fresh: { bg: '#e0f2fe', color: '#0369a1' },
-  contacted: { bg: '#f0fdf4', color: '#166534' },
-  replied: { bg: '#fef9c3', color: '#854d0e' },
-  meeting: { bg: '#ede9fe', color: '#6d28d9' },
-  won: { bg: '#dcfce7', color: '#15803d' },
-  lost: { bg: '#f1f5f9', color: '#475569' },
-  bounced: { bg: '#fee2e2', color: '#991b1b' },
+const STATUSES = ['Fresh', 'F1', 'F2', 'F3', 'F4', 'F5', 'won', 'lost', 'bounced', 'unsubscribed'];
+
+const STATUS_STYLE = {
+  Fresh:        { bg: '#e0f2fe', color: '#0369a1' },
+  F1:           { bg: '#f0fdf4', color: '#166534' },
+  F2:           { bg: '#dcfce7', color: '#15803d' },
+  F3:           { bg: '#fef9c3', color: '#854d0e' },
+  F4:           { bg: '#ffedd5', color: '#9a3412' },
+  F5:           { bg: '#fce7f3', color: '#9d174d' },
+  won:          { bg: '#d1fae5', color: '#065f46' },
+  lost:         { bg: '#f1f5f9', color: '#475569' },
+  bounced:      { bg: '#fee2e2', color: '#991b1b' },
   unsubscribed: { bg: '#fef3c7', color: '#92400e' },
 };
 
-const RESPONSE_COLORS = {
-  cold: { bg: '#f1f5f9', color: '#475569' },
-  negative: { bg: '#fee2e2', color: '#991b1b' },
-  not_interested: { bg: '#fef3c7', color: '#92400e' },
-  warm: { bg: '#fef9c3', color: '#854d0e' },
-  prospect: { bg: '#dcfce7', color: '#15803d' },
+const RESPONSE_STYLE = {
+  cold:          { bg: '#f1f5f9', color: '#475569', label: 'Cold' },
+  negative:      { bg: '#fee2e2', color: '#991b1b', label: 'Negative' },
+  not_interested:{ bg: '#fef3c7', color: '#92400e', label: 'Not Interested' },
+  warm:          { bg: '#fef9c3', color: '#854d0e', label: 'Warm' },
+  prospect:      { bg: '#dcfce7', color: '#15803d', label: 'Prospect' },
 };
 
-const RESPONSE_LABELS = {
-  cold: 'Cold',
-  negative: 'Negative',
-  not_interested: 'Not Interested',
-  warm: 'Warm',
-  prospect: 'Prospect',
-};
-
-const ALL_STATUSES = ['fresh','contacted','replied','meeting','won','lost','bounced','unsubscribed'];
-const CONTACTABLE_STATUSES = ['contacted','replied','meeting','won','lost'];
+function contactName(c) {
+  return [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email || '—';
+}
 
 export default function Contacts() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [contacts, setContacts] = useState([]);
-  const [lists, setLists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
-  const [showBounced, setShowBounced] = useState(false);
   const [marking, setMarking] = useState(null);
-  const [selectedList, setSelectedList] = useState(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [selected, setSelected] = useState(new Set());
+  const [batchStarting, setBatchStarting] = useState(false);
+  const [batchMsg, setBatchMsg] = useState('');
 
-  useEffect(() => { fetchContacts(); fetchLists(); }, [filter, selectedList]);
+  useEffect(() => { fetchContacts(); }, [filter]);
 
   async function fetchContacts() {
     setLoading(true);
     let q = supabase.from('contacts').select('*').eq('owner_id', user.id).order('created_at', { ascending: false });
     if (filter !== 'all') q = q.eq('status', filter);
-    if (selectedList) q = q.eq('list_id', selectedList);
     const { data } = await q;
     setContacts(data || []);
     setLoading(false);
-  }
-
-  async function fetchLists() {
-    const { data } = await supabase.from('contact_lists').select('*').eq('owner_id', user.id).order('created_at', { ascending: false });
-    setLists(data || []);
-  }
-
-  async function markBounced(id, reason = 'Manual') {
-    setMarking(id);
-    await supabase.from('contacts').update({ status: 'bounced', bounced: true, bounce_reason: reason, bounced_at: new Date().toISOString() }).eq('id', id);
-    await supabase.from('activity_log').insert({ actor_id: user.id, contact_id: id, activity_type: 'bounce_detected', details: { reason } });
-    setMarking(null);
-    fetchContacts();
+    setSelected(new Set());
   }
 
   async function updateStatus(id, status) {
@@ -78,10 +62,10 @@ export default function Contacts() {
     fetchContacts();
   }
 
-  async function updateResponse(id, response) {
-    const val = response === '' ? null : response;
-    await supabase.from('contacts').update({ response: val }).eq('id', id);
-    await supabase.from('activity_log').insert({ actor_id: user.id, contact_id: id, activity_type: 'response_set', details: { response: val } });
+  async function updateResponseType(id, response_type) {
+    const val = response_type === '' ? null : response_type;
+    await supabase.from('contacts').update({ response_type: val }).eq('id', id);
+    await supabase.from('activity_log').insert({ actor_id: user.id, contact_id: id, activity_type: 'response_set', details: { response_type: val } });
     fetchContacts();
   }
 
@@ -97,225 +81,230 @@ export default function Contacts() {
     fetchContacts();
   }
 
-  async function deleteList(listId) {
-    await supabase.from('contact_lists').delete().eq('id', listId).eq('owner_id', user.id);
-    if (selectedList === listId) setSelectedList(null);
-    fetchLists();
+  async function batchStart() {
+    const ids = [...selected];
+    if (!ids.length) return;
+    setBatchStarting(true);
+    setBatchMsg('');
+
+    const now = new Date();
+    const followup = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+
+    let done = 0;
+    for (const id of ids) {
+      await supabase.from('contacts').update({ status: 'F1', next_followup: followup }).eq('id', id);
+      await supabase.from('activity_log').insert({ actor_id: user.id, contact_id: id, activity_type: 'status_changed', details: { status: 'F1', note: 'Batch start' } });
+      done++;
+      setBatchMsg(`Starting… ${done}/${ids.length}`);
+    }
+
+    setBatchStarting(false);
+    setBatchMsg(`✓ ${done} contacts started`);
+    setTimeout(() => setBatchMsg(''), 3000);
     fetchContacts();
   }
 
   const filtered = contacts.filter(c => {
-    if (!showBounced && c.bounced) return false;
     if (!search) return true;
     const s = search.toLowerCase();
-    return c.full_name?.toLowerCase().includes(s) || c.email?.toLowerCase().includes(s) || c.company?.toLowerCase().includes(s);
+    const name = contactName(c).toLowerCase();
+    return name.includes(s) || c.email?.toLowerCase().includes(s) || c.company?.toLowerCase().includes(s);
   });
 
-  const activeCount = contacts.filter(c => !c.bounced).length;
-  const bouncedCount = contacts.filter(c => c.bounced).length;
+  const freshCount   = contacts.filter(c => c.status === 'Fresh').length;
+  const activeCount  = contacts.filter(c => !['bounced','unsubscribed','lost'].includes(c.status)).length;
+  const bouncedCount = contacts.filter(c => c.status === 'bounced').length;
+
+  const freshSelected = [...selected].filter(id => {
+    const c = contacts.find(x => x.id === id);
+    return c?.status === 'Fresh';
+  });
+
+  function toggleSelect(id) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === filtered.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filtered.map(c => c.id)));
+    }
+  }
 
   return (
-    <div style={{ display: 'flex', height: '100%', minHeight: 0 }}>
-      {/* Lists Sidebar */}
-      <div style={{ width: 200, borderRight: '0.5px solid #e8e8e4', padding: '20px 0', flexShrink: 0, background: '#fafafa' }}>
-        <p style={{ fontSize: 11, fontWeight: 600, color: '#aaa', padding: '0 16px', marginBottom: 6, letterSpacing: 0.5, textTransform: 'uppercase' }}>Lists</p>
-        <button
-          onClick={() => setSelectedList(null)}
-          style={{ width: '100%', textAlign: 'left', padding: '7px 16px', fontSize: 13, border: 'none', cursor: 'pointer',
-            background: selectedList === null ? '#e8f0fe' : 'transparent',
-            color: selectedList === null ? '#2563eb' : '#333', fontWeight: selectedList === null ? 600 : 400 }}>
-          All Contacts
-        </button>
-        {lists.map(l => {
-          const count = contacts.filter(c => c.list_id === l.id).length;
-          return (
-            <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 8px 2px 16px' }}>
-              <button
-                onClick={() => setSelectedList(l.id)}
-                style={{ flex: 1, textAlign: 'left', padding: '5px 0', fontSize: 12, border: 'none', cursor: 'pointer',
-                  background: 'transparent', color: selectedList === l.id ? '#2563eb' : '#555',
-                  fontWeight: selectedList === l.id ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                title={l.name}>
-                {l.name}
-                <span style={{ marginLeft: 5, fontSize: 10, color: '#aaa' }}>{count}</span>
-              </button>
-              <button onClick={() => deleteList(l.id)}
-                style={{ fontSize: 12, color: '#ccc', border: 'none', background: 'transparent', cursor: 'pointer', padding: '2px 4px', flexShrink: 0 }}
-                title="Remove list label">×</button>
-            </div>
-          );
-        })}
-      </div>
+    <div style={{ padding: '24px 28px', maxWidth: 1200, margin: '0 auto' }}>
 
-      {/* Main content */}
-      <div style={{ flex: 1, padding: 24, overflow: 'auto' }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <div>
-            <h1 style={{ fontSize: 20, fontWeight: 600, color: '#111', margin: 0 }}>
-              {selectedList ? lists.find(l => l.id === selectedList)?.name || 'List' : 'Contacts'}
-            </h1>
-            <p style={{ fontSize: 13, color: '#888', margin: '3px 0 0' }}>{activeCount} active · {bouncedCount} bounced</p>
-          </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', margin: 0 }}>My Contacts</h1>
+          <p style={{ fontSize: 13, color: '#888', margin: '4px 0 0' }}>
+            {activeCount} active · {freshCount} fresh · {bouncedCount} bounced
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {batchMsg && (
+            <span style={{ fontSize: 12, color: batchMsg.startsWith('✓') ? '#059669' : '#555' }}>{batchMsg}</span>
+          )}
+          {selected.size > 0 && (
             <button
-              onClick={() => setShowClearConfirm(true)}
-              style={{ padding: '8px 14px', background: '#fff', color: '#dc2626', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid #fecaca' }}>
-              Clear all
+              onClick={batchStart}
+              disabled={batchStarting || freshSelected.length === 0}
+              style={{ padding: '8px 16px', background: freshSelected.length > 0 ? '#2563eb' : '#e5e7eb', color: freshSelected.length > 0 ? '#fff' : '#aaa', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: freshSelected.length > 0 ? 'pointer' : 'not-allowed', border: 'none' }}>
+              {batchStarting ? 'Starting…' : `▶ Start ${freshSelected.length} Fresh`}
             </button>
-            <UploadCSV userId={user.id} onDone={() => { fetchContacts(); fetchLists(); }} />
-          </div>
-        </div>
-
-        {/* Clear all confirmation */}
-        {showClearConfirm && (
-          <div style={{ background: '#fff5f5', border: '1px solid #fecaca', borderRadius: 10, padding: '14px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 13, color: '#991b1b' }}>This will permanently delete <strong>all your contacts</strong>. This cannot be undone.</span>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setShowClearConfirm(false)}
-                style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid #e0e0e0', background: '#fff', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={clearAllContacts}
-                style={{ padding: '6px 14px', borderRadius: 7, border: 'none', background: '#dc2626', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Yes, delete all</button>
-            </div>
-          </div>
-        )}
-
-        {/* Delete single contact confirmation */}
-        {deleteConfirm && (
-          <div style={{ background: '#fff5f5', border: '1px solid #fecaca', borderRadius: 10, padding: '14px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 13, color: '#991b1b' }}>Delete <strong>{deleteConfirm.name}</strong>? This cannot be undone.</span>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setDeleteConfirm(null)}
-                style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid #e0e0e0', background: '#fff', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={() => deleteContact(deleteConfirm.id)}
-                style={{ padding: '6px 14px', borderRadius: 7, border: 'none', background: '#dc2626', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Delete</button>
-            </div>
-          </div>
-        )}
-
-        {/* Filters */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
-          <input
-            value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search name, email, company…"
-            style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13, width: 240, outline: 'none' }}
-          />
-          <div style={{ display: 'flex', gap: 4, background: '#f0f0ee', padding: 4, borderRadius: 8 }}>
-            {['all', ...ALL_STATUSES].map(s => (
-              <button key={s} onClick={() => setFilter(s)}
-                style={{ padding: '5px 10px', borderRadius: 6, border: 'none', fontSize: 12, cursor: 'pointer',
-                  background: filter === s ? '#fff' : 'transparent', color: filter === s ? '#111' : '#666', fontWeight: filter === s ? 500 : 400 }}>
-                {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
-              </button>
-            ))}
-          </div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#666', cursor: 'pointer' }}>
-            <input type="checkbox" checked={showBounced} onChange={e => setShowBounced(e.target.checked)} />
-            Show bounced
-          </label>
-        </div>
-
-        {/* Table */}
-        <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e4', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ borderBottom: '0.5px solid #e8e8e4' }}>
-                {['Name', 'Company', 'Email', 'Status', 'Response', 'Last contacted', 'Next follow-up', 'Actions'].map(h => (
-                  <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, color: '#999', fontWeight: 500 }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={8} style={{ padding: 32, textAlign: 'center', color: '#aaa' }}>Loading…</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={8} style={{ padding: 32, textAlign: 'center', color: '#aaa' }}>No contacts found</td></tr>
-              ) : filtered.map(c => {
-                const sc = STATUS_COLORS[c.status] || { bg: '#f1f5f9', color: '#475569' };
-                const rc = c.response ? RESPONSE_COLORS[c.response] : null;
-                const canRespond = CONTACTABLE_STATUSES.includes(c.status);
-                return (
-                  <tr key={c.id} style={{ borderBottom: '0.5px solid #f0f0ee', opacity: c.bounced ? 0.6 : 1 }}>
-                    <td style={{ padding: '10px 14px', fontWeight: 500 }}>
-                      {c.full_name}
-                      {c.bounced && <span style={{ marginLeft: 6, fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 10 }}>BOUNCED</span>}
-                    </td>
-                    <td style={{ padding: '10px 14px', color: '#555' }}>{c.company}</td>
-                    <td style={{ padding: '10px 14px', color: '#555' }}>{c.email}</td>
-                    <td style={{ padding: '10px 14px' }}>
-                      <span style={{ padding: '3px 9px', borderRadius: 10, fontSize: 11, background: sc.bg, color: sc.color, fontWeight: 500 }}>
-                        {c.status}
-                      </span>
-                    </td>
-                    <td style={{ padding: '10px 14px' }}>
-                      {canRespond ? (
-                        rc ? (
-                          <span style={{ padding: '3px 9px', borderRadius: 10, fontSize: 11, background: rc.bg, color: rc.color, fontWeight: 500 }}>
-                            {RESPONSE_LABELS[c.response]}
-                          </span>
-                        ) : (
-                          <select value={c.response || ''} onChange={e => updateResponse(c.id, e.target.value)}
-                            style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '1px solid #e0e0e0', cursor: 'pointer', color: '#888' }}>
-                            <option value="">Set response…</option>
-                            <option value="cold">Cold</option>
-                            <option value="negative">Negative</option>
-                            <option value="not_interested">Not Interested</option>
-                            <option value="warm">Warm</option>
-                            <option value="prospect">Prospect</option>
-                          </select>
-                        )
-                      ) : (
-                        <span style={{ color: '#ccc', fontSize: 11 }}>—</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '10px 14px', color: '#888', fontSize: 12 }}>
-                      {c.last_contacted ? new Date(c.last_contacted).toLocaleDateString() : '—'}
-                    </td>
-                    <td style={{ padding: '10px 14px', color: c.bounced ? '#999' : '#111', fontSize: 12 }}>
-                      {c.bounced ? <span style={{ color: '#991b1b', fontSize: 11 }}>Excluded (bounced)</span>
-                        : c.response ? <span style={{ color: '#999', fontSize: 11 }}>Excluded (response set)</span>
-                        : c.next_followup ? new Date(c.next_followup).toLocaleDateString() : '—'}
-                    </td>
-                    <td style={{ padding: '10px 14px' }}>
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                        <button
-                          onClick={() => navigate(`/contacts/${c.id}`)}
-                          style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '1px solid #e0e0e0', background: '#fff', color: '#2563eb', cursor: 'pointer', fontWeight: 500 }}>
-                          View
-                        </button>
-                        {c.response && (
-                          <button onClick={() => updateResponse(c.id, '')}
-                            style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '1px solid #e0e0e0', background: '#fff', color: '#666', cursor: 'pointer' }}
-                            title="Clear response">
-                            Clear
-                          </button>
-                        )}
-                        {!c.bounced && (
-                          <>
-                            <select value={c.status} onChange={e => updateStatus(c.id, e.target.value)}
-                              style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '1px solid #e0e0e0', cursor: 'pointer' }}>
-                              {ALL_STATUSES.filter(s => s !== 'bounced').map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                            <button onClick={() => markBounced(c.id)} disabled={marking === c.id}
-                              style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '1px solid #fecaca', background: '#fff', color: '#dc2626', cursor: 'pointer' }}>
-                              {marking === c.id ? '…' : 'Bounce'}
-                            </button>
-                          </>
-                        )}
-                        <button
-                          onClick={() => setDeleteConfirm({ id: c.id, name: c.full_name })}
-                          style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '1px solid #fecaca', background: '#fff', color: '#dc2626', cursor: 'pointer' }}>
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          )}
+          <button
+            onClick={() => setShowClearConfirm(true)}
+            style={{ padding: '8px 14px', background: '#fff', color: '#dc2626', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid #fecaca' }}>
+            Clear all
+          </button>
+          <UploadCSV userId={user.id} onDone={fetchContacts} />
         </div>
       </div>
+
+      {/* Confirmations */}
+      {showClearConfirm && (
+        <div style={{ background: '#fff5f5', border: '1px solid #fecaca', borderRadius: 10, padding: '14px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 13, color: '#991b1b' }}>Permanently delete <strong>all contacts</strong>? This cannot be undone.</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setShowClearConfirm(false)} style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid #e0e0e0', background: '#fff', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+            <button onClick={clearAllContacts} style={{ padding: '6px 14px', borderRadius: 7, border: 'none', background: '#dc2626', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Delete all</button>
+          </div>
+        </div>
+      )}
+      {deleteConfirm && (
+        <div style={{ background: '#fff5f5', border: '1px solid #fecaca', borderRadius: 10, padding: '14px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 13, color: '#991b1b' }}>Delete <strong>{deleteConfirm.name}</strong>?</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setDeleteConfirm(null)} style={{ padding: '6px 14px', borderRadius: 7, border: '1px solid #e0e0e0', background: '#fff', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+            <button onClick={() => deleteContact(deleteConfirm.id)} style={{ padding: '6px 14px', borderRadius: 7, border: 'none', background: '#dc2626', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Delete</button>
+          </div>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+        <input
+          value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Search name, email, company…"
+          style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13, width: 240, outline: 'none' }}
+        />
+        <div style={{ display: 'flex', gap: 2, background: '#f0f0ee', padding: 4, borderRadius: 8, flexWrap: 'wrap' }}>
+          {['all', ...STATUSES].map(s => (
+            <button key={s} onClick={() => setFilter(s)}
+              style={{ padding: '5px 11px', borderRadius: 6, border: 'none', fontSize: 12, cursor: 'pointer',
+                background: filter === s ? '#fff' : 'transparent',
+                color: filter === s ? '#111' : '#666',
+                fontWeight: filter === s ? 600 : 400,
+                boxShadow: filter === s ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>
+              {s === 'all' ? 'All' : s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Table */}
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e8e8e4', overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead>
+            <tr style={{ background: '#fafafa', borderBottom: '1px solid #eee' }}>
+              <th style={{ padding: '10px 14px', width: 36 }}>
+                <input type="checkbox"
+                  checked={filtered.length > 0 && selected.size === filtered.length}
+                  onChange={toggleSelectAll}
+                  style={{ cursor: 'pointer' }} />
+              </th>
+              {['Name', 'Company', 'Email', 'Title', 'Status', 'Response', 'Next Follow-up', 'Actions'].map(h => (
+                <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, color: '#999', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4 }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={9} style={{ padding: 40, textAlign: 'center', color: '#aaa' }}>Loading…</td></tr>
+            ) : filtered.length === 0 ? (
+              <tr><td colSpan={9} style={{ padding: 40, textAlign: 'center', color: '#aaa' }}>
+                {contacts.length === 0 ? 'No contacts yet — import a CSV to get started' : 'No contacts match your filter'}
+              </td></tr>
+            ) : filtered.map(c => {
+              const ss = STATUS_STYLE[c.status] || { bg: '#f1f5f9', color: '#475569' };
+              const rs = c.response_type ? RESPONSE_STYLE[c.response_type] : null;
+              const isSel = selected.has(c.id);
+              const isBounced = c.status === 'bounced';
+              return (
+                <tr key={c.id}
+                  style={{ borderBottom: '1px solid #f4f4f4', background: isSel ? '#eff6ff' : 'transparent', opacity: isBounced ? 0.6 : 1, transition: 'background 0.1s' }}
+                  onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = '#fafafa'; }}
+                  onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent'; }}>
+                  <td style={{ padding: '10px 14px' }}>
+                    <input type="checkbox" checked={isSel} onChange={() => toggleSelect(c.id)} style={{ cursor: 'pointer' }} />
+                  </td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <button onClick={() => navigate(`/contacts/${c.id}`)}
+                      style={{ fontWeight: 600, color: '#1d4ed8', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, padding: 0, textAlign: 'left' }}>
+                      {contactName(c)}
+                    </button>
+                    {isBounced && <span style={{ marginLeft: 6, fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 10 }}>BOUNCED</span>}
+                  </td>
+                  <td style={{ padding: '10px 14px', color: '#444' }}>{c.company || '—'}</td>
+                  <td style={{ padding: '10px 14px', color: '#666' }}>{c.email || '—'}</td>
+                  <td style={{ padding: '10px 14px', color: '#666' }}>{c.title || '—'}</td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <span style={{ padding: '3px 9px', borderRadius: 20, fontSize: 11, background: ss.bg, color: ss.color, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      {c.status}
+                    </span>
+                  </td>
+                  <td style={{ padding: '10px 14px' }}>
+                    {rs ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ padding: '3px 9px', borderRadius: 20, fontSize: 11, background: rs.bg, color: rs.color, fontWeight: 500 }}>{rs.label}</span>
+                        <button onClick={() => updateResponseType(c.id, '')}
+                          style={{ fontSize: 10, color: '#bbb', border: 'none', background: 'none', cursor: 'pointer', padding: '2px 4px' }} title="Clear">✕</button>
+                      </div>
+                    ) : (
+                      <select value="" onChange={e => updateResponseType(c.id, e.target.value)}
+                        style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '1px solid #e0e0e0', cursor: 'pointer', color: '#aaa', background: '#fff' }}>
+                        <option value="">Set response…</option>
+                        <option value="cold">Cold</option>
+                        <option value="negative">Negative</option>
+                        <option value="not_interested">Not Interested</option>
+                        <option value="warm">Warm</option>
+                        <option value="prospect">Prospect</option>
+                      </select>
+                    )}
+                  </td>
+                  <td style={{ padding: '10px 14px', color: '#888', fontSize: 12 }}>
+                    {c.next_followup ? new Date(c.next_followup).toLocaleDateString() : '—'}
+                  </td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                      <select value={c.status} onChange={e => updateStatus(c.id, e.target.value)}
+                        style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '1px solid #e0e0e0', cursor: 'pointer', background: '#fff' }}>
+                        {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      <button
+                        onClick={() => setDeleteConfirm({ id: c.id, name: contactName(c) })}
+                        style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '1px solid #fecaca', background: '#fff', color: '#dc2626', cursor: 'pointer' }}>
+                        ✕
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {filtered.length > 0 && (
+        <p style={{ fontSize: 12, color: '#bbb', marginTop: 10, textAlign: 'right' }}>{filtered.length} contacts</p>
+      )}
     </div>
   );
 }
@@ -323,19 +312,6 @@ export default function Contacts() {
 function UploadCSV({ userId, onDone }) {
   const [uploading, setUploading] = useState(false);
   const [msg, setMsg] = useState('');
-  const [listName, setListName] = useState('');
-  const [showNameInput, setShowNameInput] = useState(false);
-  const [pendingFile, setPendingFile] = useState(null);
-
-  function handleFile(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    setPendingFile(file);
-    setShowNameInput(false);
-    e.target.value = '';
-    // Auto-trigger upload immediately
-    setTimeout(() => processUploadWithFile(file), 0);
-  }
 
   async function processUploadWithFile(file) {
     setUploading(true);
@@ -345,6 +321,8 @@ function UploadCSV({ userId, onDone }) {
       try {
         const text = ev.target.result.trim();
         const lines = text.split('\n');
+        if (lines.length < 2) { setMsg('CSV has no data rows'); setUploading(false); return; }
+
         const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_'));
 
         const rows = lines.slice(1).filter(l => l.trim()).map(line => {
@@ -361,138 +339,66 @@ function UploadCSV({ userId, onDone }) {
           headers.forEach((h, i) => { obj[h] = (vals[i] || '').replace(/^"|"$/g, '').trim(); });
 
           let firstName = obj.first_name || obj.firstname || '';
-          let lastName = obj.last_name || obj.lastname || '';
+          let lastName  = obj.last_name  || obj.lastname  || '';
           if (!firstName && !lastName) {
             const full = obj.name || obj.full_name || obj.contact_name || '';
             const parts = full.split(' ');
             firstName = parts[0] || '';
-            lastName = parts.slice(1).join(' ') || '';
+            lastName  = parts.slice(1).join(' ') || '';
           }
 
           return {
-            owner_id: userId,
-            first_name: firstName,
-            last_name: lastName,
-            email: obj.email || obj.email_address || '',
-            company: obj.company || obj.company_name || obj.organization || '',
-            title: obj.title || obj.job_title || obj.position || '',
-            phone: obj.phone || obj.phone_number || obj.mobile || '',
-            linkedin_url: obj.linkedin || obj.linkedin_url || obj.linkedin_profile || '',
-            status: 'Fresh',
-            notes: obj.notes || obj.note || '',
+            owner_id:    userId,
+            first_name:  firstName,
+            last_name:   lastName,
+            email:       obj.email || obj.email_address || '',
+            company:     obj.company || obj.company_name || obj.organization || '',
+            title:       obj.title || obj.job_title || obj.position || '',
+            phone:       obj.phone || obj.phone_number || obj.mobile || '',
+            linkedin_url:obj.linkedin || obj.linkedin_url || obj.linkedin_profile || '',
+            status:      'Fresh',
+            notes:       obj.notes || obj.note || '',
           };
         }).filter(r => r.first_name || r.last_name || r.email);
 
-        if (rows.length === 0) {
-          setMsg('No valid rows found in CSV');
-          setUploading(false);
-          return;
+        if (rows.length === 0) { setMsg('No valid rows found'); setUploading(false); return; }
+
+        const BATCH = 50;
+        let total = 0;
+        for (let i = 0; i < rows.length; i += BATCH) {
+          const { error } = await supabase.from('contacts').insert(rows.slice(i, i + BATCH));
+          if (error) { setMsg('Upload failed: ' + error.message); setUploading(false); return; }
+          total += Math.min(BATCH, rows.length - i);
+          setMsg(`Uploading… ${total}/${rows.length}`);
         }
 
-        const { error } = await supabase.from('contacts').insert(rows);
         setUploading(false);
-        if (error) { setMsg('Upload failed: ' + error.message); }
-        else { setMsg(`✓ ${rows.length} contacts imported`); onDone(); }
+        setMsg(`✓ ${rows.length} contacts imported`);
+        onDone();
+        setTimeout(() => setMsg(''), 4000);
       } catch (err) {
-        setMsg('Parse error: ' + err.message);
+        setMsg('Error: ' + err.message);
         setUploading(false);
       }
     };
     reader.readAsText(file);
   }
 
-  async function processUpload() {
-    if (!pendingFile) return;
-    setUploading(true);
-    setShowNameInput(false);
-    setMsg('');
-
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      try {
-        const text = ev.target.result.trim();
-        const lines = text.split('\n');
-        const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_'));
-
-        const rows = lines.slice(1).filter(l => l.trim()).map(line => {
-          // Handle quoted CSV values
-          const vals = [];
-          let cur = '', inQ = false;
-          for (let i = 0; i < line.length; i++) {
-            if (line[i] === '"') { inQ = !inQ; }
-            else if (line[i] === ',' && !inQ) { vals.push(cur.trim()); cur = ''; }
-            else { cur += line[i]; }
-          }
-          vals.push(cur.trim());
-
-          const obj = {};
-          headers.forEach((h, i) => { obj[h] = (vals[i] || '').replace(/^"|"$/g, '').trim(); });
-
-          // Parse first/last name from various column formats
-          let firstName = obj.first_name || obj.firstname || '';
-          let lastName = obj.last_name || obj.lastname || '';
-          if (!firstName && !lastName) {
-            const full = obj.name || obj.full_name || obj.contact_name || '';
-            const parts = full.split(' ');
-            firstName = parts[0] || '';
-            lastName = parts.slice(1).join(' ') || '';
-          }
-
-          return {
-            owner_id: userId,
-            first_name: firstName,
-            last_name: lastName,
-            email: obj.email || obj.email_address || '',
-            company: obj.company || obj.company_name || obj.organization || '',
-            title: obj.title || obj.job_title || obj.position || '',
-            phone: obj.phone || obj.phone_number || obj.mobile || '',
-            linkedin_url: obj.linkedin || obj.linkedin_url || obj.linkedin_profile || '',
-            status: 'Fresh',
-            notes: obj.notes || obj.note || '',
-          };
-        }).filter(r => r.first_name || r.last_name || r.email);
-
-        if (rows.length === 0) {
-          setMsg('No valid rows found in CSV');
-          setUploading(false);
-          return;
-        }
-
-        const { error } = await supabase.from('contacts').insert(rows);
-        setUploading(false);
-        if (error) { setMsg('Upload failed: ' + error.message); }
-        else { setMsg(`✓ ${rows.length} contacts imported`); onDone(); }
-      } catch (err) {
-        setMsg('Parse error: ' + err.message);
-        setUploading(false);
-      }
-    };
-    reader.readAsText(pendingFile);
-    setPendingFile(null);
+  function handleFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+    processUploadWithFile(file);
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      {msg && <span style={{ fontSize: 12, color: msg.includes('failed') || msg.includes('Failed') ? '#dc2626' : '#059669' }}>{msg}</span>}
-      {showNameInput && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f8f9fa', border: '1px solid #e0e0e0', borderRadius: 8, padding: '6px 10px' }}>
-          <input
-            autoFocus
-            value={listName}
-            onChange={e => setListName(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') processUpload(); if (e.key === 'Escape') setShowNameInput(false); }}
-            placeholder="Import label (optional)…"
-            style={{ fontSize: 13, border: 'none', outline: 'none', background: 'transparent', width: 180 }}
-          />
-          <button onClick={processUpload}
-            style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: 'none', background: '#2563eb', color: '#fff', cursor: 'pointer' }}>
-            Import
-          </button>
-          <button onClick={() => setShowNameInput(false)}
-            style={{ fontSize: 12, color: '#aaa', border: 'none', background: 'transparent', cursor: 'pointer' }}>✕</button>
-        </div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      {msg && (
+        <span style={{ fontSize: 12, color: msg.startsWith('✓') ? '#059669' : msg.startsWith('Upload') ? '#dc2626' : '#555' }}>
+          {msg}
+        </span>
       )}
-      <label style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.7 : 1 }}>
+      <label style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.7 : 1, whiteSpace: 'nowrap' }}>
         {uploading ? 'Uploading…' : '+ Import CSV'}
         <input type="file" accept=".csv" onChange={handleFile} style={{ display: 'none' }} disabled={uploading} />
       </label>
