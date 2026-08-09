@@ -492,6 +492,8 @@ function UploadCSV({ userId, onDone }) {
       if (error) { setMsg('Import failed: ' + error.message); setImporting(false); return; }
       total += chunk.length;
     }
+    // Auto-create accounts and link contacts
+    await supabase.rpc('sync_accounts_from_contacts');
     setImporting(false);
     setStep('done');
     setMsg(`✓ ${total} contacts imported`);
