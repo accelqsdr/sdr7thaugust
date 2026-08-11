@@ -14,10 +14,10 @@ export default function POCDashboard() {
       const subIds = (subs || []).map(s => s.user_id);
 
       const { data: hierarchy } = await supabase.from('org_hierarchy').select('*').in('user_id', subIds);
-      const { data: allContacts } = await supabase.from('contacts').select('*').in('owner_id', subIds).limit(5000);
+      const allContacts=[]; {let _o=0; for(;;){const{data:_d}=await supabase.from('contacts').select('*').in('owner_id',subIds).range(_o,_o+999); if(!_d?.length)break; allContacts.push(..._d); if(_d.length<1000)break; _o+=1000;}}
       const { data: acts } = await supabase.from('activity_log').select('*, contacts(full_name,company), org_hierarchy!actor_id(full_name)').in('actor_id', subIds).order('created_at', { ascending: false }).limit(10);
 
-      const c = allContacts || [];
+      const c = allContacts;
       setTeamStats({
         contacts: c.filter(x => !x.bounced).length,
         emails: c.filter(x => x.status !== 'fresh').length,
