@@ -126,7 +126,7 @@ export default function Accounts() {
     let aQ = supabase.from('accounts').select('*');
     let cQ = supabase.from('contacts').select('id, account_id, first_name, last_name, title, status, response_type, response_state, email, notes, next_followup, linkedin_url, sender_email');
     if (!viewAll || !canViewAll) { aQ = aQ.eq('owner_id', user.id); cQ = cQ.eq('owner_id', user.id); }
-    const [{ data: accs }, { data: cts }] = await Promise.all([aQ, cQ]);
+    const [{ data: accs }, { data: cts }] = await Promise.all([aQ.limit(5000), cQ.limit(5000)]);
     const byAcct = {};
     (cts || []).forEach(c => {
       if (c.account_id) { if (!byAcct[c.account_id]) byAcct[c.account_id] = []; byAcct[c.account_id].push(c); }
