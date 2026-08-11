@@ -11,7 +11,7 @@ export default function DirectorDashboard() {
   useEffect(() => {
     async function load() {
       const [{ data: allContacts }, { data: allHierarchy }, { data: acts }] = await Promise.all([
-        supabase.from('contacts').select('*'),
+        supabase.from('contacts').select('*').limit(5000),
         supabase.from('org_hierarchy').select('*'),
         supabase.from('activity_log')
           .select('*, contacts(full_name,company), org_hierarchy!actor_id(full_name,role)')
@@ -59,7 +59,7 @@ export default function DirectorDashboard() {
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 20, fontWeight: 600, color: '#111', margin: 0 }}>Org overview</h1>
-        <p style={{ fontSize: 13, color: '#888', margin: '3px 0 0' }}>{profile?.full_name} · Director · All teams</p>
+        <p style={{ fontSize: 13, color: '#888', margin: '3px 0 0' }}>{profile?.full_name} Â· Director Â· All teams</p>
       </div>
 
       {/* Stats grid */}
@@ -102,10 +102,10 @@ export default function DirectorDashboard() {
             ) : leaderboard.map((s, i) => (
               <tr key={s.id} style={{ borderBottom: '0.5px solid #f5f5f3', background: i === 0 ? '#fffbeb' : 'transparent' }}>
                 <td style={{ padding: '9px 12px', fontWeight: 600, color: i === 0 ? '#d97706' : '#999' }}>
-                  {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
+                  {i === 0 ? 'ð¥' : i === 1 ? 'ð¥' : i === 2 ? 'ð¥' : `#${i + 1}`}
                 </td>
                 <td style={{ padding: '9px 12px', fontWeight: 500 }}>{s.name}</td>
-                <td style={{ padding: '9px 12px', color: '#888', fontSize: 12 }}>{s.region || '—'}</td>
+                <td style={{ padding: '9px 12px', color: '#888', fontSize: 12 }}>{s.region || 'â'}</td>
                 <td style={{ padding: '9px 12px' }}>{s.active}</td>
                 <td style={{ padding: '9px 12px', color: '#059669', fontWeight: 500 }}>{s.replied}</td>
                 <td style={{ padding: '9px 12px', color: '#7c3aed' }}>{s.meetings}</td>
@@ -134,8 +134,8 @@ export default function DirectorDashboard() {
               <div style={{ fontSize: 12, color: '#555' }}>
                 <strong>{a.org_hierarchy?.full_name}</strong>
                 {a.org_hierarchy?.role ? <span style={{ fontSize: 10, color: '#999', marginLeft: 5 }}>({a.org_hierarchy.role})</span> : ''}
-                {' '}— {a.activity_type.replace(/_/g, ' ')}
-                {a.contacts?.full_name ? ` · ${a.contacts.full_name}` : ''}
+                {' '}â {a.activity_type.replace(/_/g, ' ')}
+                {a.contacts?.full_name ? ` Â· ${a.contacts.full_name}` : ''}
               </div>
               <div style={{ fontSize: 11, color: '#bbb', marginTop: 2 }}>{new Date(a.created_at).toLocaleString()}</div>
             </div>
