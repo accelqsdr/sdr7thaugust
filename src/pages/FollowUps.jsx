@@ -785,28 +785,6 @@ function TimingGroup({ group, ...props }) {
         </>
       )}
 
-      {/* Cooling Off Section */}
-      {coolingOffList.length > 0 && (
-        <div style={{ marginTop: 32 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:16 }}>
-            <span style={{ fontSize:12, fontWeight:700, color:'#0369a1', background:'#e0f2fe', padding:'4px 14px', borderRadius:20, flexShrink:0 }}>
-              ❄️ Cooling Off · {coolingOffList.length}
-            </span>
-            <div style={{ flex:1, height:1, background:'#e5e7eb' }} />
-          </div>
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {coolingOffList.map(c => (
-              <div key={c.id} style={{ background:'#fff', border:'1px solid #bae6fd', borderRadius:10, padding:'12px 16px', display:'flex', alignItems:'center', gap:12 }}>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:13, fontWeight:600, color:'#111' }}>{c.full_name}</div>
-                  <div style={{ fontSize:11, color:'#6b7280' }}>{c.title} · {(accounts[c.account_id]||{}).name||c.company||''}</div>
-                </div>
-                <span style={{ fontSize:11, fontWeight:700, padding:'2px 10px', borderRadius:8, background:'#e0f2fe', color:'#0369a1' }}>Cooling Off</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
     </div>
   );
