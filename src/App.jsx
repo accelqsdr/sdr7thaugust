@@ -18,6 +18,7 @@ import ContactDetail from './pages/ContactDetail';
 import Accounts from './pages/Accounts';
 import AccountDetail from './pages/AccountDetail';
 import ProspectDiscovery from './pages/ProspectDiscovery';
+import ApolloImport from './pages/ApolloImport';
 
 const Spinner = () => (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f5f5f3' }}>
@@ -72,6 +73,7 @@ export default function App() {
               <Route path="accounts" element={<Accounts />} />
               <Route path="accounts/:id" element={<AccountDetail />} />
               <Route path="discover" element={<ProspectDiscovery />} />
+              <Route path="apollo" element={<ApolloImport />} />
               <Route path="followups" element={<FollowUps />} />
               <Route path="pipeline" element={<Pipeline />} />
               <Route path="activity" element={<Activity />} />
