@@ -12,6 +12,7 @@ import Teams from './pages/Teams';
 import Analytics from './pages/Analytics';
 import Leaderboard from './pages/Leaderboard';
 import Settings from './pages/Settings';
+import UsersAdmin from './pages/UsersAdmin';
 import Sequences from './pages/Sequences';
 import Reports from './pages/Reports';
 import ContactDetail from './pages/ContactDetail';
@@ -79,6 +80,7 @@ export default function App() {
               <Route path="analytics" element={<Analytics />} />
               <Route path="leaderboard" element={<Leaderboard />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="users" element={<UsersAdmin />} />
               <Route path="sequences" element={<Sequences />} />
               <Route path="reports" element={<Reports />} />
             </Route>

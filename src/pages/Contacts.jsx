@@ -31,7 +31,9 @@ function contactName(c) {
 }
 
 export default function Contacts() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const canViewAll = ['director', 'manager'].includes(profile?.role);
+  const [viewAll, setViewAll] = useState(false);
   const navigate = useNavigate();
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,11 +46,12 @@ export default function Contacts() {
   const [batchStarting, setBatchStarting] = useState(false);
   const [batchMsg, setBatchMsg] = useState('');
 
-  useEffect(() => { fetchContacts(); }, [filter]);
+  useEffect(() => { fetchContacts(); }, [filter, viewAll]);
 
   async function fetchContacts() {
     setLoading(true);
-    let q = supabase.from('contacts').select('*').eq('owner_id', user.id).order('created_at', { ascending: false });
+    let q = supabase.from('contacts').select('*').order('created_at', { ascending: false });
+    if (!viewAll || !canViewAll) q = q.eq('owner_id', user.id);
     if (filter !== 'all') q = q.eq('status', filter);
     const { data } = await q;
     setContacts(data || []);
@@ -142,7 +145,19 @@ export default function Contacts() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', margin: 0 }}>My Contacts</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', margin: 0 }}>
+              {viewAll && canViewAll ? 'All Contacts' : 'My Contacts'}
+            </h1>
+            {canViewAll && (
+              <button onClick={() => setViewAll(v => !v)}
+                style={{ padding: '4px 12px', borderRadius: 20, border: '1.5px solid #e0e0e0',
+                  fontSize: 12, fontWeight: 500, cursor: 'pointer', background: viewAll ? '#111' : '#fff',
+                  color: viewAll ? '#fff' : '#555', transition: 'all 0.15s' }}>
+                {viewAll ? '👥 Team view' : 'View all'}
+              </button>
+            )}
+          </div>
           <p style={{ fontSize: 13, color: '#888', margin: '4px 0 0' }}>
             {activeCount} active · {freshCount} fresh · {bouncedCount} bounced
           </p>

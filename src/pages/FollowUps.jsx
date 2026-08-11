@@ -98,6 +98,8 @@ function formatDue(due) {
 // ─────────────────────────────────────────────────────────────────────────────
 export default function FollowUps() {
   const { user, profile } = useAuth();
+  const canViewAll = ['director', 'manager'].includes(profile?.role);
+  const [viewAll, setViewAll] = useState(false);
   const navigate = useNavigate();
 
   // Settings
@@ -156,16 +158,22 @@ export default function FollowUps() {
 
   const autoGenRanRef = useRef(false);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [viewAll]);
 
   async function fetchData() {
     setLoading(true);
+    let cQuery = supabase.from('contacts').select('*');
+    if (!viewAll || !canViewAll) cQuery = cQuery.eq('owner_id', user.id);
+    cQuery = cQuery
+      .or('status.in.(F1,F2,F3,F4,F5),and(status.eq.Fresh,next_followup.not.is.null)')
+      .order('last_contacted', { ascending: false, nullsFirst: false });
+
+    let aQuery = supabase.from('accounts').select('id, name, industry, research');
+    if (!viewAll || !canViewAll) aQuery = aQuery.eq('owner_id', user.id);
+
     const [cRes, aRes, lRes] = await Promise.all([
-      supabase.from('contacts').select('*')
-        .eq('owner_id', user.id)
-        .or('status.in.(F1,F2,F3,F4,F5),and(status.eq.Fresh,next_followup.not.is.null)')
-        .order('last_contacted', { ascending: false, nullsFirst: false }),
-      supabase.from('accounts').select('id, name, industry, research').eq('owner_id', user.id),
+      cQuery,
+      aQuery,
       supabase.from('activity_log').select('contact_id, details, created_at')
         .eq('actor_id', user.id).eq('activity_type', 'email_sent')
         .order('created_at', { ascending: false }),
@@ -174,11 +182,12 @@ export default function FollowUps() {
     // Fallback: if the complex OR query fails, try simpler approach
     let rows = cRes.data;
     if (cRes.error || !rows) {
-      const fallback = await supabase.from('contacts').select('*')
-        .eq('owner_id', user.id)
+      let fallback = supabase.from('contacts').select('*');
+      if (!viewAll || !canViewAll) fallback = fallback.eq('owner_id', user.id);
+      const fallbackRes = await fallback
         .in('status', ALL_STAGES)
         .order('last_contacted', { ascending: false, nullsFirst: false });
-      rows = (fallback.data || []).filter(c =>
+      rows = (fallbackRes.data || []).filter(c =>
         c.status !== 'Fresh' || (c.status === 'Fresh' && c.next_followup)
       );
     }
@@ -395,7 +404,17 @@ export default function FollowUps() {
         {/* Title row */}
         <div style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 24px 10px' }}>
           <div>
-            <h1 style={{ fontSize:18, fontWeight:700, color:'#111', margin:0, letterSpacing:'-0.01em' }}>📬 Follow-up Queue</h1>
+            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <h1 style={{ fontSize:18, fontWeight:700, color:'#111', margin:0, letterSpacing:'-0.01em' }}>📬 Follow-up Queue</h1>
+              {canViewAll && (
+                <button onClick={() => setViewAll(v => !v)}
+                  style={{ padding:'3px 10px', borderRadius:20, border:'1.5px solid #e0e0e0',
+                    fontSize:11, fontWeight:600, cursor:'pointer',
+                    background: viewAll ? '#111' : '#fff', color: viewAll ? '#fff' : '#555' }}>
+                  {viewAll ? '👥 Team' : 'View all'}
+                </button>
+              )}
+            </div>
             <p style={{ fontSize:12, color:'#6b7280', margin:'2px 0 0' }}>
               Fresh → F1 → F2 → F3 → F4 → F5 — draft, review, mark sent
             </p>

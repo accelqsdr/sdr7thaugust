@@ -101,7 +101,9 @@ function FilterPill({ label, active, onClick }) {
 
 /* ─── MAIN COMPONENT ─────────────────────────────────────── */
 export default function Accounts() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const canViewAll = ['director', 'manager'].includes(profile?.role);
+  const [viewAll, setViewAll] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const [accounts, setAccounts] = useState([]);
@@ -117,10 +119,10 @@ export default function Accounts() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const [{ data: accs }, { data: cts }] = await Promise.all([
-      supabase.from('accounts').select('*').eq('owner_id', user.id),
-      supabase.from('contacts').select('id, account_id, first_name, last_name, title, status, response_type, email, notes, next_followup').eq('owner_id', user.id),
-    ]);
+    let aQ = supabase.from('accounts').select('*');
+    let cQ = supabase.from('contacts').select('id, account_id, first_name, last_name, title, status, response_type, email, notes, next_followup');
+    if (!viewAll || !canViewAll) { aQ = aQ.eq('owner_id', user.id); cQ = cQ.eq('owner_id', user.id); }
+    const [{ data: accs }, { data: cts }] = await Promise.all([aQ, cQ]);
     const byAcct = {};
     (cts || []).forEach(c => {
       if (c.account_id) { if (!byAcct[c.account_id]) byAcct[c.account_id] = []; byAcct[c.account_id].push(c); }
@@ -128,7 +130,7 @@ export default function Accounts() {
     setContactsByAccount(byAcct);
     setAccounts(accs || []);
     setLoading(false);
-  }, [user.id]);
+  }, [user.id, viewAll, canViewAll]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
   useEffect(() => {
@@ -189,7 +191,19 @@ export default function Accounts() {
         <div style={{ padding: '16px 14px 12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#111', letterSpacing: '-0.2px' }}>Accounts</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#111', letterSpacing: '-0.2px' }}>
+                  {viewAll && canViewAll ? 'All Accounts' : 'Accounts'}
+                </div>
+                {canViewAll && (
+                  <button onClick={() => setViewAll(v => !v)}
+                    style={{ padding: '2px 8px', borderRadius: 20, border: '1px solid #e0e0e0',
+                      fontSize: 10, fontWeight: 600, cursor: 'pointer',
+                      background: viewAll ? '#111' : '#fff', color: viewAll ? '#fff' : '#555' }}>
+                    {viewAll ? 'Team' : 'All'}
+                  </button>
+                )}
+              </div>
               <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>{filtered.length} of {accounts.length} companies</div>
             </div>
             <button onClick={() => setShowAddAccount(true)} style={{
@@ -339,7 +353,9 @@ export default function Accounts() {
 /*  ACCOUNT DETAIL                                            */
 /* ─────────────────────────────────────────────────────────── */
 function AccountDetail({ account, contacts, onUpdate, navigate }) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const canViewAll = ['director', 'manager'].includes(profile?.role);
+  const [viewAll, setViewAll] = useState(false);
   const [data, setData] = useState(account);
   const [qualifying, setQualifying] = useState(null); // contact id being qualified
   const [saving, setSaving] = useState(false);
