@@ -69,7 +69,7 @@ export default function ManagerDashboard() {
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 20, fontWeight: 600, color: '#111', margin: 0 }}>Manager dashboard</h1>
-        <p style={{ fontSize: 13, color: '#888', margin: '3px 0 0' }}>{profile?.full_name} Â· {profile?.region}</p>
+        <p style={{ fontSize: 13, color: '#888', margin: '3px 0 0' }}>{profile?.full_name} · {profile?.region}</p>
       </div>
 
       {/* Stats */}
@@ -89,7 +89,7 @@ export default function ManagerDashboard() {
 
       {topPerformer && (
         <div style={{ background: '#fffbeb', border: '1px solid #fef08a', borderRadius: 10, padding: '10px 16px', marginBottom: 16, fontSize: 13, color: '#713f12' }}>
-          ð Top performer this period: <strong>{topPerformer.name}</strong> â {topPerformer.replies} replies
+          🏆 Top performer this period: <strong>{topPerformer.name}</strong> — {topPerformer.replies} replies
         </div>
       )}
 
@@ -137,8 +137,8 @@ export default function ManagerDashboard() {
             <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#7c3aed', marginTop: 5, flexShrink: 0 }} />
             <div>
               <div style={{ fontSize: 12, color: '#555' }}>
-                <strong>{a.org_hierarchy?.full_name}</strong> ({a.org_hierarchy?.role}) â {a.activity_type.replace(/_/g, ' ')}
-                {a.contacts?.full_name ? ` Â· ${a.contacts.full_name}` : ''}
+                <strong>{a.org_hierarchy?.full_name}</strong> ({a.org_hierarchy?.role}) — {a.activity_type.replace(/_/g, ' ')}
+                {a.contacts?.full_name ? ` · ${a.contacts.full_name}` : ''}
               </div>
               <div style={{ fontSize: 11, color: '#bbb', marginTop: 2 }}>{new Date(a.created_at).toLocaleString()}</div>
             </div>
