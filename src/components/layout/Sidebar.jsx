@@ -107,7 +107,7 @@ export default function Sidebar() {
           onClick={signOut}
           style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, border: 'none', background: 'transparent', color: '#888', fontSize: 13, cursor: 'pointer' }}
         >
-          <span>â©</span> Sign out
+          <span>↩</span> Sign out
         </button>
       </div>
     </div>
