@@ -158,7 +158,7 @@ export default function ApolloImport() {
     if (mode === 'lists' && lists.length === 0) {
       setListsLoading(true);
       callFn({ action: 'get_lists' })
-        .then(data => { setLists(data.lists || []); setListsLoading(false); if (data._raw_keys) console.log('Apollo labels raw keys:', data._raw_keys, 'total:', data._total); })
+        .then(data => { setLists(data.lists || []); setListsLoading(false); console.log('Apollo full debug:', JSON.stringify(data, null, 2)); })
         .catch(e => { showToast(e.message, 'error'); setListsLoading(false); });
     }
   }, [mode]);
