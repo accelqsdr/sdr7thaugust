@@ -39,11 +39,8 @@ export default function Settings() {
 
   useEffect(() => {
     async function load() {
-      // Load user's Apollo key
-      const { data: us } = await supabase.from('user_settings').select('apollo_api_key').eq('user_id', (await supabase.auth.getUser()).data.user?.id).single();
-      if (us?.apollo_api_key) setApolloKey('••••••••••••••••');
-
-      const { data } = await supabase.from('org_config').select('ai_api_key, ai_provider').single();
+      const { data } = await supabase.from('org_config').select('ai_api_key, ai_provider, apollo_api_key').single();
+      if (data?.apollo_api_key) setApolloKey('••••••••••••••••');
       if (data) {
         setApiKey(data.ai_api_key ? '••••••••••••••••' : '');
         setProvider(data.ai_provider || 'anthropic');
@@ -151,31 +148,49 @@ export default function Settings() {
         )}
       </div>
 
-      {/* Apollo API Key */}
+      {/* Apollo API Key — org-level, set by admin */}
       <div style={{ background: '#fff', border: '0.5px solid #e8e8e4', borderRadius: 12, padding: 20, maxWidth: 560, marginTop: 16 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#111', marginBottom: 6 }}>Apollo.io API Key</div>
-        <p style={{ fontSize: 13, color: '#888', marginBottom: 16, lineHeight: 1.6 }}>
-          Each user connects their own Apollo account. Your key is stored privately — other users cannot see or use it.
-        </p>
-        <div style={{ marginBottom: 14 }}>
-          <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 6 }}>Your Apollo API key</label>
-          <input
-            type="password"
-            value={apolloKey}
-            onChange={e => setApolloKey(e.target.value)}
-            placeholder="Paste your Apollo API key…"
-            style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13, width: '100%', boxSizing: 'border-box', outline: 'none' }}
-          />
-          <div style={{ fontSize: 11, color: '#aaa', marginTop: 5 }}>
-            Find it in Apollo → Settings → Integrations → API
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>Apollo.io Integration</div>
+          <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
+            background: apolloKey && apolloKey.startsWith('••') ? '#d1fae5' : '#fef9c3',
+            color: apolloKey && apolloKey.startsWith('••') ? '#065f46' : '#92400e' }}>
+            {apolloKey && apolloKey.startsWith('••') ? '✓ Connected' : 'Not configured'}
+          </span>
         </div>
-        <button onClick={saveApolloKey} disabled={apolloSaving}
-          style={{ padding: '9px 20px', background: '#0a66c2', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', opacity: apolloSaving ? 0.7 : 1 }}>
-          {apolloSaving ? 'Saving…' : 'Save Apollo key'}
-        </button>
-        {apolloSaved && (
-          <div style={{ marginTop: 10, fontSize: 13, color: apolloSaved.startsWith('Error') ? '#dc2626' : '#059669' }}>{apolloSaved}</div>
+        <p style={{ fontSize: 13, color: '#888', marginBottom: 16, lineHeight: 1.6 }}>
+          One Apollo API key connects your whole team. All users can search and import from Apollo once this is set.
+          Only an admin with Apollo API access needs to do this once.
+        </p>
+        {isDirector ? (
+          <>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 6 }}>Apollo API key</label>
+              <input
+                type="password"
+                value={apolloKey}
+                onChange={e => setApolloKey(e.target.value)}
+                placeholder="Paste Apollo API key — find it in Apollo → Settings → Integrations → API"
+                style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13, width: '100%', boxSizing: 'border-box', outline: 'none' }}
+              />
+            </div>
+            <button onClick={saveApolloKey} disabled={apolloSaving}
+              style={{ padding: '9px 20px', background: '#0a66c2', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', opacity: apolloSaving ? 0.7 : 1 }}>
+              {apolloSaving ? 'Saving…' : 'Save Apollo key'}
+            </button>
+            {apolloSaved && (
+              <div style={{ marginTop: 10, fontSize: 13, color: apolloSaved.startsWith('Error') ? '#dc2626' : '#059669' }}>{apolloSaved}</div>
+            )}
+          </>
+        ) : (
+          <div style={{ background: apolloKey && apolloKey.startsWith('••') ? '#f0fdf4' : '#fffbeb',
+            border: `1px solid ${apolloKey && apolloKey.startsWith('••') ? '#86efac' : '#fcd34d'}`,
+            borderRadius: 8, padding: '10px 14px', fontSize: 13,
+            color: apolloKey && apolloKey.startsWith('••') ? '#166534' : '#92400e' }}>
+            {apolloKey && apolloKey.startsWith('••')
+              ? '✓ Apollo is connected — you can use Apollo Import to search and pull contacts.'
+              : 'Apollo is not connected yet. Ask your admin to add the Apollo API key in Settings.'}
+          </div>
         )}
       </div>
 
