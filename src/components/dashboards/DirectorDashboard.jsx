@@ -10,8 +10,8 @@ export default function DirectorDashboard() {
 
   useEffect(() => {
     async function load() {
-      const [{ data: allContacts }, { data: allHierarchy }, { data: acts }] = await Promise.all([
-        supabase.from('contacts').select('*').limit(5000),
+      const [allContacts, { data: allHierarchy }, { data: acts }] = await Promise.all([
+        (async()=>{const a=[];let o=0;for(;;){const{data:d}=await supabase.from('contacts').select('*').range(o,o+999);if(!d?.length)break;a.push(...d);if(d.length<1000)break;o+=1000;}return a;})(),
         supabase.from('org_hierarchy').select('*'),
         supabase.from('activity_log')
           .select('*, contacts(full_name,company), org_hierarchy!actor_id(full_name,role)')
@@ -19,7 +19,7 @@ export default function DirectorDashboard() {
           .limit(20),
       ]);
 
-      const c = allContacts || [];
+      const c = allContacts;
       setStats({
         total: c.filter(x => !x.bounced).length,
         contacted: c.filter(x => x.status !== 'fresh' && !x.bounced).length,
