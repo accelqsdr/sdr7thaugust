@@ -167,7 +167,7 @@ export default function FollowUps() {
     let cQuery = supabase.from('contacts').select('*');
     if (!viewAll || !canViewAll) cQuery = cQuery.eq('owner_id', user.id);
     cQuery = cQuery
-      .or('status.in.(F1,F2,F3,F4,F5),and(status.eq.Fresh,next_followup.not.is.null)')
+      .or('status.in.(F1,F2,F3,F4,F5,cooling_off),and(status.eq.Fresh,next_followup.not.is.null)')
       .order('last_contacted', { ascending: false, nullsFirst: false }).limit(5000);
 
     let aQuery = supabase.from('accounts').select('id, name, industry, research, icp_notes, description');
@@ -187,10 +187,10 @@ export default function FollowUps() {
       let fallback = supabase.from('contacts').select('*');
       if (!viewAll || !canViewAll) fallback = fallback.eq('owner_id', user.id);
       const fallbackRes = await fallback
-        .in('status', ALL_STAGES)
-        .order('last_contacted', { ascending: false, nullsFirst: false });
+        .in('status', [...ALL_STAGES, 'cooling_off'])
+        .order('last_contacted', { ascending: false, nullsFirst: false }).limit(5000);
       rows = (fallbackRes.data || []).filter(c =>
-        c.status !== 'Fresh' || (c.status === 'Fresh' && c.next_followup)
+        c.status === 'cooling_off' || c.status !== 'Fresh' || (c.status === 'Fresh' && c.next_followup)
       );
     }
 
@@ -340,7 +340,8 @@ export default function FollowUps() {
 
   // Ã¢ÂÂÃ¢ÂÂ Computed values Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
   const freshContacts  = contacts.filter(c => c.status === 'Fresh');
-  const activeContacts = contacts.filter(c => c.status !== 'Fresh');
+  const activeContacts = contacts.filter(c => c.status !== 'Fresh' && c.status !== 'cooling_off');
+  const coolingOffList  = contacts.filter(c => c.status === 'cooling_off');
 
   const enriched = activeContacts.map(c => {
     const due = computeDue(c, cadence);
@@ -669,6 +670,30 @@ export default function FollowUps() {
             {(stageFilter === 'all' || stageFilter !== 'Fresh') && activeGroups.map(group => (
               <TimingGroup key={group.key} group={group} {...sharedProps} />
             ))}
+          
+            {/* ── COOLING OFF SECTION ──────────────────────── */}
+            {coolingOffList.length > 0 && stageFilter === 'all' && (
+              <div style={{ marginBottom:28, marginTop:4 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
+                  <span style={{ fontSize:12, fontWeight:700, color:'#0369a1', padding:'3px 14px',
+                    background:'#e0f2fe', borderRadius:20, flexShrink:0 }}>
+                    ❄️ Cooling Off · {coolingOffList.length}
+                  </span>
+                  <div style={{ flex:1, height:1, background:'#e5e7eb' }} />
+                </div>
+                <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
+                  {coolingOffList.map(c => (
+                    <div key={c.id} style={{ background:'#fff', border:'1px solid #bae6fd', borderLeft:'3px solid #0369a1', borderRadius:10, padding:'12px 16px', display:'flex', alignItems:'center', gap:12 }}>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:13, fontWeight:600, color:'#111' }}>{c.first_name} {c.last_name}</div>
+                        <div style={{ fontSize:11, color:'#6b7280' }}>{c.title}{c.title ? ' · ' : ''}{(accounts[c.account_id]||{}).name||c.company||''}</div>
+                      </div>
+                      <span style={{ fontSize:11, fontWeight:700, padding:'2px 10px', borderRadius:8, background:'#e0f2fe', color:'#0369a1' }}>Cooling Off</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
