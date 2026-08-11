@@ -17,6 +17,11 @@ export default function Settings() {
   const [clearing, setClearing] = useState(false);
   const [clearMsg, setClearMsg] = useState('');
 
+  // Apollo API key (per-user)
+  const [apolloKey, setApolloKey] = useState('');
+  const [apolloSaved, setApolloSaved] = useState('');
+  const [apolloSaving, setApolloSaving] = useState(false);
+
   async function clearAllData() {
     if (clearInput !== 'DELETE') return;
     setClearing(true);
@@ -34,6 +39,10 @@ export default function Settings() {
 
   useEffect(() => {
     async function load() {
+      // Load user's Apollo key
+      const { data: us } = await supabase.from('user_settings').select('apollo_api_key').eq('user_id', (await supabase.auth.getUser()).data.user?.id).single();
+      if (us?.apollo_api_key) setApolloKey('••••••••••••••••');
+
       const { data } = await supabase.from('org_config').select('ai_api_key, ai_provider').single();
       if (data) {
         setApiKey(data.ai_api_key ? '••••••••••••••••' : '');
@@ -63,6 +72,31 @@ export default function Settings() {
     if (err) { setSaved('Error: ' + err.message); }
     else { setSaved('API key saved successfully!'); setApiKey('••••••••••••••••'); }
     setTimeout(() => setSaved(''), 4000);
+  }
+
+  async function saveApolloKey() {
+    if (!apolloKey || apolloKey.startsWith('••')) {
+      setApolloSaved('No change — key not updated');
+      setTimeout(() => setApolloSaved(''), 3000);
+      return;
+    }
+    setApolloSaving(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const r = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/apollo-import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+      body: JSON.stringify({ action: 'save_api_key', key: apolloKey }),
+    });
+    const data = await r.json();
+    setApolloSaving(false);
+    if (data.ok) {
+      setApolloSaved('Apollo key saved!');
+      setApolloKey('••••••••••••••••');
+    } else {
+      setApolloSaved('Error: ' + (data.error || 'Unknown'));
+    }
+    setTimeout(() => setApolloSaved(''), 4000);
   }
 
   return (
@@ -114,6 +148,34 @@ export default function Settings() {
               <div style={{ marginTop: 12, fontSize: 13, color: saved.startsWith('Error') ? '#dc2626' : '#059669' }}>{saved}</div>
             )}
           </>
+        )}
+      </div>
+
+      {/* Apollo API Key */}
+      <div style={{ background: '#fff', border: '0.5px solid #e8e8e4', borderRadius: 12, padding: 20, maxWidth: 560, marginTop: 16 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#111', marginBottom: 6 }}>Apollo.io API Key</div>
+        <p style={{ fontSize: 13, color: '#888', marginBottom: 16, lineHeight: 1.6 }}>
+          Each user connects their own Apollo account. Your key is stored privately — other users cannot see or use it.
+        </p>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 6 }}>Your Apollo API key</label>
+          <input
+            type="password"
+            value={apolloKey}
+            onChange={e => setApolloKey(e.target.value)}
+            placeholder="Paste your Apollo API key…"
+            style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13, width: '100%', boxSizing: 'border-box', outline: 'none' }}
+          />
+          <div style={{ fontSize: 11, color: '#aaa', marginTop: 5 }}>
+            Find it in Apollo → Settings → Integrations → API
+          </div>
+        </div>
+        <button onClick={saveApolloKey} disabled={apolloSaving}
+          style={{ padding: '9px 20px', background: '#0a66c2', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', opacity: apolloSaving ? 0.7 : 1 }}>
+          {apolloSaving ? 'Saving…' : 'Save Apollo key'}
+        </button>
+        {apolloSaved && (
+          <div style={{ marginTop: 10, fontSize: 13, color: apolloSaved.startsWith('Error') ? '#dc2626' : '#059669' }}>{apolloSaved}</div>
         )}
       </div>
 

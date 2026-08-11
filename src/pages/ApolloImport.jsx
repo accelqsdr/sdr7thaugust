@@ -236,6 +236,16 @@ export default function ApolloImport() {
         </div>
       )}
 
+      {/* No API key banner */}
+      {results.length === 0 && !searching && toast?.msg?.includes('No Apollo API key') && (
+        <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10, padding: '16px 20px', marginBottom: 16 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#92400e', marginBottom: 6 }}>Apollo API key not set</div>
+          <p style={{ fontSize: 13, color: '#78350f', margin: 0 }}>
+            Go to <strong>Settings</strong> → Apollo.io API Key and paste your key. Each user connects their own Apollo account.
+          </p>
+        </div>
+      )}
+
       {/* ── SEARCH MODE ── */}
       {mode === 'search' && (
         <div style={{ background: '#fff', border: '0.5px solid #e8e8e4', borderRadius: 12, padding: 20, marginBottom: 16 }}>
