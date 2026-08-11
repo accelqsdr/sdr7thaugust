@@ -27,7 +27,7 @@ const RESPONSE_STYLE = {
 };
 
 function contactName(c) {
-  return [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email || 'â';
+  return [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email || 'Ã¢ÂÂ';
 }
 
 export default function Contacts() {
@@ -43,6 +43,10 @@ export default function Contacts() {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [selected, setSelected] = useState(new Set());
+  const [reassignModal, setReassignModal] = useState(null); // 'account' | 'sdr'
+  const [reassignTarget, setReassignTarget] = useState('');
+  const [accounts, setAccounts] = useState([]);
+  const [sdrs, setSdrs] = useState([]);
   const [batchStarting, setBatchStarting] = useState(false);
   const [batchMsg, setBatchMsg] = useState('');
 
@@ -57,6 +61,9 @@ export default function Contacts() {
     setContacts(data || []);
     setLoading(false);
     setSelected(new Set());
+    // Fetch accounts and SDRs for reassignment
+    supabase.from('accounts').select('id,name').then(({data}) => setAccounts(data||[]));
+    supabase.from('org_hierarchy').select('id,full_name,role').in('role',['sdr','poc','manager','director']).then(({data}) => setSdrs(data||[]));
   }
 
   async function updateStatus(id, status) {
@@ -84,6 +91,20 @@ export default function Contacts() {
     fetchContacts();
   }
 
+    async function reassignContacts(type, targetId) {
+    if(!targetId || selected.size===0) return;
+    const ids = [...selected];
+    if(type==='account') {
+      await supabase.from('contacts').update({ account_id: targetId }).in('id', ids);
+    } else if(type==='sdr') {
+      await supabase.from('contacts').update({ owner_id: targetId }).in('id', ids);
+    }
+    setSelected(new Set());
+    setReassignModal(null);
+    setReassignTarget('');
+    fetchContacts();
+  }
+
   async function batchStart() {
     const ids = [...selected];
     if (!ids.length) return;
@@ -98,11 +119,11 @@ export default function Contacts() {
       await supabase.from('contacts').update({ status: 'F1', next_followup: followup }).eq('id', id);
       await supabase.from('activity_log').insert({ actor_id: user.id, contact_id: id, activity_type: 'status_changed', details: { status: 'F1', note: 'Batch start' } });
       done++;
-      setBatchMsg(`Startingâ¦ ${done}/${ids.length}`);
+      setBatchMsg(`StartingÃ¢ÂÂ¦ ${done}/${ids.length}`);
     }
 
     setBatchStarting(false);
-    setBatchMsg(`â ${done} contacts started`);
+    setBatchMsg(`Ã¢ÂÂ ${done} contacts started`);
     setTimeout(() => setBatchMsg(''), 3000);
     fetchContacts();
   }
@@ -154,26 +175,38 @@ export default function Contacts() {
                 style={{ padding: '4px 12px', borderRadius: 20, border: '1.5px solid #e0e0e0',
                   fontSize: 12, fontWeight: 500, cursor: 'pointer', background: viewAll ? '#111' : '#fff',
                   color: viewAll ? '#fff' : '#555', transition: 'all 0.15s' }}>
-                {viewAll ? 'ð¥ Team view' : 'View all'}
+                {viewAll ? 'Ã°ÂÂÂ¥ Team view' : 'View all'}
               </button>
             )}
           </div>
           <p style={{ fontSize: 13, color: '#888', margin: '4px 0 0' }}>
-            {activeCount} active Â· {freshCount} fresh Â· {bouncedCount} bounced
+            {activeCount} active ÃÂ· {freshCount} fresh ÃÂ· {bouncedCount} bounced
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {batchMsg && (
-            <span style={{ fontSize: 12, color: batchMsg.startsWith('â') ? '#059669' : '#555' }}>{batchMsg}</span>
+            <span style={{ fontSize: 12, color: batchMsg.startsWith('Ã¢ÂÂ') ? '#059669' : '#555' }}>{batchMsg}</span>
           )}
           {selected.size > 0 && (
             <button
               onClick={batchStart}
               disabled={batchStarting || freshSelected.length === 0}
               style={{ padding: '8px 16px', background: freshSelected.length > 0 ? '#2563eb' : '#e5e7eb', color: freshSelected.length > 0 ? '#fff' : '#aaa', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: freshSelected.length > 0 ? 'pointer' : 'not-allowed', border: 'none' }}>
-              {batchStarting ? 'Startingâ¦' : `â¶ Start ${freshSelected.length} Fresh`}
+              {batchStarting ? 'StartingÃ¢ÂÂ¦' : `Ã¢ÂÂ¶ Start ${freshSelected.length} Fresh`}
             </button>
           )}
+                    <button
+            onClick={() => setReassignModal('account')}
+            disabled={selected.size === 0}
+            style={{ padding: '6px 12px', background: '#eff6ff', color: '#2563eb', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid #bfdbfe' }}>
+            ⇄ Reassign Account
+          </button>
+          <button
+            onClick={() => setReassignModal('sdr')}
+            disabled={selected.size === 0}
+            style={{ padding: '6px 12px', background: '#f0fdf4', color: '#15803d', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid #bbf7d0' }}>
+            ⇄ Reassign SDR
+          </button>
           <button
             onClick={() => setShowClearConfirm(true)}
             style={{ padding: '8px 14px', background: '#fff', color: '#dc2626', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid #fecaca' }}>
@@ -182,6 +215,31 @@ export default function Contacts() {
           <UploadCSV userId={user.id} onDone={fetchContacts} />
         </div>
       </div>
+
+            {/* Reassign Modal */}
+      {reassignModal && (
+        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center' }}>
+          <div style={{ background:'#fff',borderRadius:14,padding:28,width:360,boxShadow:'0 8px 32px rgba(0,0,0,0.18)' }}>
+            <div style={{ fontSize:16,fontWeight:700,marginBottom:16,color:'#111' }}>
+              {reassignModal==='account' ? 'Reassign Account' : 'Reassign SDR'}
+              <span style={{ fontSize:12,fontWeight:400,color:'#6b7280',marginLeft:8 }}>({selected.size} contact{selected.size!==1?'s':''})</span>
+            </div>
+            <select value={reassignTarget} onChange={e=>setReassignTarget(e.target.value)}
+              style={{ width:'100%',padding:'8px 10px',borderRadius:8,border:'1px solid #d1d5db',fontSize:13,marginBottom:16 }}>
+              <option value="">— Select {reassignModal==='account'?'Account':'SDR'} —</option>
+              {reassignModal==='account'
+                ? accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)
+                : sdrs.map(s=><option key={s.id} value={s.id}>{s.full_name} ({s.role})</option>)
+              }
+            </select>
+            <div style={{ display:'flex',gap:10,justifyContent:'flex-end' }}>
+              <button onClick={()=>{setReassignModal(null);setReassignTarget('');}} style={{ padding:'6px 14px',borderRadius:8,border:'1px solid #d1d5db',background:'#fff',fontSize:13,cursor:'pointer' }}>Cancel</button>
+              <button onClick={()=>reassignContacts(reassignModal,reassignTarget)} disabled={!reassignTarget}
+                style={{ padding:'6px 14px',borderRadius:8,border:'none',background:'#2563eb',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',opacity:reassignTarget?1:0.5 }}>Apply</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirmations */}
       {showClearConfirm && (
@@ -207,7 +265,7 @@ export default function Contacts() {
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
         <input
           value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Search name, email, companyâ¦"
+          placeholder="Search name, email, companyÃ¢ÂÂ¦"
           style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13, width: 240, outline: 'none' }}
         />
         <div style={{ display: 'flex', gap: 2, background: '#f0f0ee', padding: 4, borderRadius: 8, flexWrap: 'wrap' }}>
@@ -242,10 +300,10 @@ export default function Contacts() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} style={{ padding: 40, textAlign: 'center', color: '#aaa' }}>Loadingâ¦</td></tr>
+              <tr><td colSpan={9} style={{ padding: 40, textAlign: 'center', color: '#aaa' }}>LoadingÃ¢ÂÂ¦</td></tr>
             ) : filtered.length === 0 ? (
               <tr><td colSpan={9} style={{ padding: 40, textAlign: 'center', color: '#aaa' }}>
-                {contacts.length === 0 ? 'No contacts yet â import a CSV to get started' : 'No contacts match your filter'}
+                {contacts.length === 0 ? 'No contacts yet Ã¢ÂÂ import a CSV to get started' : 'No contacts match your filter'}
               </td></tr>
             ) : filtered.map(c => {
               const ss = STATUS_STYLE[c.status] || { bg: '#f1f5f9', color: '#475569' };
@@ -268,9 +326,9 @@ export default function Contacts() {
                     </button>
                     {isBounced && <span style={{ marginLeft: 6, fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 10 }}>BOUNCED</span>}
                   </td>
-                  <td style={{ padding: '10px 14px', color: '#444' }}>{c.company || 'â'}</td>
-                  <td style={{ padding: '10px 14px', color: '#666' }}>{c.email || 'â'}</td>
-                  <td style={{ padding: '10px 14px', color: '#666' }}>{c.title || 'â'}</td>
+                  <td style={{ padding: '10px 14px', color: '#444' }}>{c.company || 'Ã¢ÂÂ'}</td>
+                  <td style={{ padding: '10px 14px', color: '#666' }}>{c.email || 'Ã¢ÂÂ'}</td>
+                  <td style={{ padding: '10px 14px', color: '#666' }}>{c.title || 'Ã¢ÂÂ'}</td>
                   <td style={{ padding: '10px 14px' }}>
                     <span style={{ padding: '3px 9px', borderRadius: 20, fontSize: 11, background: ss.bg, color: ss.color, fontWeight: 600, whiteSpace: 'nowrap' }}>
                       {c.status}
@@ -281,12 +339,12 @@ export default function Contacts() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         <span style={{ padding: '3px 9px', borderRadius: 20, fontSize: 11, background: rs.bg, color: rs.color, fontWeight: 500 }}>{rs.label}</span>
                         <button onClick={() => updateResponseType(c.id, '')}
-                          style={{ fontSize: 10, color: '#bbb', border: 'none', background: 'none', cursor: 'pointer', padding: '2px 4px' }} title="Clear">â</button>
+                          style={{ fontSize: 10, color: '#bbb', border: 'none', background: 'none', cursor: 'pointer', padding: '2px 4px' }} title="Clear">Ã¢ÂÂ</button>
                       </div>
                     ) : (
                       <select value="" onChange={e => updateResponseType(c.id, e.target.value)}
                         style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '1px solid #e0e0e0', cursor: 'pointer', color: '#aaa', background: '#fff' }}>
-                        <option value="">Set responseâ¦</option>
+                        <option value="">Set responseÃ¢ÂÂ¦</option>
                         <option value="cold">Cold</option>
                         <option value="negative">Negative</option>
                         <option value="not_interested">Not Interested</option>
@@ -298,7 +356,7 @@ export default function Contacts() {
          
 
                   <td style={{ padding: '10px 14px', fontSize: 12 }}>
-                    {c.linkedin_url ? <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer" style={{color:'#2563eb',textDecoration:'none'}}>🔗 LinkedIn</a> : <span style={{color:'#ccc'}}>—</span>}
+                    {c.linkedin_url ? <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer" style={{color:'#2563eb',textDecoration:'none'}}>ð LinkedIn</a> : <span style={{color:'#ccc'}}>â</span>}
                   </td>
                   <td style={{ padding: '10px 14px' }}>
                     <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
@@ -309,7 +367,7 @@ export default function Contacts() {
                       <button
                         onClick={() => setDeleteConfirm({ id: c.id, name: contactName(c) })}
                         style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '1px solid #fecaca', background: '#fff', color: '#dc2626', cursor: 'pointer' }}>
-                        â
+                        Ã¢ÂÂ
                       </button>
                     </div>
                   </td>
@@ -387,11 +445,11 @@ function UploadCSV({ userId, onDone }) {
           const { error } = await supabase.from('contacts').insert(rows.slice(i, i + BATCH));
           if (error) { setMsg('Upload failed: ' + error.message); setUploading(false); return; }
           total += Math.min(BATCH, rows.length - i);
-          setMsg(`Uploadingâ¦ ${total}/${rows.length}`);
+          setMsg(`UploadingÃ¢ÂÂ¦ ${total}/${rows.length}`);
         }
 
         setUploading(false);
-        setMsg(`â ${rows.length} contacts imported`);
+        setMsg(`Ã¢ÂÂ ${rows.length} contacts imported`);
         onDone();
         setTimeout(() => setMsg(''), 4000);
       } catch (err) {
@@ -412,12 +470,12 @@ function UploadCSV({ userId, onDone }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       {msg && (
-        <span style={{ fontSize: 12, color: msg.startsWith('â') ? '#059669' : msg.startsWith('Upload') ? '#dc2626' : '#555' }}>
+        <span style={{ fontSize: 12, color: msg.startsWith('Ã¢ÂÂ') ? '#059669' : msg.startsWith('Upload') ? '#dc2626' : '#555' }}>
           {msg}
         </span>
       )}
       <label style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.7 : 1, whiteSpace: 'nowrap' }}>
-        {uploading ? 'Uploadingâ¦' : '+ Import CSV'}
+        {uploading ? 'UploadingÃ¢ÂÂ¦' : '+ Import CSV'}
         <input type="file" accept=".csv" onChange={handleFile} style={{ display: 'none' }} disabled={uploading} />
       </label>
     </div>
