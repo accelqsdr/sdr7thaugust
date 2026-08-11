@@ -16,7 +16,7 @@ export default function ManagerDashboard() {
 
       const [{ data: hierarchy }, { data: allContacts }, { data: acts }] = await Promise.all([
         supabase.from('org_hierarchy').select('*').in('user_id', subIds),
-        supabase.from('contacts').select('*').in('owner_id', subIds).limit(5000),
+        (async()=>{const a=[];let o=0;for(;;){const{data:d}=await supabase.from('contacts').select('*').in('owner_id',subIds).range(o,o+999);if(!d?.length)break;a.push(...d);if(d.length<1000)break;o+=1000;}return{data:a};})(),
         supabase.from('activity_log')
           .select('*, contacts(full_name,company), org_hierarchy!actor_id(full_name,role)')
           .in('actor_id', subIds)
