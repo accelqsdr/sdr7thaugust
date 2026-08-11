@@ -17,6 +17,7 @@ import Sequences from './pages/Sequences';
 import Reports from './pages/Reports';
 import ContactDetail from './pages/ContactDetail';
 import Accounts from './pages/Accounts';
+import HQs from './pages/HQs';
 import AccountDetail from './pages/AccountDetail';
 import ProspectDiscovery from './pages/ProspectDiscovery';
 
@@ -34,7 +35,7 @@ class ErrorBoundary extends Component {
     if (this.state.error) {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f5f5f3', gap: 12 }}>
-          <div style={{ fontSize: 36 }}>⚠️</div>
+          <div style={{ fontSize: 36 }}>â ï¸</div>
           <div style={{ fontSize: 16, fontWeight: 600, color: '#111' }}>Something went wrong</div>
           <div style={{ fontSize: 13, color: '#888', maxWidth: 340, textAlign: 'center' }}>{this.state.error?.message || 'Unexpected error'}</div>
           <button onClick={() => window.location.href = '/'} style={{ marginTop: 8, padding: '9px 20px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>Reload app</button>
@@ -72,6 +73,7 @@ export default function App() {
               <Route path="contacts/:id" element={<ContactDetail />} />
               <Route path="accounts" element={<Accounts />} />
               <Route path="accounts/:id" element={<AccountDetail />} />
+              <Route path="hqs" element={<HQs />} />
               <Route path="discover" element={<ProspectDiscovery />} />
               <Route path="followups" element={<FollowUps />} />
               <Route path="pipeline" element={<Pipeline />} />
