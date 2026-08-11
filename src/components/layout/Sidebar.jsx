@@ -4,42 +4,46 @@ import { signOut } from '../../lib/auth';
 
 const navByRole = {
   sdr: [
-    { to: '/', icon: '⊞', label: 'Dashboard', end: true },
-    { to: '/discover', icon: '🔍', label: 'Account Discovery' },
-    { to: '/contacts', icon: '👥', label: 'My contacts' },
-    { to: '/accounts', icon: '🏢', label: 'Accounts' },
-    { to: '/followups', icon: '🕐', label: 'Follow-ups' },
-    { to: '/pipeline', icon: '📊', label: 'Pipeline' },
-    { to: '/sequences', icon: '🔁', label: 'Sequences' },
-    { to: '/settings', icon: '⚙️', label: 'Settings' },
+    { to: '/', icon: 'â', label: 'Dashboard', end: true },
+    { to: '/discover', icon: 'ð', label: 'Account Discovery' },
+    { to: '/contacts', icon: 'ð¥', label: 'My contacts' },
+    { to: '/accounts', icon: 'ð¢', label: 'Accounts' },
+    { to: '/hqs', icon: '🏛', label: 'HQ Management' },
+    { to: '/followups', icon: 'ð', label: 'Follow-ups' },
+    { to: '/pipeline', icon: 'ð', label: 'Pipeline' },
+    { to: '/sequences', icon: 'ð', label: 'Sequences' },
+    { to: '/settings', icon: 'âï¸', label: 'Settings' },
   ],
   poc: [
-    { to: '/', icon: '⊞', label: 'Dashboard', end: true },
-    { to: '/teams', icon: '👥', label: 'My team' },
-    { to: '/contacts', icon: '📋', label: 'Contacts' },
-    { to: '/accounts', icon: '🏢', label: 'Accounts' },
-    { to: '/followups', icon: '🕐', label: 'Follow-ups' },
-    { to: '/activity', icon: '📡', label: 'Activity feed' },
-    { to: '/reports', icon: '📈', label: 'Reports' },
-    { to: '/settings', icon: '⚙️', label: 'Settings' },
+    { to: '/', icon: 'â', label: 'Dashboard', end: true },
+    { to: '/teams', icon: 'ð¥', label: 'My team' },
+    { to: '/contacts', icon: 'ð', label: 'Contacts' },
+    { to: '/accounts', icon: 'ð¢', label: 'Accounts' },
+    { to: '/hqs', icon: '🏛', label: 'HQ Management' },
+    { to: '/followups', icon: 'ð', label: 'Follow-ups' },
+    { to: '/activity', icon: 'ð¡', label: 'Activity feed' },
+    { to: '/reports', icon: 'ð', label: 'Reports' },
+    { to: '/settings', icon: 'âï¸', label: 'Settings' },
   ],
   manager: [
-    { to: '/', icon: '⊞', label: 'Dashboard', end: true },
-    { to: '/discover', icon: '🔍', label: 'Account Discovery' },
-    { to: '/contacts', icon: '👥', label: 'My Contacts' },
-    { to: '/accounts', icon: '🏢', label: 'Accounts' },
-    { to: '/followups', icon: '🕐', label: 'Follow-ups' },
-    { to: '/users', icon: '🧑‍💼', label: 'Team Members' },
-    { to: '/settings', icon: '⚙️', label: 'Settings' },
+    { to: '/', icon: 'â', label: 'Dashboard', end: true },
+    { to: '/discover', icon: 'ð', label: 'Account Discovery' },
+    { to: '/contacts', icon: 'ð¥', label: 'My Contacts' },
+    { to: '/accounts', icon: 'ð¢', label: 'Accounts' },
+    { to: '/hqs', icon: '🏛', label: 'HQ Management' },
+    { to: '/followups', icon: 'ð', label: 'Follow-ups' },
+    { to: '/users', icon: 'ð§âð¼', label: 'Team Members' },
+    { to: '/settings', icon: 'âï¸', label: 'Settings' },
   ],
   director: [
-    { to: '/', icon: '⊞', label: 'Dashboard', end: true },
-    { to: '/discover', icon: '🔍', label: 'Account Discovery' },
-    { to: '/contacts', icon: '👥', label: 'My Contacts' },
-    { to: '/accounts', icon: '🏢', label: 'Accounts' },
-    { to: '/followups', icon: '🕐', label: 'Follow-ups' },
-    { to: '/users', icon: '🧑‍💼', label: 'Team Members' },
-    { to: '/settings', icon: '⚙️', label: 'Settings' },
+    { to: '/', icon: 'â', label: 'Dashboard', end: true },
+    { to: '/discover', icon: 'ð', label: 'Account Discovery' },
+    { to: '/contacts', icon: 'ð¥', label: 'My Contacts' },
+    { to: '/accounts', icon: 'ð¢', label: 'Accounts' },
+    { to: '/hqs', icon: '🏛', label: 'HQ Management' },
+    { to: '/followups', icon: 'ð', label: 'Follow-ups' },
+    { to: '/users', icon: 'ð§âð¼', label: 'Team Members' },
+    { to: '/settings', icon: 'âï¸', label: 'Settings' },
   ],
 };
 
@@ -48,7 +52,7 @@ const roleLabels = { director: 'Director', manager: 'Manager', poc: 'POC', sdr: 
 
 export default function Sidebar() {
   const { profile, user } = useAuth();
-  const displayName = profile?.full_name || user?.email?.split('@')[0] || '—';
+  const displayName = profile?.full_name || user?.email?.split('@')[0] || 'â';
   const role = profile?.role || 'sdr';
   const nav = navByRole[role] || navByRole.sdr;
   const color = roleColors[role];
@@ -103,7 +107,7 @@ export default function Sidebar() {
           onClick={signOut}
           style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, border: 'none', background: 'transparent', color: '#888', fontSize: 13, cursor: 'pointer' }}
         >
-          <span>↩</span> Sign out
+          <span>â©</span> Sign out
         </button>
       </div>
     </div>
