@@ -46,7 +46,7 @@ export default function POCDashboard() {
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 20, fontWeight: 600, color: '#111', margin: 0 }}>Team dashboard</h1>
-        <p style={{ fontSize: 13, color: '#888', margin: '3px 0 0' }}>{profile?.full_name} Â· {profile?.region}</p>
+        <p style={{ fontSize: 13, color: '#888', margin: '3px 0 0' }}>{profile?.full_name} · {profile?.region}</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
@@ -80,7 +80,7 @@ export default function POCDashboard() {
             ) : team.map(m => (
               <tr key={m.id} style={{ borderBottom: '0.5px solid #f5f5f3' }}>
                 <td style={{ padding: '10px 14px', fontWeight: 500 }}>{m.full_name}</td>
-                <td style={{ padding: '10px 14px', color: '#888' }}>{m.region || 'â'}</td>
+                <td style={{ padding: '10px 14px', color: '#888' }}>{m.region || '—'}</td>
                 <td style={{ padding: '10px 14px' }}>{m.contacts}</td>
                 <td style={{ padding: '10px 14px' }}>{m.replies}</td>
                 <td style={{ padding: '10px 14px' }}>
@@ -111,8 +111,8 @@ export default function POCDashboard() {
             <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#2563eb', marginTop: 5, flexShrink: 0 }} />
             <div>
               <div style={{ fontSize: 12, color: '#555' }}>
-                <strong>{a.org_hierarchy?.full_name || 'Team member'}</strong> â {a.activity_type.replace(/_/g, ' ')}
-                {a.contacts?.full_name ? ` Â· ${a.contacts.full_name}` : ''}
+                <strong>{a.org_hierarchy?.full_name || 'Team member'}</strong> — {a.activity_type.replace(/_/g, ' ')}
+                {a.contacts?.full_name ? ` · ${a.contacts.full_name}` : ''}
               </div>
               <div style={{ fontSize: 11, color: '#bbb', marginTop: 2 }}>{new Date(a.created_at).toLocaleString()}</div>
             </div>
