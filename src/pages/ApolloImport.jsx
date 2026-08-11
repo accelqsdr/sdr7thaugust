@@ -130,6 +130,7 @@ export default function ApolloImport() {
   // Lists
   const [lists, setLists] = useState([]);
   const [listsLoading, setListsLoading] = useState(false);
+  const [debugInfo, setDebugInfo] = useState(null);
   const [selectedList, setSelectedList] = useState(null);
 
   // Results
@@ -158,7 +159,7 @@ export default function ApolloImport() {
     if (mode === 'lists' && lists.length === 0) {
       setListsLoading(true);
       callFn({ action: 'get_lists' })
-        .then(data => { setLists(data.lists || []); setListsLoading(false); console.log('Apollo full debug:', JSON.stringify(data, null, 2)); })
+        .then(data => { setLists(data.lists || []); setListsLoading(false); setDebugInfo(data._debug || null); console.log('Apollo full debug:', JSON.stringify(data, null, 2)); })
         .catch(e => { showToast(e.message, 'error'); setListsLoading(false); });
     }
   }, [mode]);
@@ -294,9 +295,23 @@ export default function ApolloImport() {
           {listsLoading ? (
             <div style={{ textAlign: 'center', padding: 32, color: '#aaa', fontSize: 13 }}>Loading your Apollo lists…</div>
           ) : lists.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 32, color: '#aaa', fontSize: 13 }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
-              No lists found in your Apollo account — open browser console (F12) to see debug info
+            <div style={{ padding: 24 }}>
+              <div style={{ textAlign: 'center', color: '#aaa', fontSize: 13, marginBottom: 16 }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
+                No lists found in your Apollo account.
+              </div>
+              {debugInfo && (
+                <div style={{ background: '#1e1e2e', borderRadius: 8, padding: 16, fontSize: 11, fontFamily: 'monospace', color: '#cdd6f4', overflow: 'auto', maxHeight: 400 }}>
+                  <div style={{ color: '#a6e3a1', marginBottom: 8, fontWeight: 700 }}>Apollo API Debug Info:</div>
+                  {Object.entries(debugInfo).map(([key, val]) => (
+                    <div key={key} style={{ marginBottom: 12 }}>
+                      <div style={{ color: '#89b4fa', marginBottom: 4 }}>{key}:</div>
+                      <div style={{ color: '#f38ba8' }}>status: {val.status}</div>
+                      <div style={{ color: '#cdd6f4', wordBreak: 'break-all' }}>body: {val.body}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
