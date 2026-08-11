@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
-// ââ CADENCE âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂ CADENCE Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 // Fresh contact: CADENCE.Fresh days until initial email is due (usually 0 = immediately)
 // F1 contact: CADENCE.F1 days after marking Fresh sent before F2 email is due
 // etc.
@@ -17,31 +17,31 @@ const FOLLOWUP_STAGES = ['F1', 'F2', 'F3', 'F4', 'F5'];
 const ALL_STAGES = ['Fresh', ...FOLLOWUP_STAGES];
 
 const STAGE_META = {
-  Fresh: { bg: '#dbeafe', color: '#1d4ed8', label: 'Fresh â New' },
-  F1:    { bg: '#d1fae5', color: '#065f46', label: 'F1 â Initial' },
-  F2:    { bg: '#fef9c3', color: '#854d0e', label: 'F2 â Follow-up 1' },
-  F3:    { bg: '#ffedd5', color: '#9a3412', label: 'F3 â Follow-up 2' },
-  F4:    { bg: '#fee2e2', color: '#991b1b', label: 'F4 â Follow-up 3' },
-  F5:    { bg: '#f1f5f9', color: '#475569', label: 'F5 â Break-up' },
+  Fresh: { bg: '#dbeafe', color: '#1d4ed8', label: 'Fresh Ã¢ÂÂ New' },
+  F1:    { bg: '#d1fae5', color: '#065f46', label: 'F1 Ã¢ÂÂ Initial' },
+  F2:    { bg: '#fef9c3', color: '#854d0e', label: 'F2 Ã¢ÂÂ Follow-up 1' },
+  F3:    { bg: '#ffedd5', color: '#9a3412', label: 'F3 Ã¢ÂÂ Follow-up 2' },
+  F4:    { bg: '#fee2e2', color: '#991b1b', label: 'F4 Ã¢ÂÂ Follow-up 3' },
+  F5:    { bg: '#f1f5f9', color: '#475569', label: 'F5 Ã¢ÂÂ Break-up' },
 };
 
 const RESPONSE_META = {
-  warm:           { bg: '#fef3c7', color: '#d97706', label: 'ð¡ Warm' },
-  prospect:       { bg: '#d1fae5', color: '#059669', label: 'ð¢ Prospect' },
-  cold:           { bg: '#e0f2fe', color: '#0369a1', label: 'ðµ Cold' },
-  negative:       { bg: '#fee2e2', color: '#dc2626', label: 'ð´ Negative' },
-  not_interested: { bg: '#f1f5f9', color: '#475569', label: 'â¬ Not interested' },
+  warm:           { bg: '#fef3c7', color: '#d97706', label: 'Ã°ÂÂÂ¡ Warm' },
+  prospect:       { bg: '#d1fae5', color: '#059669', label: 'Ã°ÂÂÂ¢ Prospect' },
+  cold:           { bg: '#e0f2fe', color: '#0369a1', label: 'Ã°ÂÂÂµ Cold' },
+  negative:       { bg: '#fee2e2', color: '#dc2626', label: 'Ã°ÂÂÂ´ Negative' },
+  not_interested: { bg: '#f1f5f9', color: '#475569', label: 'Ã¢Â¬Â Not interested' },
 };
 
 const TIMING_GROUPS = [
-  { key: 'overdue', label: 'ð´ Overdue',     color: '#dc2626' },
-  { key: 'today',   label: 'ð¢ Due Today',   color: '#059669' },
-  { key: 'week',    label: 'ð¡ This Week',   color: '#d97706' },
-  { key: 'later',   label: 'ð Later',       color: '#6b7280' },
-  { key: 'nodate',  label: 'â³ No Date Set', color: '#94a3b8' },
+  { key: 'overdue', label: 'Ã°ÂÂÂ´ Overdue',     color: '#dc2626' },
+  { key: 'today',   label: 'Ã°ÂÂÂ¢ Due Today',   color: '#059669' },
+  { key: 'week',    label: 'Ã°ÂÂÂ¡ This Week',   color: '#d97706' },
+  { key: 'later',   label: 'Ã°ÂÂÂ Later',       color: '#6b7280' },
+  { key: 'nodate',  label: 'Ã¢ÂÂ³ No Date Set', color: '#94a3b8' },
 ];
 
-// ââ Helpers âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂ Helpers Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
 function getInitials(name) {
   return (name || '').split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
@@ -95,7 +95,7 @@ function formatDue(due) {
   return due.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 }
 
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 export default function FollowUps() {
   const { user, profile } = useAuth();
   const canViewAll = ['director', 'manager'].includes(profile?.role);
@@ -155,6 +155,7 @@ export default function FollowUps() {
   const [copied,      setCopied]      = useState(null);
   const [markingSent, setMarkingSent] = useState(null);
   const [customPrompts, setCustomPrompts] = useState({});
+  const [exportRows, setExportRows] = useState([]);
 
   const autoGenRanRef = useRef(false);
 
@@ -206,7 +207,7 @@ export default function FollowUps() {
     return rows || [];
   }
 
-  // Auto-generate on first load â throttled: one at a time, 400ms gap
+  // Auto-generate on first load Ã¢ÂÂ throttled: one at a time, 400ms gap
   useEffect(() => {
     if (loading || autoGenRanRef.current || !autoGenerate) return;
     autoGenRanRef.current = true;
@@ -267,6 +268,17 @@ export default function FollowUps() {
       });
       if (!res.error && res.data?.subject) {
         setDrafts(d => ({ ...d, [contact.id]: { subject: res.data.subject, body: res.data.body } }));
+        setExportRows(prev => [...prev, {
+          name: contact.full_name || '',
+          title: contact.title || '',
+          company: contact.company || account.name || '',
+          industry: account.industry || contact.industry || '',
+          stage: contact.status || '',
+          subject: res.data.subject,
+          body: res.data.body,
+          sender: senderName,
+          generatedAt: new Date().toLocaleString()
+        }]);
         if (!silent) setDraftOpen(contact.id);
       }
     } catch (e) { console.error(e); }
@@ -325,7 +337,7 @@ export default function FollowUps() {
     setTimeout(() => setCopied(c => c === id ? null : c), 2000);
   }
 
-  // ââ Computed values âââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // Ã¢ÂÂÃ¢ÂÂ Computed values Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
   const freshContacts  = contacts.filter(c => c.status === 'Fresh');
   const activeContacts = contacts.filter(c => c.status !== 'Fresh');
 
@@ -397,28 +409,45 @@ export default function FollowUps() {
 
   const noResults = filteredFresh.length === 0 && filteredActive.length === 0;
 
+  function exportCSV() {
+    if (!exportRows.length) return;
+    const headers = ['Name','Title','Company','Industry','Stage','Subject','Body','Sender','Generated At'];
+    const rows = exportRows.map(r => [
+      r.name, r.title, r.company, r.industry, r.stage,
+      r.subject, r.body, r.sender, r.generatedAt
+    ].map(v => '"' + (v || '').replace(/"/g, '""') + '"'));
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'accelq-drafts-' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:'#f8f9fb' }}>
 
-      {/* ââââââââââââââââââ HEADER ââââââââââââââââââââââââââââââââââââââ */}
+      {/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ HEADER Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */}
       <div style={{ background:'#fff', borderBottom:'1px solid #e5e7eb', flexShrink:0 }}>
 
         {/* Title row */}
         <div style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 24px 10px' }}>
           <div>
             <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-              <h1 style={{ fontSize:18, fontWeight:700, color:'#111', margin:0, letterSpacing:'-0.01em' }}>ð¬ Follow-up Queue</h1>
+              <h1 style={{ fontSize:18, fontWeight:700, color:'#111', margin:0, letterSpacing:'-0.01em' }}>Ã°ÂÂÂ¬ Follow-up Queue</h1>
               {canViewAll && (
                 <button onClick={() => setViewAll(v => !v)}
                   style={{ padding:'3px 10px', borderRadius:20, border:'1.5px solid #e0e0e0',
                     fontSize:11, fontWeight:600, cursor:'pointer',
                     background: viewAll ? '#111' : '#fff', color: viewAll ? '#fff' : '#555' }}>
-                  {viewAll ? 'ð¥ Team' : 'View all'}
+                  {viewAll ? 'Ã°ÂÂÂ¥ Team' : 'View all'}
                 </button>
               )}
             </div>
             <p style={{ fontSize:12, color:'#6b7280', margin:'2px 0 0' }}>
-              Fresh â F1 â F2 â F3 â F4 â F5 â draft, review, mark sent
+              Fresh Ã¢ÂÂ F1 Ã¢ÂÂ F2 Ã¢ÂÂ F3 Ã¢ÂÂ F4 Ã¢ÂÂ F5 Ã¢ÂÂ draft, review, mark sent
             </p>
           </div>
           <div style={{ flex:1 }} />
@@ -429,27 +458,27 @@ export default function FollowUps() {
               <div onClick={() => setTimingFilter(f => f==='overdue'?'all':'overdue')}
                 style={{ padding:'5px 12px', borderRadius:20, fontSize:12, fontWeight:700, color:'#dc2626', cursor:'pointer',
                   background:timingFilter==='overdue'?'#fee2e2':'#fff5f5', border:`1.5px solid ${timingFilter==='overdue'?'#dc2626':'#fca5a5'}` }}>
-                ð´ {overdueCt} overdue
+                Ã°ÂÂÂ´ {overdueCt} overdue
               </div>
             )}
             {todayCt > 0 && (
               <div onClick={() => setTimingFilter(f => f==='today'?'all':'today')}
                 style={{ padding:'5px 12px', borderRadius:20, fontSize:12, fontWeight:700, color:'#059669', cursor:'pointer',
                   background:timingFilter==='today'?'#d1fae5':'#f0fdf4', border:`1.5px solid ${timingFilter==='today'?'#059669':'#6ee7b7'}` }}>
-                ð¢ {todayCt} today
+                Ã°ÂÂÂ¢ {todayCt} today
               </div>
             )}
             {readyCt > 0 && (
               <div style={{ padding:'5px 12px', borderRadius:20, fontSize:12, fontWeight:700, color:'#7c3aed',
                 background:'#f5f3ff', border:'1.5px solid #c4b5fd' }}>
-                â¨ {readyCt} ready
+                Ã¢ÂÂ¨ {readyCt} ready
               </div>
             )}
             {freshContacts.length > 0 && (
               <div onClick={() => setStageFilter(f => f==='Fresh'?'all':'Fresh')}
                 style={{ padding:'5px 12px', borderRadius:20, fontSize:12, fontWeight:700, color:'#1d4ed8', cursor:'pointer',
                   background:stageFilter==='Fresh'?'#dbeafe':'#eff6ff', border:`1.5px solid ${stageFilter==='Fresh'?'#2563eb':'#93c5fd'}` }}>
-                ð© {freshContacts.length} new
+                Ã°ÂÂÂ© {freshContacts.length} new
               </div>
             )}
             <div style={{ padding:'5px 12px', borderRadius:20, fontSize:12, fontWeight:500, color:'#6b7280',
@@ -458,23 +487,32 @@ export default function FollowUps() {
             </div>
           </div>
 
+          {exportRows.length > 0 && (
+            <button onClick={exportCSV}
+              style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 14px',
+                borderRadius:8, border:'1.5px solid #059669', background:'#ecfdf5',
+                color:'#065f46', fontSize:12, fontWeight:600, cursor:'pointer' }}>
+              ⬇ Export CSV ({exportRows.length})
+            </button>
+          )}
+
           {/* Settings */}
           <button onClick={() => setSettingsOpen(s => !s)}
             style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 14px', borderRadius:8,
               border:`1.5px solid ${settingsOpen?'#2563eb':'#e5e7eb'}`,
               background:settingsOpen?'#dbeafe':'#fff', color:settingsOpen?'#1d4ed8':'#374151',
               fontSize:12, fontWeight:600, cursor:'pointer' }}>
-            âï¸ Settings {settingsOpen ? 'â²' : 'â¼'}
+            Ã¢ÂÂÃ¯Â¸Â Settings {settingsOpen ? 'Ã¢ÂÂ²' : 'Ã¢ÂÂ¼'}
           </button>
         </div>
 
-        {/* ââ SETTINGS PANEL ââââââââââââââââââââââââââââââââââââââââââ */}
+        {/* Ã¢ÂÂÃ¢ÂÂ SETTINGS PANEL Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */}
         {settingsOpen && (
           <div style={{ borderTop:'1px solid #f3f4f6', background:'linear-gradient(to bottom,#f9fafb,#f3f4f6)', padding:'16px 24px 18px' }}>
             <div style={{ display:'flex', gap:28, alignItems:'flex-start', flexWrap:'wrap' }}>
               <div>
                 <div style={{ fontSize:11, fontWeight:700, color:'#374151', marginBottom:10, textTransform:'uppercase', letterSpacing:'0.06em' }}>
-                  ð Cadence (days between emails)
+                  Ã°ÂÂÂ Cadence (days between emails)
                 </div>
                 <div style={{ display:'flex', gap:8, alignItems:'flex-end' }}>
                   {['Fresh','F1','F2','F3','F4'].map(key => (
@@ -503,7 +541,7 @@ export default function FollowUps() {
 
               <div>
                 <div style={{ fontSize:11, fontWeight:700, color:'#374151', marginBottom:10, textTransform:'uppercase', letterSpacing:'0.06em' }}>
-                  â¨ Auto-generation
+                  Ã¢ÂÂ¨ Auto-generation
                 </div>
                 <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                   <div onClick={toggleAutoGen}
@@ -514,7 +552,7 @@ export default function FollowUps() {
                   </div>
                   <div>
                     <div style={{ fontSize:13, fontWeight:600, color:autoGenerate?'#2563eb':'#6b7280' }}>
-                      {autoGenerate ? 'On â auto-drafts overdue & today on page open' : 'Off â manual only'}
+                      {autoGenerate ? 'On Ã¢ÂÂ auto-drafts overdue & today on page open' : 'Off Ã¢ÂÂ manual only'}
                     </div>
                     <div style={{ fontSize:11, color:'#9ca3af', marginTop:2 }}>
                       {autoGenerate ? 'AI silently generates drafts when you open this queue' : 'Click "Draft Email" per contact'}
@@ -527,20 +565,20 @@ export default function FollowUps() {
 
               <div style={{ fontSize:11, color:'#6b7280', lineHeight:1.7, maxWidth:260 }}>
                 <div style={{ fontWeight:700, color:'#374151', marginBottom:4 }}>Journey</div>
-                <div>1. Click <b>ð Start</b> on Accounts â contact appears here as <b>Fresh</b></div>
-                <div>2. Draft initial email â <b>â Mark Sent</b> â becomes F1</div>
-                <div>3. F1âF2âF3âF4âF5 with AI drafts each step</div>
-                <div>4. <span style={{ color:'#7c3aed', fontWeight:600 }}>â¨ Ready</span> contacts float to top of each group</div>
+                <div>1. Click <b>Ã°ÂÂÂ Start</b> on Accounts Ã¢ÂÂ contact appears here as <b>Fresh</b></div>
+                <div>2. Draft initial email Ã¢ÂÂ <b>Ã¢ÂÂ Mark Sent</b> Ã¢ÂÂ becomes F1</div>
+                <div>3. F1Ã¢ÂÂF2Ã¢ÂÂF3Ã¢ÂÂF4Ã¢ÂÂF5 with AI drafts each step</div>
+                <div>4. <span style={{ color:'#7c3aed', fontWeight:600 }}>Ã¢ÂÂ¨ Ready</span> contacts float to top of each group</div>
               </div>
             </div>
           </div>
         )}
 
-        {/* ââ FILTER ROW ââââââââââââââââââââââââââââââââââââââââââââââ */}
+        {/* Ã¢ÂÂÃ¢ÂÂ FILTER ROW Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */}
         <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', padding:'8px 24px 12px' }}>
           <div style={{ position:'relative' }}>
-            <span style={{ position:'absolute', left:9, top:'50%', transform:'translateY(-50%)', fontSize:12, color:'#9ca3af', pointerEvents:'none' }}>ð</span>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Name, company, emailâ¦"
+            <span style={{ position:'absolute', left:9, top:'50%', transform:'translateY(-50%)', fontSize:12, color:'#9ca3af', pointerEvents:'none' }}>Ã°ÂÂÂ</span>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Name, company, emailÃ¢ÂÂ¦"
               style={{ paddingLeft:28, paddingRight:10, paddingTop:6, paddingBottom:6,
                 borderRadius:8, border:'1px solid #e5e7eb', fontSize:12, width:190, outline:'none', background:'#f9fafb' }} />
           </div>
@@ -564,7 +602,7 @@ export default function FollowUps() {
               <button key={t} onClick={() => setTimingFilter(f => f===t?'all':t)}
                 style={{ padding:'4px 9px', borderRadius:6, fontSize:11, fontWeight:600, cursor:'pointer', border:'none',
                   background:timingFilter===t?'#dbeafe':'#f3f4f6', color:timingFilter===t?'#1d4ed8':'#6b7280' }}>
-                {t==='overdue'?'ð´':t==='today'?'ð¢':t==='week'?'ð¡':'ð'} {t}
+                {t==='overdue'?'Ã°ÂÂÂ´':t==='today'?'Ã°ÂÂÂ¢':t==='week'?'Ã°ÂÂÂ¡':'Ã°ÂÂÂ'} {t}
               </button>
             ))}
           </div>
@@ -586,29 +624,29 @@ export default function FollowUps() {
           {anyFilter && (
             <button onClick={clearFilters}
               style={{ padding:'4px 10px', borderRadius:6, fontSize:11, fontWeight:500, color:'#dc2626', background:'#fef2f2', border:'none', cursor:'pointer' }}>
-              â Clear
+              Ã¢ÂÂ Clear
             </button>
           )}
         </div>
       </div>
 
-      {/* ââââââââââââââââââ CONTENT ââââââââââââââââââââââââââââââââââââ */}
+      {/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ CONTENT Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */}
       <div style={{ flex:1, overflowY:'auto', padding:'20px 24px' }}>
         {loading ? (
           <div style={{ textAlign:'center', padding:'80px 20px', color:'#9ca3af' }}>
-            <div style={{ fontSize:32, marginBottom:10 }}>â³</div>Loading queueâ¦
+            <div style={{ fontSize:32, marginBottom:10 }}>Ã¢ÂÂ³</div>Loading queueÃ¢ÂÂ¦
           </div>
         ) : totalInQueue === 0 ? (
           <div style={{ textAlign:'center', padding:'80px 20px' }}>
-            <div style={{ fontSize:44, marginBottom:14 }}>ð</div>
+            <div style={{ fontSize:44, marginBottom:14 }}>Ã°ÂÂÂ</div>
             <div style={{ fontSize:16, fontWeight:700, color:'#374151' }}>Queue is empty!</div>
             <div style={{ fontSize:13, color:'#6b7280', marginTop:6 }}>
-              Go to Accounts â select a contact â click <strong>ð Start</strong> to begin outreach
+              Go to Accounts Ã¢ÂÂ select a contact Ã¢ÂÂ click <strong>Ã°ÂÂÂ Start</strong> to begin outreach
             </div>
           </div>
         ) : noResults ? (
           <div style={{ textAlign:'center', padding:'80px 20px' }}>
-            <div style={{ fontSize:32, marginBottom:10 }}>ð</div>
+            <div style={{ fontSize:32, marginBottom:10 }}>Ã°ÂÂÂ</div>
             <div style={{ fontSize:14, fontWeight:600, color:'#374151' }}>No matches</div>
             <button onClick={clearFilters}
               style={{ marginTop:14, padding:'8px 18px', background:'#2563eb', color:'#fff', borderRadius:8, border:'none', fontSize:13, cursor:'pointer', fontWeight:600 }}>
@@ -617,7 +655,7 @@ export default function FollowUps() {
           </div>
         ) : (
           <>
-            {/* ââ FRESH / NEW CONTACTS SECTION âââââââââââââââââââââ */}
+            {/* Ã¢ÂÂÃ¢ÂÂ FRESH / NEW CONTACTS SECTION Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */}
             {showFresh && filteredFresh.length > 0 && (
               <FreshSection
                 contacts={filteredFresh}
@@ -625,7 +663,7 @@ export default function FollowUps() {
               />
             )}
 
-            {/* ââ F1-F5 TIMING GROUPS âââââââââââââââââââââââââââââââ */}
+            {/* Ã¢ÂÂÃ¢ÂÂ F1-F5 TIMING GROUPS Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */}
             {(stageFilter === 'all' || stageFilter !== 'Fresh') && activeGroups.map(group => (
               <TimingGroup key={group.key} group={group} {...sharedProps} />
             ))}
@@ -636,7 +674,7 @@ export default function FollowUps() {
   );
 }
 
-// ââ FreshSection ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂ FreshSection Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
 function FreshSection({ contacts, ...props }) {
   const readyItems = contacts.filter(c => c._hasDraft);
@@ -654,14 +692,14 @@ function FreshSection({ contacts, ...props }) {
       <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
         <span style={{ fontSize:12, fontWeight:700, color:'#1d4ed8', padding:'3px 14px',
           background:'#dbeafe', borderRadius:20, flexShrink:0 }}>
-          ð© New Contacts Â· {contacts.length}
+          Ã°ÂÂÂ© New Contacts ÃÂ· {contacts.length}
         </span>
         <div style={{ flex:1, height:1, background:'#e5e7eb' }} />
-        <span style={{ fontSize:11, color:'#6b7280', flexShrink:0 }}>Draft initial email â Mark Sent â moves to F1</span>
+        <span style={{ fontSize:11, color:'#6b7280', flexShrink:0 }}>Draft initial email Ã¢ÂÂ Mark Sent Ã¢ÂÂ moves to F1</span>
         {readyItems.length > 0 && (
           <span style={{ fontSize:11, fontWeight:600, color:'#7c3aed', padding:'2px 9px',
             background:'#f5f3ff', borderRadius:12, border:'1px solid #ede9fe', flexShrink:0 }}>
-            {readyItems.length} â¨ ready
+            {readyItems.length} Ã¢ÂÂ¨ ready
           </span>
         )}
       </div>
@@ -675,7 +713,7 @@ function FreshSection({ contacts, ...props }) {
   );
 }
 
-// ââ TimingGroup âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂ TimingGroup Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
 function TimingGroup({ group, ...props }) {
   const readyItems = group.items.filter(c => c._hasDraft);
@@ -686,13 +724,13 @@ function TimingGroup({ group, ...props }) {
       <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
         <span style={{ fontSize:12, fontWeight:700, color:group.color, padding:'3px 14px',
           background:group.color+'18', borderRadius:20, flexShrink:0 }}>
-          {group.label} Â· {group.items.length}
+          {group.label} ÃÂ· {group.items.length}
         </span>
         <div style={{ flex:1, height:1, background:'#e5e7eb' }} />
         {readyItems.length > 0 && (
           <span style={{ fontSize:11, fontWeight:600, color:'#7c3aed', padding:'2px 9px',
             background:'#f5f3ff', borderRadius:12, border:'1px solid #ede9fe', flexShrink:0 }}>
-            {readyItems.length} â¨ ready to send
+            {readyItems.length} Ã¢ÂÂ¨ ready to send
           </span>
         )}
       </div>
@@ -700,7 +738,7 @@ function TimingGroup({ group, ...props }) {
       {readyItems.length > 0 && (
         <>
           <div style={{ fontSize:10, fontWeight:700, color:'#7c3aed', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:5, paddingLeft:4 }}>
-            â Ready to Send
+            Ã¢ÂÂ Ready to Send
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:7, marginBottom: needsItems.length ? 14 : 0 }}>
             {readyItems.map(c => <ContactRow key={c.id} contact={c} {...props} />)}
@@ -712,7 +750,7 @@ function TimingGroup({ group, ...props }) {
         <>
           {readyItems.length > 0 && (
             <div style={{ fontSize:10, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:5, paddingLeft:4 }}>
-              â³ Needs Email
+              Ã¢ÂÂ³ Needs Email
             </div>
           )}
           <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
@@ -724,7 +762,7 @@ function TimingGroup({ group, ...props }) {
   );
 }
 
-// ââ ContactRow ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// Ã¢ÂÂÃ¢ÂÂ ContactRow Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
 function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, markingSent,
   onGenerate, onToggleDraft, onRegenerate, onMarkSent, onSnooze, onCopy, onView, isFresh,
@@ -744,11 +782,11 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
   const isCopied    = copied === c.id;
   const ac = avatarColor(((c.first_name || '') + ' ' + (c.last_name || '')).trim());
 
-  const markSentLabel = c.status === 'Fresh' ? 'â Send â F1' : 'â Mark Sent';
-  const draftBtnLabel = isDrafting ? 'â¨ Draftingâ¦'
-    : hasDraft ? (isDraftOpen ? 'ð§ Hide' : 'ð§ Show Draft')
-    : c.status === 'Fresh' ? 'â¨ Draft Initial Email'
-    : 'â¨ Draft Email';
+  const markSentLabel = c.status === 'Fresh' ? 'Ã¢ÂÂ Send Ã¢ÂÂ F1' : 'Ã¢ÂÂ Mark Sent';
+  const draftBtnLabel = isDrafting ? 'Ã¢ÂÂ¨ DraftingÃ¢ÂÂ¦'
+    : hasDraft ? (isDraftOpen ? 'Ã°ÂÂÂ§ Hide' : 'Ã°ÂÂÂ§ Show Draft')
+    : c.status === 'Fresh' ? 'Ã¢ÂÂ¨ Draft Initial Email'
+    : 'Ã¢ÂÂ¨ Draft Email';
 
   return (
     <div style={{
@@ -772,7 +810,7 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
             {((c.first_name || '') + ' ' + (c.last_name || '')).trim()}
           </div>
           <div style={{ fontSize:11, color:'#6b7280', marginTop:1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-            {c.title?`${c.title} Â· `:''}{c.company||'â'}
+            {c.title?`${c.title} ÃÂ· `:''}{c.company||'Ã¢ÂÂ'}
           </div>
         </div>
 
@@ -788,7 +826,7 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
 
         {account && (
           <span style={{ fontSize:11, color:'#6b7280', flexShrink:0, maxWidth:130, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-            ð¢ {account.name}
+            Ã°ÂÂÂ¢ {account.name}
           </span>
         )}
 
@@ -796,7 +834,7 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
 
         <div style={{ fontSize:11, fontWeight:600, flexShrink:0, width:72, textAlign:'right',
           color:isOverdue?'#dc2626':c._due?'#374151':'#d1d5db' }}>
-          {isOverdue && 'â  '}{formatDue(c._due)}
+          {isOverdue && 'Ã¢ÂÂ  '}{formatDue(c._due)}
         </div>
 
         <div style={{ display:'flex', gap:5, flexShrink:0, alignItems:'center' }}>
@@ -814,13 +852,13 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
               style={{ padding:'5px 11px', borderRadius:7, fontSize:11, fontWeight:700, border:'none',
                 background:isMarking?'#d1fae5':'#059669', color:'#fff', cursor:isMarking?'wait':'pointer',
                 boxShadow:'0 1px 4px rgba(5,150,105,0.3)' }}>
-              {isMarking ? 'â Done!' : markSentLabel}
+              {isMarking ? 'Ã¢ÂÂ Done!' : markSentLabel}
             </button>
           )}
 
           <select onChange={e => { if(e.target.value){ onSnooze(c.id, Number(e.target.value)); e.target.value=''; } }}
             style={{ padding:'5px 6px', borderRadius:7, border:'1px solid #e5e7eb', fontSize:11, background:'#f9fafb', color:'#374151', cursor:'pointer' }}>
-            <option value="">Snoozeâ¦</option>
+            <option value="">SnoozeÃ¢ÂÂ¦</option>
             <option value="1">Tomorrow</option>
             <option value="3">3 days</option>
             <option value="7">1 week</option>
@@ -829,7 +867,7 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
 
           <button onClick={() => onView(c.id)}
             style={{ padding:'5px 9px', borderRadius:7, fontSize:11, fontWeight:600, border:'1px solid #e5e7eb', background:'#fff', color:'#6b7280', cursor:'pointer' }}>
-            â
+            Ã¢ÂÂ
           </button>
         </div>
       </div>
@@ -839,9 +877,9 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
         <div style={{ borderTop:`1px solid ${hasDraft?'#ede9fe':'#f3f4f6'}`, background:'linear-gradient(to bottom,#fdf8ff,#faf5ff)', padding:'14px 16px' }}>
           {isDrafting ? (
             <div style={{ textAlign:'center', padding:'28px 0', color:'#7c3aed' }}>
-              <div style={{ fontSize:26, marginBottom:10 }}>â¨</div>
+              <div style={{ fontSize:26, marginBottom:10 }}>Ã¢ÂÂ¨</div>
               <div style={{ fontSize:13, fontWeight:700 }}>
-                {c.status === 'Fresh' ? 'Generating initial cold emailâ¦' : `Generating ${sm.label} emailâ¦`}
+                {c.status === 'Fresh' ? 'Generating initial cold emailÃ¢ÂÂ¦' : `Generating ${sm.label} emailÃ¢ÂÂ¦`}
               </div>
               <div style={{ fontSize:11, color:'#9ca3af', marginTop:5 }}>Using account research + prior email context</div>
             </div>
@@ -851,7 +889,7 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
                 <textarea
                   value={customPrompt}
                   onChange={e => onCustomPromptChange(c.id, e.target.value)}
-                  placeholder="Add custom instructionsâ¦ (e.g. 'mention their Selenium migration', 'keep under 80 words', 'focus on ROI')"
+                  placeholder="Add custom instructionsÃ¢ÂÂ¦ (e.g. 'mention their Selenium migration', 'keep under 80 words', 'focus on ROI')"
                   rows={2}
                   style={{ width:'100%', fontSize:12, padding:'8px 10px', borderRadius:7, border:'1px solid #d8b4fe',
                     background:'#faf5ff', color:'#374151', resize:'vertical', fontFamily:'inherit',
@@ -860,28 +898,28 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
               </div>
               <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
                 <div style={{ fontSize:12, fontWeight:700, color:'#374151', flex:1 }}>
-                  âï¸ {c.status === 'Fresh' ? 'AI Draft â Initial Email' : `AI Draft â ${sm.label}`}
+                  Ã¢ÂÂÃ¯Â¸Â {c.status === 'Fresh' ? 'AI Draft Ã¢ÂÂ Initial Email' : `AI Draft Ã¢ÂÂ ${sm.label}`}
                 </div>
                 <button onClick={() => onRegenerate(c, customPrompt)}
                   style={{ fontSize:11, padding:'3px 10px', borderRadius:6, border:'1px solid #e5e7eb', background:'#fff', color:'#7c3aed', cursor:'pointer', fontWeight:500 }}>
-                  â» Regenerate
+                  Ã¢ÂÂ» Regenerate
                 </button>
                 <button onClick={() => onCopy(c.id)}
                   style={{ fontSize:11, padding:'3px 12px', borderRadius:6, border:'none',
                     background:isCopied?'#059669':'#6d28d9', color:'#fff', cursor:'pointer', fontWeight:600, transition:'background 0.2s' }}>
-                  {isCopied ? 'â Copied!' : 'ð Copy'}
+                  {isCopied ? 'Ã¢ÂÂ Copied!' : 'Ã°ÂÂÂ Copy'}
                 </button>
                 <button onClick={() => onMarkSent(c)} disabled={isMarking}
                   style={{ fontSize:11, padding:'3px 12px', borderRadius:6, border:'none',
                     background:isMarking?'#6ee7b7':'#059669', color:'#fff', cursor:isMarking?'wait':'pointer', fontWeight:700 }}>
-                  {isMarking ? 'â Done!' : markSentLabel}
+                  {isMarking ? 'Ã¢ÂÂ Done!' : markSentLabel}
                 </button>
                 <a href={`mailto:${c.email || ''}?subject=${encodeURIComponent(draft?.subject || '')}&body=${encodeURIComponent(draft?.body || '')}`}
                   target="_blank" rel="noopener noreferrer"
                   style={{ fontSize:11, padding:'3px 12px', borderRadius:6, border:'1px solid #0078d4',
                     background:'#fff', color:'#0078d4', cursor:'pointer', fontWeight:600,
                     textDecoration:'none', display:'inline-block', whiteSpace:'nowrap' }}>
-                  ð§ Draft in Outlook
+                  Ã°ÂÂÂ§ Draft in Outlook
                 </a>
               </div>
 
@@ -900,7 +938,7 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
               </div>
 
               <div style={{ marginTop:10, fontSize:11, color:'#9ca3af' }}>
-                â  Review and personalise before sending Â· click <strong style={{ color:'#059669' }}>{markSentLabel}</strong> after you send it
+                Ã¢ÂÂ  Review and personalise before sending ÃÂ· click <strong style={{ color:'#059669' }}>{markSentLabel}</strong> after you send it
               </div>
             </>
           ) : !isDrafting ? (
@@ -908,7 +946,7 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
               <textarea
                 value={customPrompt}
                 onChange={e => onCustomPromptChange(c.id, e.target.value)}
-                placeholder="Optional: add instructions before generatingâ¦ (e.g. 'focus on cost savings', 'mention their SAP stack')"
+                placeholder="Optional: add instructions before generatingÃ¢ÂÂ¦ (e.g. 'focus on cost savings', 'mention their SAP stack')"
                 rows={2}
                 style={{ width:'100%', fontSize:12, padding:'8px 10px', borderRadius:7, border:'1px solid #d8b4fe',
                   background:'#faf5ff', color:'#374151', resize:'vertical', fontFamily:'inherit',
@@ -918,7 +956,7 @@ function ContactRow({ contact:c, accounts, drafts, drafting, draftOpen, copied, 
                 style={{ padding:'7px 18px', borderRadius:8, fontSize:12, fontWeight:700, border:'none',
                   background:'linear-gradient(135deg,#7c3aed,#2563eb)', color:'#fff', cursor:'pointer',
                   boxShadow:'0 1px 4px rgba(37,99,235,0.3)' }}>
-                â¨ Generate Email
+                Ã¢ÂÂ¨ Generate Email
               </button>
             </div>
           ) : null}
