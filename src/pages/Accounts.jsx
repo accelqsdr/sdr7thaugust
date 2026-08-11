@@ -14,19 +14,19 @@ const TOOL_STATUS_COLORS = {
   Active:       { bg: '#dcfce7', color: '#16a34a' },
 };
 const SIGNAL_DEFS = [
-  { key: 'funding',          icon: 'Ã°ÂÂÂ°', label: 'Recent Funding / IPO',      color: '#059669', bg: '#d1fae5' },
-  { key: 'hiringQA',         icon: 'Ã°ÂÂÂ¥', label: 'Hiring QA / SDET',          color: '#7c3aed', bg: '#ede9fe' },
-  { key: 'recentLaunch',     icon: 'Ã°ÂÂÂ', label: 'Recent Product Launch',     color: '#0891b2', bg: '#e0f2fe' },
-  { key: 'leadershipChange', icon: 'Ã°ÂÂÂ¤', label: 'Leadership Change',         color: '#d97706', bg: '#fef3c7' },
-  { key: 'outage',           icon: 'Ã¢ÂÂ Ã¯Â¸Â',  label: 'Outage / Quality Incident', color: '#dc2626', bg: '#fee2e2' },
-  { key: 'cicd',             icon: 'Ã¢ÂÂÃ¯Â¸Â',  label: 'Active CI/CD Pipeline',    color: '#475569', bg: '#f1f5f9' },
+  { key: 'funding',          icon: 'ð°', label: 'Recent Funding / IPO',      color: '#059669', bg: '#d1fae5' },
+  { key: 'hiringQA',         icon: 'ð¥', label: 'Hiring QA / SDET',          color: '#7c3aed', bg: '#ede9fe' },
+  { key: 'recentLaunch',     icon: 'ð', label: 'Recent Product Launch',     color: '#0891b2', bg: '#e0f2fe' },
+  { key: 'leadershipChange', icon: 'ð¤', label: 'Leadership Change',         color: '#d97706', bg: '#fef3c7' },
+  { key: 'outage',           icon: 'â ï¸',  label: 'Outage / Quality Incident', color: '#dc2626', bg: '#fee2e2' },
+  { key: 'cicd',             icon: 'âï¸',  label: 'Active CI/CD Pipeline',    color: '#475569', bg: '#f1f5f9' },
 ];
 const RESEARCH_DEFAULTS = [
-  { key: 'whyTarget',  label: 'Why Target',        icon: 'Ã°ÂÂÂ¯', hint: 'why this company is a good fit for ACCELQ test automation' },
-  { key: 'techStack',  label: 'Tech Stack',        icon: 'Ã°ÂÂÂ§', hint: 'known languages, frameworks, CI/CD, cloud, testing tools' },
-  { key: 'qaHiring',   label: 'QA Hiring Signals', icon: 'Ã°ÂÂÂ¥', hint: 'likelihood of hiring QA/automation engineers: Low/Med/High with reason' },
-  { key: 'recentNews', label: 'Recent News',       icon: 'Ã°ÂÂÂ°', hint: 'one relevant news item, funding, or digital transformation initiative' },
-  { key: 'painPoints', label: 'Pain Points',       icon: 'Ã°ÂÂÂ¥', hint: 'top 2 QA/testing pain points ACCELQ solves for this company' },
+  { key: 'whyTarget',  label: 'Why Target',        icon: 'ð¯', hint: 'why this company is a good fit for ACCELQ test automation' },
+  { key: 'techStack',  label: 'Tech Stack',        icon: 'ð§', hint: 'known languages, frameworks, CI/CD, cloud, testing tools' },
+  { key: 'qaHiring',   label: 'QA Hiring Signals', icon: 'ð¥', hint: 'likelihood of hiring QA/automation engineers: Low/Med/High with reason' },
+  { key: 'recentNews', label: 'Recent News',       icon: 'ð°', hint: 'one relevant news item, funding, or digital transformation initiative' },
+  { key: 'painPoints', label: 'Pain Points',       icon: 'ð¥', hint: 'top 2 QA/testing pain points ACCELQ solves for this company' },
 ];
 const COMMON_ENTERPRISE_APPS = ['SAP','Oracle','Workday','ServiceNow','Salesforce','Microsoft Dynamics','SAP S/4HANA','Oracle EBS','PeopleSoft','Guidewire','Siebel','Veeva'];
 const STAGE_COLORS = {
@@ -80,15 +80,15 @@ function getSignalBadges(account) {
   const sig = account.signals || {};
   const tools = account.testing_tools || [];
   const badges = [];
-  if (tools.some(t => t.status === 'Legacy')) badges.push({ label: 'Ã¢ÂÂ Ã¯Â¸Â Legacy Tool', color: '#dc2626', bg: '#fee2e2' });
-  if (sig.hiringQA) badges.push({ label: 'Ã°ÂÂÂ¥ Hiring QA', color: '#7c3aed', bg: '#ede9fe' });
-  if (sig.funding) badges.push({ label: 'Ã°ÂÂÂ° Funded', color: '#059669', bg: '#d1fae5' });
-  if (sig.outage) badges.push({ label: 'Ã¢ÂÂ Ã¯Â¸Â Outage', color: '#dc2626', bg: '#fee2e2' });
-  if (sig.leadershipChange) badges.push({ label: 'Ã°ÂÂÂ¤ New Leader', color: '#d97706', bg: '#fef3c7' });
+  if (tools.some(t => t.status === 'Legacy')) badges.push({ label: 'â ï¸ Legacy Tool', color: '#dc2626', bg: '#fee2e2' });
+  if (sig.hiringQA) badges.push({ label: 'ð¥ Hiring QA', color: '#7c3aed', bg: '#ede9fe' });
+  if (sig.funding) badges.push({ label: 'ð° Funded', color: '#059669', bg: '#d1fae5' });
+  if (sig.outage) badges.push({ label: 'â ï¸ Outage', color: '#dc2626', bg: '#fee2e2' });
+  if (sig.leadershipChange) badges.push({ label: 'ð¤ New Leader', color: '#d97706', bg: '#fef3c7' });
   return badges;
 }
 
-/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ FILTER PILL Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
+/* âââ FILTER PILL ââââââââââââââââââââââââââââââââââââââââââ */
 function FilterPill({ label, active, onClick }) {
   return (
     <button onClick={onClick} style={{
@@ -99,7 +99,7 @@ function FilterPill({ label, active, onClick }) {
   );
 }
 
-/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ MAIN COMPONENT Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
+/* âââ MAIN COMPONENT âââââââââââââââââââââââââââââââââââââââ */
 export default function Accounts() {
   const { user, profile } = useAuth();
   const canViewAll = ['director', 'manager'].includes(profile?.role);
@@ -170,11 +170,11 @@ export default function Accounts() {
 
   const FILTERS = [
     { key: 'all', label: 'All' },
-    { key: 'legacy', label: 'Ã¢ÂÂ Ã¯Â¸Â Legacy' },
-    { key: 'hiring', label: 'Ã°ÂÂÂ¥ Hiring QA' },
-    { key: 'funded', label: 'Ã°ÂÂÂ° Funded' },
-    { key: 'signals', label: 'Ã°ÂÂÂ¡ Signals' },
-    { key: 'notes', label: 'Ã°ÂÂÂ Notes' },
+    { key: 'legacy', label: 'â ï¸ Legacy' },
+    { key: 'hiring', label: 'ð¥ Hiring QA' },
+    { key: 'funded', label: 'ð° Funded' },
+    { key: 'signals', label: 'ð¡ Signals' },
+    { key: 'notes', label: 'ð Notes' },
   ];
 
   const filtered = accounts.filter(a => {
@@ -200,7 +200,7 @@ export default function Accounts() {
   return (
     <div style={{ display: 'flex', height: 'calc(100vh - 56px)', overflow: 'hidden', background: '#f8f9fb' }}>
 
-      {/* Ã¢ÂÂÃ¢ÂÂ LEFT PANEL Ã¢ÂÂÃ¢ÂÂ */}
+      {/* ââ LEFT PANEL ââ */}
       <div style={{ width: 300, minWidth: 260, borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', background: '#fff' }}>
 
         {/* Header */}
@@ -230,8 +230,8 @@ export default function Accounts() {
 
           {/* Search */}
           <div style={{ position: 'relative', marginBottom: 10 }}>
-            <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#9ca3af', pointerEvents: 'none' }}>Ã°ÂÂÂ</span>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search accountsÃ¢ÂÂ¦"
+            <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#9ca3af', pointerEvents: 'none' }}>ð</span>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search accountsâ¦"
               style={{ width: '100%', padding: '7px 10px 7px 28px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12, outline: 'none', boxSizing: 'border-box', background: '#f9fafb', color: '#111' }} />
           </div>
 
@@ -240,9 +240,9 @@ export default function Accounts() {
             width: '100%', fontSize: 11, padding: '5px 8px', borderRadius: 7, border: '1px solid #e5e7eb',
             background: '#f9fafb', cursor: 'pointer', color: '#555', marginBottom: 10,
           }}>
-            <option value="score">Ã¢ÂÂ Sort by Score</option>
-            <option value="contacts">Ã¢ÂÂ Sort by Contacts</option>
-            <option value="name">Ã¢ÂÂ Sort AÃ¢ÂÂZ</option>
+            <option value="score">â Sort by Score</option>
+            <option value="contacts">â Sort by Contacts</option>
+            <option value="name">â Sort AâZ</option>
           </select>
 
           {/* Filter pills */}
@@ -254,7 +254,7 @@ export default function Accounts() {
         {/* Account list */}
         <div style={{ flex: 1, overflowY: 'auto', borderTop: '1px solid #f3f4f6' }}>
           {loading ? (
-            <div style={{ padding: 32, textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>LoadingÃ¢ÂÂ¦</div>
+            <div style={{ padding: 32, textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>Loadingâ¦</div>
           ) : filtered.length === 0 ? (
             <div style={{ padding: 32, textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>No accounts found</div>
           ) : filtered.map(a => {
@@ -282,8 +282,8 @@ export default function Accounts() {
                     <div style={{ fontSize: 13, fontWeight: 600, color: '#111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.name}</div>
                     <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>
                       {ctcs.length} contact{ctcs.length !== 1 ? 's' : ''}
-                      {a.industry ? ` ÃÂ· ${a.industry}` : ''}
-                      {a.country ? ` ÃÂ· ${a.country}` : ''}
+                      {a.industry ? ` Â· ${a.industry}` : ''}
+                      {a.country ? ` Â· ${a.country}` : ''}
                     </div>
                   </div>
                   {/* Score badge */}
@@ -293,7 +293,7 @@ export default function Accounts() {
                       <div style={{ width: `${score}%`, height: '100%', borderRadius: 2, background: sc.bar }} />
                     </div>
                   </div>
-                  {(()=>{ const w=ctcs.filter(c=>c.response_state==='Warm'||c.response_state==='Lead').length; const p=ctcs.filter(c=>c.response_state==='Prospecting').length; return (w||p) ? <div style={{display:'flex',flexDirection:'column',gap:2,flexShrink:0}}>{w>0&&<span style={{fontSize:10,fontWeight:700,color:'#059669',background:'#d1fae5',padding:'1px 5px',borderRadius:6}}>{w}ð¢</span>}{p>0&&<span style={{fontSize:10,fontWeight:700,color:'#d97706',background:'#fef3c7',padding:'1px 5px',borderRadius:6}}>{p}ð¡</span>}</div> : null; })()}
+                  {(()=>{ const w=ctcs.filter(c=>c.response_state==='Warm'||c.response_state==='Lead').length; const p=ctcs.filter(c=>c.response_state==='Prospecting').length; return (w||p) ? <div style={{display:'flex',flexDirection:'column',gap:2,flexShrink:0}}>{w>0&&<span style={{fontSize:10,fontWeight:700,color:'#059669',background:'#d1fae5',padding:'1px 5px',borderRadius:6}}>{w}🟢</span>}{p>0&&<span style={{fontSize:10,fontWeight:700,color:'#d97706',background:'#fef3c7',padding:'1px 5px',borderRadius:6}}>{p}🟡</span>}</div> : null; })()}
                 </div>
                 {/* Signal + revenue row */}
                 {(activeSignalCount > 0 || a.revenue_millions) && (
@@ -314,11 +314,11 @@ export default function Accounts() {
         </div>
       </div>
 
-      {/* Ã¢ÂÂÃ¢ÂÂ RIGHT PANEL Ã¢ÂÂÃ¢ÂÂ */}
+      {/* ââ RIGHT PANEL ââ */}
       <div style={{ flex: 1, overflowY: 'auto', background: '#f8f9fb' }}>
         {!selected ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#9ca3af' }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>Ã°ÂÂÂ¢</div>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>ð¢</div>
             <div style={{ fontSize: 15, fontWeight: 600, color: '#6b7280' }}>Select an account</div>
             <div style={{ fontSize: 13, marginTop: 6 }}>or click + Add to create one</div>
           </div>
@@ -327,7 +327,7 @@ export default function Accounts() {
         )}
       </div>
 
-      {/* Ã¢ÂÂÃ¢ÂÂ ADD ACCOUNT MODAL Ã¢ÂÂÃ¢ÂÂ */}
+      {/* ââ ADD ACCOUNT MODAL ââ */}
       {showAddAccount && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           onClick={e => e.target === e.currentTarget && setShowAddAccount(false)}>
@@ -338,7 +338,7 @@ export default function Accounts() {
                 { key: 'name', label: 'Company Name *', placeholder: 'e.g. Infosys' },
                 { key: 'industry', label: 'Industry', placeholder: 'e.g. Banking, Insurance' },
                 { key: 'country', label: 'Country', placeholder: 'e.g. India' },
-                { key: 'linkedin_url', label: 'LinkedIn URL', placeholder: 'https://linkedin.com/company/Ã¢ÂÂ¦' },
+                { key: 'linkedin_url', label: 'LinkedIn URL', placeholder: 'https://linkedin.com/company/â¦' },
                 { key: 'revenue_millions', label: 'Revenue (USD millions)', placeholder: 'e.g. 1500' },
               ].map(f => (
                 <div key={f.key}>
@@ -354,7 +354,7 @@ export default function Accounts() {
               <button onClick={addAccount} disabled={adding || !newAcct.name.trim()} style={{
                 flex: 1, padding: '10px 0', background: '#2563eb', color: '#fff', borderRadius: 9, fontSize: 13,
                 fontWeight: 600, cursor: 'pointer', border: 'none', opacity: adding || !newAcct.name.trim() ? 0.6 : 1,
-              }}>{adding ? 'AddingÃ¢ÂÂ¦' : 'Add Account'}</button>
+              }}>{adding ? 'Addingâ¦' : 'Add Account'}</button>
               <button onClick={() => setShowAddAccount(false)} style={{
                 padding: '10px 20px', background: '#f5f5f5', color: '#555', borderRadius: 9, fontSize: 13, cursor: 'pointer', border: 'none',
               }}>Cancel</button>
@@ -366,9 +366,9 @@ export default function Accounts() {
   );
 }
 
-/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
+/* âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ */
 /*  ACCOUNT DETAIL                                            */
-/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
+/* âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ */
 function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) {
   const { user, profile } = useAuth();
   const canViewAll = ['director', 'manager'].includes(profile?.role);
@@ -451,7 +451,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
 
   async function startContact(c) {
     setQualifying(c.id);
-    // Keep status as Fresh Ã¢ÂÂ contact will appear in Follow-up Queue "New Contacts" section
+    // Keep status as Fresh â contact will appear in Follow-up Queue "New Contacts" section
     const now = new Date().toISOString();
     await supabase.from('contacts').update({
       status: 'Fresh',
@@ -510,7 +510,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
       if (r.news) { newResearch.recentNews  = r.news; }
       if (r.pain) { newResearch.painPoints  = r.pain; }
       updates.research = newResearch;
-      // Testing tools Ã¢ÂÂ merge with existing, don't overwrite manually added ones
+      // Testing tools â merge with existing, don't overwrite manually added ones
       if (Array.isArray(r.tools) && r.tools.length > 0) {
         const existingNames = (data.testing_tools || []).map(t => t.tool.toLowerCase());
         const newTools = r.tools
@@ -520,7 +520,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
           updates.testing_tools = [...(data.testing_tools || []), ...newTools];
         }
       }
-      // Enterprise apps Ã¢ÂÂ merge
+      // Enterprise apps â merge
       if (Array.isArray(r.enterpriseApps) && r.enterpriseApps.length > 0) {
         const existingApps = (data.enterprise_apps || []).map(a => a.app.toLowerCase());
         const newApps = r.enterpriseApps
@@ -530,7 +530,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
           updates.enterprise_apps = [...(data.enterprise_apps || []), ...newApps];
         }
       }
-      // SaaS apps Ã¢ÂÂ merge
+      // SaaS apps â merge
       if (Array.isArray(r.saasApps) && r.saasApps.length > 0) {
         const existingSaas = (data.saas_apps || []).map(a => a.app.toLowerCase());
         const newSaas = r.saasApps
@@ -540,7 +540,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
           updates.saas_apps = [...(data.saas_apps || []), ...newSaas];
         }
       }
-      // Intent signals Ã¢ÂÂ merge (only set true, don't clear existing trues)
+      // Intent signals â merge (only set true, don't clear existing trues)
       const sigMap = { funding: 'funding', hiringQA: 'hiringQA', launch: 'recentLaunch', leadership: 'leadershipChange', outage: 'outage', cicd: 'cicd' };
       const newSignals = { ...signals };
       let signalsChanged = false;
@@ -565,7 +565,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-      {/* Ã¢ÂÂÃ¢ÂÂ STICKY HEADER Ã¢ÂÂÃ¢ÂÂ */}
+      {/* ââ STICKY HEADER ââ */}
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '18px 24px 0', position: 'sticky', top: 0, zIndex: 10 }}>
         {/* Top row */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 14 }}>
@@ -575,9 +575,9 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 20, fontWeight: 700, color: '#111', letterSpacing: '-0.3px' }}>{data.name}</div>
             <div style={{ fontSize: 12, color: '#6b7280', marginTop: 3, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {data.industry && <span>Ã°ÂÂÂ­ {data.industry}</span>}
-              {data.country && <span>Ã°ÂÂÂ {data.country}</span>}
-              {data.revenue_millions && <span>Ã°ÂÂÂ° ${Number(data.revenue_millions).toLocaleString()}M</span>}
+              {data.industry && <span>ð­ {data.industry}</span>}
+              {data.country && <span>ð {data.country}</span>}
+              {data.revenue_millions && <span>ð° ${Number(data.revenue_millions).toLocaleString()}M</span>}
             </div>
           </div>
           {/* Actions */}
@@ -585,22 +585,22 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
             <button onClick={() => setShowScoreBreakdown(true)} title="Score breakdown" style={{
               display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 8,
               background: sc.bg, color: sc.color, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 14,
-            }}>{score} <span style={{ fontSize: 10 }}>Ã¢ÂÂ¾</span></button>
+            }}>{score} <span style={{ fontSize: 10 }}>â¾</span></button>
             {editingLinkedIn ? (
               <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
                 <input value={linkedInDraft} onChange={e => setLinkedInDraft(e.target.value)}
                   style={{ padding: '6px 9px', borderRadius: 7, border: '1px solid #2563eb', fontSize: 12, width: 200, outline: 'none' }}
-                  placeholder="https://linkedin.com/company/Ã¢ÂÂ¦" />
+                  placeholder="https://linkedin.com/company/â¦" />
                 <button onClick={saveLinkedIn} style={{ padding: '6px 11px', background: '#2563eb', color: '#fff', borderRadius: 7, fontSize: 12, border: 'none', cursor: 'pointer' }}>Save</button>
-                <button onClick={() => setEditingLinkedIn(false)} style={{ padding: '6px 9px', background: '#f0f0f0', borderRadius: 7, fontSize: 12, border: 'none', cursor: 'pointer' }}>Ã¢ÂÂ</button>
+                <button onClick={() => setEditingLinkedIn(false)} style={{ padding: '6px 9px', background: '#f0f0f0', borderRadius: 7, fontSize: 12, border: 'none', cursor: 'pointer' }}>â</button>
               </div>
             ) : (
               <div style={{ display: 'flex', gap: 4 }}>
                 <a href={linkedInGuess} target="_blank" rel="noopener noreferrer" style={{ padding: '6px 13px', background: '#0a66c2', color: '#fff', borderRadius: 8, fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
-                  Ã°ÂÂÂ LinkedIn
+                  ð LinkedIn
                 </a>
                 <button onClick={() => { setLinkedInDraft(data.linkedin_url || linkedInGuess); setEditingLinkedIn(true); }}
-                  style={{ padding: '6px 9px', background: '#f5f5f5', borderRadius: 8, fontSize: 11, border: '1px solid #e5e7eb', cursor: 'pointer', color: '#555' }}>Ã¢ÂÂÃ¯Â¸Â</button>
+                  style={{ padding: '6px 9px', background: '#f5f5f5', borderRadius: 8, fontSize: 11, border: '1px solid #e5e7eb', cursor: 'pointer', color: '#555' }}>âï¸</button>
               </div>
             )}
             <button onClick={() => {
@@ -609,16 +609,16 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
               const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
               a.download = `${data.name.replace(/[^a-z0-9]/gi,'_')}.csv`; a.click();
             }} style={{ padding: '6px 13px', background: '#f5f5f5', borderRadius: 8, fontSize: 12, border: '1px solid #e5e7eb', cursor: 'pointer', color: '#555' }}>
-              Ã¢Â¬ÂÃ¯Â¸Â Export
+              â¬ï¸ Export
             </button>
             <button onClick={runFullAIResearch} disabled={aiResearching} title="AI populates tools, apps, signals & research in one shot" style={{
               padding: '6px 14px', background: aiResearching ? '#e5e7eb' : 'linear-gradient(135deg, #7c3aed, #2563eb)',
               color: aiResearching ? '#9ca3af' : '#fff', borderRadius: 8, fontSize: 12, fontWeight: 600,
               border: 'none', cursor: aiResearching ? 'wait' : 'pointer', whiteSpace: 'nowrap',
             }}>
-              {aiResearching ? 'Ã¢ÂÂ³ ResearchingÃ¢ÂÂ¦' : 'Ã°ÂÂ¤Â AI Research'}
+              {aiResearching ? 'â³ Researchingâ¦' : 'ð¤ AI Research'}
             </button>
-            {saving && <span style={{ fontSize: 11, color: '#9ca3af' }}>SavingÃ¢ÂÂ¦</span>}
+            {saving && <span style={{ fontSize: 11, color: '#9ca3af' }}>Savingâ¦</span>}
           </div>
         </div>
 
@@ -635,19 +635,19 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
         </div>
       </div>
 
-      {/* Ã¢ÂÂÃ¢ÂÂ TAB CONTENT Ã¢ÂÂÃ¢ÂÂ */}
+      {/* ââ TAB CONTENT ââ */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
 
-        {/* Ã¢ÂÂÃ¢ÂÂ OVERVIEW TAB Ã¢ÂÂÃ¢ÂÂ */}
+        {/* ââ OVERVIEW TAB ââ */}
         {activeTab === 'overview' && (
           <div style={{ maxWidth: 860 }}>
             {/* Metric cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
               {[
-                { label: 'Total Contacts', value: contacts.length, color: '#111', bg: '#fff', border: '#e5e7eb', icon: 'Ã°ÂÂÂ¤' },
-                { label: 'Contacted', value: contacts.filter(c => c.status !== 'Fresh').length, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', icon: 'Ã¢ÂÂ' },
-                { label: 'Remaining', value: contacts.filter(c => c.status === 'Fresh').length, color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: 'Ã°ÂÂÂ' },
-                { label: 'Warm / Prospect', value: contacts.filter(c => c.response_type === 'warm' || c.response_type === 'prospect').length, color: '#7c3aed', bg: '#fdf4ff', border: '#e9d5ff', icon: 'Ã°ÂÂÂ¥' },
+                { label: 'Total Contacts', value: contacts.length, color: '#111', bg: '#fff', border: '#e5e7eb', icon: 'ð¤' },
+                { label: 'Contacted', value: contacts.filter(c => c.status !== 'Fresh').length, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', icon: 'â' },
+                { label: 'Remaining', value: contacts.filter(c => c.status === 'Fresh').length, color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: 'ð' },
+                { label: 'Warm / Prospect', value: contacts.filter(c => c.response_type === 'warm' || c.response_type === 'prospect').length, color: '#7c3aed', bg: '#fdf4ff', border: '#e9d5ff', icon: 'ð¥' },
               ].map(card => (
                 <div key={card.label} style={{ background: card.bg, border: `1px solid ${card.border}`, borderRadius: 12, padding: '14px 16px' }}>
                   <div style={{ fontSize: 18, marginBottom: 6 }}>{card.icon}</div>
@@ -708,7 +708,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
 
             {/* Intent Signals */}
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '16px 18px', marginBottom: 16 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 12 }}>Ã°ÂÂÂ¡ Intent Signals <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 400 }}>Ã¢ÂÂ click to toggle</span></div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 12 }}>ð¡ Intent Signals <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 400 }}>â click to toggle</span></div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 {SIGNAL_DEFS.map(s => {
                   const active = !!signals[s.key];
@@ -717,7 +717,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
                       display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
                       background: active ? s.bg : '#f9fafb', border: `1px solid ${active ? s.color + '40' : '#f0f0ee'}`, transition: 'all 0.15s',
                     }}>
-                      <span style={{ fontSize: 18, lineHeight: 1 }}>{active ? s.icon : 'Ã¢ÂÂ'}</span>
+                      <span style={{ fontSize: 18, lineHeight: 1 }}>{active ? s.icon : 'â'}</span>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 12, fontWeight: active ? 600 : 400, color: active ? s.color : '#6b7280' }}>{s.label}</div>
                       </div>
@@ -730,20 +730,20 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
 
             {/* Quick notes preview */}
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '16px 18px' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 10 }}>Ã°ÂÂÂ Notes</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 10 }}>ð Notes</div>
               <textarea value={notesValue} onChange={e => handleNotesChange(e.target.value)}
-                placeholder="Add intel: tech stack, deal status, pain points, next stepsÃ¢ÂÂ¦" rows={5}
+                placeholder="Add intel: tech stack, deal status, pain points, next stepsâ¦" rows={5}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid #e5e7eb', fontSize: 13, lineHeight: 1.7, resize: 'vertical', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', color: '#374151', background: '#f9fafb' }} />
             </div>
           </div>
         )}
 
-        {/* Ã¢ÂÂÃ¢ÂÂ CONTACTS TAB Ã¢ÂÂÃ¢ÂÂ */}
+        {/* ââ CONTACTS TAB ââ */}
         {activeTab === 'contacts' && (
           <div style={{ maxWidth: 860 }}>
             {contacts.length === 0 ? (
               <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 48, textAlign: 'center' }}>
-                <div style={{ fontSize: 36, marginBottom: 12 }}>Ã°ÂÂÂ¤</div>
+                <div style={{ fontSize: 36, marginBottom: 12 }}>ð¤</div>
                 <div style={{ fontSize: 14, color: '#6b7280' }}>No contacts linked to this account</div>
               </div>
             ) : (
@@ -767,14 +767,14 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
                       <span style={{ fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 8, background: sc2.bg, color: sc2.color, flexShrink: 0 }}>{c.status}</span>
                       {/* Email */}
                       {c.email ? (
-                        <span style={{ fontSize: 12, color: '#374151', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }} title={c.email}>Ã¢ÂÂÃ¯Â¸Â {c.email}</span>
+                        <span style={{ fontSize: 12, color: '#374151', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }} title={c.email}>âï¸ {c.email}</span>
                       ) : (
                         <button onClick={() => window.open(`https://app.apollo.io/#/people?name=${encodeURIComponent((c.first_name + ' ' + (c.last_name || '')).trim())}&organization_name=${encodeURIComponent(data.name)}`, '_blank')}
                           style={{ fontSize: 11, padding: '4px 10px', borderRadius: 7, border: '1px dashed #d97706', background: 'none', color: '#d97706', cursor: 'pointer', flexShrink: 0 }}>
-                          Ã°ÂÂÂ Find Email
+                          ð Find Email
                         </button>
                       )}
-                      {/* Start button Ã¢ÂÂ Fresh contacts not yet queued */}
+                      {/* Start button â Fresh contacts not yet queued */}
                       {c.status === 'Fresh' && !c.next_followup && (
                         <button
                           onClick={() => startContact(c)}
@@ -784,21 +784,21 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
                             background: qualifying === c.id ? '#d1fae5' : 'linear-gradient(135deg, #2563eb, #7c3aed)',
                             color: '#fff', cursor: qualifying === c.id ? 'wait' : 'pointer', fontWeight: 600, flexShrink: 0,
                             boxShadow: '0 1px 4px rgba(37,99,235,0.3)' }}>
-                          {qualifying === c.id ? 'Ã¢ÂÂ³ StartingÃ¢ÂÂ¦' : 'Ã°ÂÂÂ Start'}
+                          {qualifying === c.id ? 'â³ Startingâ¦' : 'ð Start'}
                         </button>
                       )}
-                      {/* In Queue badge Ã¢ÂÂ Fresh contacts already started */}
+                      {/* In Queue badge â Fresh contacts already started */}
                       {c.status === 'Fresh' && c.next_followup && (
                         <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8,
                           background: '#d1fae5', color: '#059669', fontWeight: 600, flexShrink: 0,
                           border: '1px solid #6ee7b7' }}>
-                          Ã°ÂÂÂ¬ In Queue
+                          ð¬ In Queue
                         </span>
                       )}
                       {/* View button */}
                       <button onClick={() => navigate(`/contacts/${c.id}`, { state: { from: 'account', accountId: data.id, accountName: data.name } })}
                         style={{ fontSize: 12, padding: '6px 14px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#2563eb', cursor: 'pointer', fontWeight: 500, flexShrink: 0 }}>
-                        View Ã¢ÂÂ
+                        View â
                       </button>
                     </div>
                   );
@@ -808,13 +808,13 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
           </div>
         )}
 
-        {/* Ã¢ÂÂÃ¢ÂÂ TECH STACK TAB Ã¢ÂÂÃ¢ÂÂ */}
+        {/* ââ TECH STACK TAB ââ */}
         {activeTab === 'techstack' && (
           <div style={{ maxWidth: 860 }}>
             {/* AI generate bar */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, padding: '12px 16px', background: 'linear-gradient(135deg, #f5f3ff, #eff6ff)', borderRadius: 12, border: '1px solid #ddd6fe' }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#5b21b6' }}>Ã°ÂÂ¤Â AI-Powered Tech Intelligence</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#5b21b6' }}>ð¤ AI-Powered Tech Intelligence</div>
                 <div style={{ fontSize: 11, color: '#7c3aed', marginTop: 2 }}>Auto-detect testing tools, enterprise apps & SaaS platforms. Manual add always available below.</div>
               </div>
               <button onClick={runFullAIResearch} disabled={aiResearching} style={{
@@ -822,13 +822,13 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
                 color: aiResearching ? '#9ca3af' : '#fff', borderRadius: 9, fontSize: 13, fontWeight: 600,
                 border: 'none', cursor: aiResearching ? 'wait' : 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
               }}>
-                {aiResearching ? 'Ã¢ÂÂ³ GeneratingÃ¢ÂÂ¦' : 'Ã¢ÂÂ¨ Generate with AI'}
+                {aiResearching ? 'â³ Generatingâ¦' : 'â¨ Generate with AI'}
               </button>
             </div>
             {/* Testing Tools */}
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 20px', marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#111', flex: 1 }}>Ã¢ÂÂÃ¯Â¸Â Testing Tools</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#111', flex: 1 }}>âï¸ Testing Tools</span>
                 <button onClick={() => setShowAddTool(t => !t)} style={{ padding: '5px 12px', fontSize: 12, borderRadius: 7, border: '1px dashed #2563eb', color: '#2563eb', background: 'none', cursor: 'pointer' }}>+ Add Manually</button>
               </div>
               {tools.length === 0 && !showAddTool && <div style={{ fontSize: 13, color: '#9ca3af', padding: '8px 0' }}>No tools recorded yet</div>}
@@ -837,13 +837,13 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
                   const tc = TOOL_STATUS_COLORS[t.status] || TOOL_STATUS_COLORS.Active;
                   return (
                     <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 9, background: '#f9fafb', border: '1px solid #f0f0ee' }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, flex: 1, color: '#374151' }}>{t.status === 'Legacy' ? 'Ã¢ÂÂ Ã¯Â¸Â' : 'Ã°ÂÂÂµ'} {t.tool}{t.source === 'ai' && <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: '#ede9fe', color: '#7c3aed', marginLeft: 5 }}>AI</span>}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, flex: 1, color: '#374151' }}>{t.status === 'Legacy' ? 'â ï¸' : 'ðµ'} {t.tool}{t.source === 'ai' && <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: '#ede9fe', color: '#7c3aed', marginLeft: 5 }}>AI</span>}</span>
                       <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: tc.bg, color: tc.color }}>{t.status}</span>
                       <select value={t.status} onChange={e => updateToolStatus(idx, e.target.value)}
                         style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}>
                         {TOOL_STATUS_OPTIONS.map(o => <option key={o}>{o}</option>)}
                       </select>
-                      <button onClick={() => removeTool(idx)} style={{ fontSize: 13, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}>Ã¢ÂÂ</button>
+                      <button onClick={() => removeTool(idx)} style={{ fontSize: 13, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}>â</button>
                     </div>
                   );
                 })}
@@ -858,7 +858,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
                     {TOOL_STATUS_OPTIONS.map(o => <option key={o}>{o}</option>)}
                   </select>
                   <button onClick={addTool} style={{ padding: '7px 16px', background: '#2563eb', color: '#fff', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>Add</button>
-                  <button onClick={() => setShowAddTool(false)} style={{ padding: '7px 10px', background: '#f0f0f0', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>Ã¢ÂÂ</button>
+                  <button onClick={() => setShowAddTool(false)} style={{ padding: '7px 10px', background: '#f0f0f0', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>â</button>
                 </div>
               )}
             </div>
@@ -866,7 +866,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
             {/* Enterprise Apps */}
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 20px', marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#111', flex: 1 }}>Ã°ÂÂÂ¢ Enterprise Apps</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#111', flex: 1 }}>ð¢ Enterprise Apps</span>
                 <button onClick={() => setShowAddEnterprise(t => !t)} style={{ padding: '5px 12px', fontSize: 12, borderRadius: 7, border: '1px dashed #0891b2', color: '#0891b2', background: 'none', cursor: 'pointer' }}>+ Add Manually</button>
               </div>
               {eApps.length === 0 && !showAddEnterprise && <div style={{ fontSize: 13, color: '#9ca3af' }}>No enterprise apps recorded</div>}
@@ -874,7 +874,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
                 {eApps.map((a, idx) => (
                   <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 20, background: '#e0f2fe', color: '#0369a1', fontSize: 12, fontWeight: 600 }}>
                     {a.app}{a.source === 'ai' && <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: '#dbeafe', color: '#1d4ed8', marginLeft: 4 }}>AI</span>}
-                    <button onClick={() => removeEnterpriseApp(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#0369a1', fontSize: 11, padding: 0, lineHeight: 1 }}>Ã¢ÂÂ</button>
+                    <button onClick={() => removeEnterpriseApp(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#0369a1', fontSize: 11, padding: 0, lineHeight: 1 }}>â</button>
                   </span>
                 ))}
               </div>
@@ -885,7 +885,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
                       onKeyDown={e => e.key === 'Enter' && addEnterpriseApp(newEnterpriseApp)}
                       style={{ flex: 1, padding: '7px 10px', borderRadius: 7, border: '1px solid #e5e7eb', fontSize: 13, outline: 'none' }} />
                     <button onClick={() => addEnterpriseApp(newEnterpriseApp)} style={{ padding: '7px 16px', background: '#2563eb', color: '#fff', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>Add</button>
-                    <button onClick={() => setShowAddEnterprise(false)} style={{ padding: '7px 10px', background: '#f0f0f0', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>Ã¢ÂÂ</button>
+                    <button onClick={() => setShowAddEnterprise(false)} style={{ padding: '7px 10px', background: '#f0f0f0', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>â</button>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center' }}>
                     <span style={{ fontSize: 11, color: '#9ca3af' }}>Quick add:</span>
@@ -900,7 +900,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
             {/* SaaS Apps */}
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#111', flex: 1 }}>Ã°ÂÂÂ¦ SaaS & Industry Apps</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#111', flex: 1 }}>ð¦ SaaS & Industry Apps</span>
                 <button onClick={() => setShowAddSaas(t => !t)} style={{ padding: '5px 12px', fontSize: 12, borderRadius: 7, border: '1px dashed #7c3aed', color: '#7c3aed', background: 'none', cursor: 'pointer' }}>+ Add Manually</button>
               </div>
               {saasApps.length === 0 && !showAddSaas && <div style={{ fontSize: 13, color: '#9ca3af' }}>No SaaS apps recorded</div>}
@@ -908,7 +908,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
                 {saasApps.map((a, idx) => (
                   <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 20, background: '#ede9fe', color: '#7c3aed', fontSize: 12, fontWeight: 600 }}>
                     {a.app}{a.source === 'ai' && <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: '#f3e8ff', color: '#7c3aed', marginLeft: 4 }}>AI</span>}
-                    <button onClick={() => removeSaasApp(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7c3aed', fontSize: 11, padding: 0, lineHeight: 1 }}>Ã¢ÂÂ</button>
+                    <button onClick={() => removeSaasApp(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7c3aed', fontSize: 11, padding: 0, lineHeight: 1 }}>â</button>
                   </span>
                 ))}
               </div>
@@ -918,19 +918,19 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
                     onKeyDown={e => e.key === 'Enter' && addSaasApp()}
                     style={{ flex: 1, padding: '7px 10px', borderRadius: 7, border: '1px solid #e5e7eb', fontSize: 13, outline: 'none' }} />
                   <button onClick={addSaasApp} style={{ padding: '7px 16px', background: '#2563eb', color: '#fff', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>Add</button>
-                  <button onClick={() => setShowAddSaas(false)} style={{ padding: '7px 10px', background: '#f0f0f0', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>Ã¢ÂÂ</button>
+                  <button onClick={() => setShowAddSaas(false)} style={{ padding: '7px 10px', background: '#f0f0f0', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>â</button>
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Ã¢ÂÂÃ¢ÂÂ RESEARCH TAB Ã¢ÂÂÃ¢ÂÂ */}
+        {/* ââ RESEARCH TAB ââ */}
         {activeTab === 'research' && (
           <div style={{ maxWidth: 860 }}>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
               <button onClick={generateAll} style={{ padding: '8px 20px', background: 'linear-gradient(135deg, #7c3aed, #2563eb)', color: '#fff', borderRadius: 9, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
-                Ã¢ÂÂ¨ Generate All Missing
+                â¨ Generate All Missing
               </button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -941,7 +941,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
                   onSave={val => saveResearch(r.key, val)} />
               ))}
               {customResearch.map((s, idx) => (
-                <ResearchCard key={s.key} icon="Ã°ÂÂÂ" label={s.label} value={s.value || ''}
+                <ResearchCard key={s.key} icon="ð" label={s.label} value={s.value || ''}
                   generating={false} onGenerate={() => {}}
                   onSave={val => saveCustomResearch(idx, val)}
                   onRemove={() => removeCustomSection(idx)} />
@@ -955,7 +955,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
                       placeholder="Section name" autoFocus onKeyDown={e => e.key === 'Enter' && addCustomSection()}
                       style={{ flex: 1, padding: '7px 10px', borderRadius: 7, border: '1px solid #2563eb', fontSize: 13, outline: 'none' }} />
                     <button onClick={addCustomSection} style={{ padding: '7px 14px', background: '#2563eb', color: '#fff', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>Add</button>
-                    <button onClick={() => setShowAddCustom(false)} style={{ padding: '7px 10px', background: '#f0f0f0', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>Ã¢ÂÂ</button>
+                    <button onClick={() => setShowAddCustom(false)} style={{ padding: '7px 10px', background: '#f0f0f0', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>â</button>
                   </div>
                 ) : (
                   <>
@@ -968,7 +968,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
           </div>
         )}
 
-        {/* Ã¢ÂÂÃ¢ÂÂ NOTES TAB Ã¢ÂÂÃ¢ÂÂ */}
+        {/* ââ NOTES TAB ââ */}
         {activeTab === 'responses' && (
           <div>
             <div style={{ fontSize:14, fontWeight:600, color:'#374151', marginBottom:16 }}>Response Tracker</div>
@@ -983,7 +983,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
                       <div style={{fontSize:11,color:'#6b7280'}}>{c.title}</div>
                     </div>
                     <div style={{display:'flex',gap:6,alignItems:'center'}}>
-                      <span style={{fontSize:11,padding:'2px 8px',borderRadius:8,background:'#f3f4f6',color:'#374151'}}>{c.status||'â'}</span>
+                      <span style={{fontSize:11,padding:'2px 8px',borderRadius:8,background:'#f3f4f6',color:'#374151'}}>{c.status||'—'}</span>
                       {c.response_state && <span style={{fontSize:11,fontWeight:700,padding:'2px 8px',borderRadius:8,background:c.response_state==='Lead'?'#d1fae5':c.response_state==='Warm'?'#fef9c3':c.response_state==='Prospecting'?'#fef3c7':c.response_state==='Bounce'?'#fee2e2':'#f3f4f6',color:c.response_state==='Lead'?'#065f46':c.response_state==='Warm'?'#854d0e':c.response_state==='Prospecting'?'#92400e':c.response_state==='Bounce'?'#991b1b':'#374151'}}>{c.response_state}</span>}
                     </div>
                   </div>
@@ -996,9 +996,9 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
                 {activeTab === 'notes' && (
           <div style={{ maxWidth: 860 }}>
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 20px' }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 12 }}>Ã°ÂÂÂ Account Notes</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 12 }}>ð Account Notes</div>
               <textarea value={notesValue} onChange={e => handleNotesChange(e.target.value)}
-                placeholder="Add intel: tech stack, deal status, pain points, next steps, objections, key stakeholdersÃ¢ÂÂ¦"
+                placeholder="Add intel: tech stack, deal status, pain points, next steps, objections, key stakeholdersâ¦"
                 rows={18}
                 style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: 13, lineHeight: 1.8, resize: 'vertical', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', color: '#374151', background: '#f9fafb' }} />
               <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>Auto-saves as you type</div>
@@ -1007,7 +1007,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
         )}
       </div>
 
-      {/* Ã¢ÂÂÃ¢ÂÂ SCORE BREAKDOWN POPUP Ã¢ÂÂÃ¢ÂÂ */}
+      {/* ââ SCORE BREAKDOWN POPUP ââ */}
       {showScoreBreakdown && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           onClick={() => setShowScoreBreakdown(false)}>
@@ -1015,19 +1015,19 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
             onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: 20 }}>
               <div style={{ fontSize: 16, fontWeight: 700, flex: 1, color: '#111' }}>Score Breakdown</div>
-              <button onClick={() => setShowScoreBreakdown(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#9ca3af', lineHeight: 1 }}>Ã¢ÂÂ</button>
+              <button onClick={() => setShowScoreBreakdown(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#9ca3af', lineHeight: 1 }}>â</button>
             </div>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 22 }}>
               <div style={{ fontSize: 40, fontWeight: 800, color: sc.color, background: sc.bg, padding: '10px 28px', borderRadius: 14 }}>{score}</div>
             </div>
             {[
-              { label: 'Ã°ÂÂÂ§ Tool Fit', pts: tools.some(t => t.status === 'Legacy') ? 30 : tools.some(t => t.status === 'Evaluating') ? 20 : tools.length > 0 ? 15 : 0, max: 30,
+              { label: 'ð§ Tool Fit', pts: tools.some(t => t.status === 'Legacy') ? 30 : tools.some(t => t.status === 'Evaluating') ? 20 : tools.length > 0 ? 15 : 0, max: 30,
                 detail: tools.some(t => t.status === 'Legacy') ? `Legacy: ${tools.filter(t=>t.status==='Legacy').map(t=>t.tool).join(', ')}` : tools.some(t=>t.status==='Evaluating') ? 'Evaluating tools detected' : tools.length > 0 ? 'Modern tools' : 'No tools recorded' },
-              { label: 'Ã°ÂÂÂ¡ Intent Signals', pts: Math.min([signals.hiringQA&&10,signals.funding&&10,signals.outage&&8,signals.recentLaunch&&6,signals.leadershipChange&&6,signals.cicd&&5].filter(Boolean).reduce((a,b)=>a+b,0),45), max: 45,
+              { label: 'ð¡ Intent Signals', pts: Math.min([signals.hiringQA&&10,signals.funding&&10,signals.outage&&8,signals.recentLaunch&&6,signals.leadershipChange&&6,signals.cicd&&5].filter(Boolean).reduce((a,b)=>a+b,0),45), max: 45,
                 detail: SIGNAL_DEFS.filter(s=>signals[s.key]).map(s=>s.label).join(', ') || 'No signals active' },
-              { label: 'Ã°ÂÂÂ¬ Engagement', pts: Math.min(contacts.filter(c=>c.response_type==='warm'||c.response_type==='prospect').length*5,15), max: 15,
+              { label: 'ð¬ Engagement', pts: Math.min(contacts.filter(c=>c.response_type==='warm'||c.response_type==='prospect').length*5,15), max: 15,
                 detail: `${contacts.filter(c=>c.response_type==='warm'||c.response_type==='prospect').length} warm/prospect contacts` },
-              { label: 'Ã°ÂÂÂ¬ Research', pts: Math.min(Object.values(data.research||{}).filter(v=>v&&v.length>10).length*2,10), max: 10,
+              { label: 'ð¬ Research', pts: Math.min(Object.values(data.research||{}).filter(v=>v&&v.length>10).length*2,10), max: 10,
                 detail: `${Object.values(data.research||{}).filter(v=>v&&v.length>10).length} of ${RESEARCH_DEFAULTS.length} sections filled` },
             ].map(row => (
               <div key={row.label} style={{ marginBottom: 16 }}>
@@ -1048,7 +1048,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
   );
 }
 
-/* Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ RESEARCH CARD Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */
+/* âââ RESEARCH CARD âââââââââââââââââââââââââââââââââââââââ */
 function ResearchCard({ icon, label, value, generating, onGenerate, onSave, onRemove }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -1060,13 +1060,13 @@ function ResearchCard({ icon, label, value, generating, onGenerate, onSave, onRe
         <span style={{ fontSize: 15 }}>{icon}</span>
         <span style={{ fontWeight: 600, fontSize: 13, flex: 1, color: '#374151' }}>{label}</span>
         {onRemove && (
-          <button onClick={onRemove} style={{ fontSize: 12, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>Ã¢ÂÂ</button>
+          <button onClick={onRemove} style={{ fontSize: 12, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>â</button>
         )}
         <button onClick={onGenerate} disabled={generating} style={{
           padding: '4px 12px', background: generating ? '#e5e7eb' : 'linear-gradient(135deg, #7c3aed, #6d28d9)',
           color: generating ? '#9ca3af' : '#fff', borderRadius: 7, fontSize: 11, fontWeight: 600, border: 'none',
           cursor: generating ? 'wait' : 'pointer',
-        }}>{generating ? 'Ã¢ÂÂ³ GeneratingÃ¢ÂÂ¦' : 'Ã¢ÂÂ¨ Generate'}</button>
+        }}>{generating ? 'â³ Generatingâ¦' : 'â¨ Generate'}</button>
       </div>
       <div style={{ padding: '12px 16px', minHeight: 70 }}>
         {editing ? (
@@ -1080,7 +1080,7 @@ function ResearchCard({ icon, label, value, generating, onGenerate, onSave, onRe
           </div>
         ) : (
           <div onClick={() => setEditing(true)} style={{ fontSize: 13, lineHeight: 1.65, color: value ? '#374151' : '#9ca3af', cursor: 'text', minHeight: 44, whiteSpace: 'pre-wrap' }}>
-            {value || 'Click to write, or click Ã¢ÂÂ¨ Generate'}
+            {value || 'Click to write, or click â¨ Generate'}
           </div>
         )}
       </div>
