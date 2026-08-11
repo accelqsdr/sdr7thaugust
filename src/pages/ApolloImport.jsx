@@ -13,23 +13,10 @@ const COMPANY_SIZE_OPTIONS = [
   { value: '5001,10000', label: '5K–10K' }, { value: '10001,99999', label: '10K+' },
 ];
 
-const SUPABASE_FN = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/apollo-import`;
-
 async function callFn(body) {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Not logged in — please refresh and try again.');
-  const r = await fetch(SUPABASE_FN, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-    body: JSON.stringify(body),
-  });
-  const text = await r.text();
-  if (!text) throw new Error(`Server returned empty response (HTTP ${r.status})`);
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new Error(`Invalid response from server (HTTP ${r.status}): ${text.slice(0, 120)}`);
-  }
+  const { data, error } = await supabase.functions.invoke('apollo-import', { body });
+  if (error) throw new Error(error.message || 'Edge function error');
+  return data;
 }
 
 function Tag({ label, onRemove }) {

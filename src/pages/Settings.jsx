@@ -78,17 +78,11 @@ export default function Settings() {
       return;
     }
     setApolloSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data: { session } } = await supabase.auth.getSession();
-    const r = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/apollo-import`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-      body: JSON.stringify({ action: 'save_api_key', key: apolloKey }),
+    const { data, error } = await supabase.functions.invoke('apollo-import', {
+      body: { action: 'save_api_key', key: apolloKey },
     });
-    const text = await r.text();
-    let data = {};
-    try { data = text ? JSON.parse(text) : {}; } catch { data = { error: text || 'Empty response' }; }
     setApolloSaving(false);
+    if (error) { setApolloSaved('Error: ' + error.message); setTimeout(() => setApolloSaved(''), 4000); return; }
     if (data.ok) {
       setApolloSaved('Apollo key saved!');
       setApolloKey('••••••••••••••••');
