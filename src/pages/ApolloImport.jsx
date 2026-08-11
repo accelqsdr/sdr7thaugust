@@ -158,7 +158,7 @@ export default function ApolloImport() {
     if (mode === 'lists' && lists.length === 0) {
       setListsLoading(true);
       callFn({ action: 'get_lists' })
-        .then(data => { setLists(data.lists || []); setListsLoading(false); })
+        .then(data => { setLists(data.lists || []); setListsLoading(false); if (data._raw_keys) console.log('Apollo labels raw keys:', data._raw_keys, 'total:', data._total); })
         .catch(e => { showToast(e.message, 'error'); setListsLoading(false); });
     }
   }, [mode]);
@@ -296,7 +296,7 @@ export default function ApolloImport() {
           ) : lists.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 32, color: '#aaa', fontSize: 13 }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
-              No lists found in your Apollo account
+              No lists found in your Apollo account — open browser console (F12) to see debug info
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
