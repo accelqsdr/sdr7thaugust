@@ -57,7 +57,7 @@ export default function Contacts() {
     let q = supabase.from('contacts').select('*').order('created_at', { ascending: false });
     if (!viewAll || !canViewAll) q = q.eq('owner_id', user.id);
     if (filter !== 'all') q = q.eq('status', filter);
-    const { data } = await q.limit(5000);
+    const data = []; {let _o=0; for(;;){const{data:_d}=await q.range(_o,_o+999); if(!_d?.length)break; data.push(..._d); if(_d.length<1000)break; _o+=1000;}}
     setContacts(data || []);
     setLoading(false);
     setSelected(new Set());
