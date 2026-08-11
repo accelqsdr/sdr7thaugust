@@ -29,7 +29,7 @@ export default function SDRDashboard() {
   useEffect(() => {
     async function load() {
       const [{ data: c }, { data: acts }] = await Promise.all([
-        supabase.from('contacts').select('*').eq('owner_id', user.id).limit(5000),
+        (async()=>{const a=[];let o=0;for(;;){const{data:d}=await supabase.from('contacts').select('*').eq('owner_id',user.id).range(o,o+999);if(!d?.length)break;a.push(...d);if(d.length<1000)break;o+=1000;}return{data:a};})(),
         supabase.from('activity_log')
           .select('*, contacts(full_name,company)')
           .eq('actor_id', user.id)
