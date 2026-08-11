@@ -168,7 +168,7 @@ export default function FollowUps() {
     if (!viewAll || !canViewAll) cQuery = cQuery.eq('owner_id', user.id);
     cQuery = cQuery
       .or('status.in.(F1,F2,F3,F4,F5),and(status.eq.Fresh,next_followup.not.is.null)')
-      .order('last_contacted', { ascending: false, nullsFirst: false });
+      .order('last_contacted', { ascending: false, nullsFirst: false }).limit(5000);
 
     let aQuery = supabase.from('accounts').select('id, name, industry, research, icp_notes, description');
     if (!viewAll || !canViewAll) aQuery = aQuery.eq('owner_id', user.id);
