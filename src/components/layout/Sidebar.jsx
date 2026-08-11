@@ -6,7 +6,6 @@ const navByRole = {
   sdr: [
     { to: '/', icon: '⊞', label: 'Dashboard', end: true },
     { to: '/discover', icon: '🔍', label: 'Account Discovery' },
-    { to: '/apollo', icon: '🚀', label: 'Apollo Import' },
     { to: '/contacts', icon: '👥', label: 'My contacts' },
     { to: '/accounts', icon: '🏢', label: 'Accounts' },
     { to: '/followups', icon: '🕐', label: 'Follow-ups' },
