@@ -85,7 +85,9 @@ export default function Settings() {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
       body: JSON.stringify({ action: 'save_api_key', key: apolloKey }),
     });
-    const data = await r.json();
+    const text = await r.text();
+    let data = {};
+    try { data = text ? JSON.parse(text) : {}; } catch { data = { error: text || 'Empty response' }; }
     setApolloSaving(false);
     if (data.ok) {
       setApolloSaved('Apollo key saved!');
