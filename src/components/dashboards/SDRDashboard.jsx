@@ -29,7 +29,7 @@ export default function SDRDashboard() {
   useEffect(() => {
     async function load() {
       const [{ data: c }, { data: acts }] = await Promise.all([
-        supabase.from('contacts').select('*').eq('owner_id', user.id),
+        supabase.from('contacts').select('*').eq('owner_id', user.id).limit(5000),
         supabase.from('activity_log')
           .select('*, contacts(full_name,company)')
           .eq('actor_id', user.id)
@@ -64,7 +64,7 @@ export default function SDRDashboard() {
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 20, fontWeight: 600, color: '#111', margin: 0 }}>
-          Good day, {profile?.full_name?.split(' ')[0] || 'there'} 👋
+          Good day, {profile?.full_name?.split(' ')[0] || 'there'} ð
         </h1>
         <p style={{ fontSize: 13, color: '#888', margin: '3px 0 0' }}>Your outreach summary</p>
       </div>
@@ -76,7 +76,7 @@ export default function SDRDashboard() {
         <MetricCard label="Fresh leads" value={pipeline.Fresh || 0}
           sub="Ready to email" accent="#2563eb" />
         <MetricCard label="Responded" value={responded}
-          sub={active.length ? `${(responded/active.length*100).toFixed(0)}% response rate` : '—'} subColor="#059669" />
+          sub={active.length ? `${(responded/active.length*100).toFixed(0)}% response rate` : 'â'} subColor="#059669" />
         <MetricCard label="Overdue follow-ups" value={overdue.length}
           sub={overdue.length > 0 ? 'Need attention now' : 'All caught up!'} subColor={overdue.length > 0 ? '#dc2626' : '#059669'} />
       </div>
@@ -102,7 +102,7 @@ export default function SDRDashboard() {
             <span style={{ fontSize: 12, color: '#059669', fontWeight: 500 }}>Won: {won}</span>
             <button onClick={() => navigate('/pipeline')}
               style={{ fontSize: 11, color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-              Full pipeline →
+              Full pipeline â
             </button>
           </div>
         </div>
@@ -116,11 +116,11 @@ export default function SDRDashboard() {
             </div>
             <button onClick={() => navigate('/followups')}
               style={{ fontSize: 11, color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-              View all →
+              View all â
             </button>
           </div>
           {upcoming.length === 0 ? (
-            <div style={{ color: '#aaa', fontSize: 13, textAlign: 'center', padding: 20 }}>All caught up! 🎉</div>
+            <div style={{ color: '#aaa', fontSize: 13, textAlign: 'center', padding: 20 }}>All caught up! ð</div>
           ) : upcoming.map(c => {
             const isOverdue = new Date(c.next_followup) < new Date();
             const stageColor = { Fresh: '#3b82f6', F1: '#10b981', F2: '#059669', F3: '#f59e0b', F4: '#ef4444', F5: '#dc2626' };
@@ -142,7 +142,7 @@ export default function SDRDashboard() {
                   {c.status}
                 </span>
                 <span style={{ fontSize: 11, color: isOverdue ? '#dc2626' : '#888', flexShrink: 0 }}>
-                  {isOverdue ? '⚠ Overdue' : new Date(c.next_followup).toLocaleDateString()}
+                  {isOverdue ? 'â  Overdue' : new Date(c.next_followup).toLocaleDateString()}
                 </span>
               </div>
             );
@@ -161,9 +161,9 @@ export default function SDRDashboard() {
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 12, color: '#555' }}>
                 {a.activity_type.replace(/_/g, ' ')}
-                {a.contacts?.full_name ? ` — ${a.contacts.full_name}` : ''}
+                {a.contacts?.full_name ? ` â ${a.contacts.full_name}` : ''}
                 {a.contacts?.company ? ` @ ${a.contacts.company}` : ''}
-                {a.details?.from && a.details?.to ? ` (${a.details.from} → ${a.details.to})` : ''}
+                {a.details?.from && a.details?.to ? ` (${a.details.from} â ${a.details.to})` : ''}
               </div>
               <div style={{ fontSize: 11, color: '#bbb', marginTop: 1 }}>{new Date(a.created_at).toLocaleString()}</div>
             </div>
