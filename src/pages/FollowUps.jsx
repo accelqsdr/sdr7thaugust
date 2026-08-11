@@ -379,7 +379,6 @@ export default function FollowUps() {
 
   const filteredFresh  = applyFilters(enrichedFresh);
   const filteredActive = applyFilters(enriched);
-  const coolingOffList = contacts.filter(c => c.status === 'cooling_off');
 
   // Build timing groups for F1-F5
   const groups = TIMING_GROUPS.map(g => {
