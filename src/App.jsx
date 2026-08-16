@@ -17,7 +17,6 @@ import Sequences from './pages/Sequences';
 import Reports from './pages/Reports';
 import ContactDetail from './pages/ContactDetail';
 import Accounts from './pages/Accounts';
-import HQs from './pages/HQs';
 import AccountDetail from './pages/AccountDetail';
 import ProspectDiscovery from './pages/ProspectDiscovery';
 
@@ -73,7 +72,6 @@ export default function App() {
               <Route path="contacts/:id" element={<ContactDetail />} />
               <Route path="accounts" element={<Accounts />} />
               <Route path="accounts/:id" element={<AccountDetail />} />
-              <Route path="hqs" element={<HQs />} />
               <Route path="discover" element={<ProspectDiscovery />} />
               <Route path="followups" element={<FollowUps />} />
               <Route path="pipeline" element={<Pipeline />} />
