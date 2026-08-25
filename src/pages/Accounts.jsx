@@ -845,7 +845,7 @@ setSaving(false);
                   const sc2 = STAGE_COLORS[c.status] || { bg: '#f1f5f9', color: '#475569' };
                   const initColor = avatarColor((c.first_name + ' ' + (c.last_name || '')).trim());
                   return (
-                    <div key={c.id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div key={c.id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
                       <div style={{ width: 40, height: 40, borderRadius: '50%', background: initColor, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
                         {getInitials((c.first_name + ' ' + (c.last_name || '')).trim())}
                       </div>
@@ -855,7 +855,7 @@ setSaving(false);
                         {c.notes && <div style={{ fontSize: 11, color: '#7c3aed', marginTop: 4, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 380 }}>"{c.notes}"</div>}
                       </div>
                       <span style={{ fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 8, background: sc2.bg, color: sc2.color, flexShrink: 0 }}>{c.status}</span>
-                      <div style={{ display: 'flex', gap: 4, marginBottom: 4, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: 4, flexBasis: '100%', paddingLeft: 54, marginTop: -4 }}>
                 <select value={c.pitch_type || ''} onChange={e => updateContactPitchType(c.id, e.target.value)}
                   style={{ fontSize: 10, padding: '2px 4px', borderRadius: 5, border: '1px solid #e0e0e0', background: c.pitch_type ? '#eff6ff' : '#fff', color: c.pitch_type ? '#1d4ed8' : '#999', maxWidth: 110, cursor: 'pointer' }}>
                   <option value=''>Pitch type...</option>
