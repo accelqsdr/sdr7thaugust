@@ -12,7 +12,6 @@ sdr: [
 { to: '/pipeline', icon: '📊', label: 'Pipeline' },
 { to: '/sequences', icon: '🔁', label: 'Sequences' },
 { to: '/apollo-import', icon: '🚀', label: 'Apollo Import' },
-{ to: '/linkedin-import', icon: '💼', label: 'LinkedIn Import' },
 { to: '/settings', icon: '⚙️', label: 'Settings' },
 ],
 poc: [
@@ -24,7 +23,6 @@ poc: [
 { to: '/activity', icon: '📡', label: 'Activity feed' },
 { to: '/reports', icon: '📈', label: 'Reports' },
 { to: '/apollo-import', icon: '🚀', label: 'Apollo Import' },
-{ to: '/linkedin-import', icon: '💼', label: 'LinkedIn Import' },
 { to: '/settings', icon: '⚙️', label: 'Settings' },
 ],
 manager: [
@@ -35,7 +33,6 @@ manager: [
 { to: '/followups', icon: '🕐', label: 'Follow-ups' },
 { to: '/users', icon: '🧑‍💼', label: 'Team Members' },
 { to: '/apollo-import', icon: '🚀', label: 'Apollo Import' },
-{ to: '/linkedin-import', icon: '💼', label: 'LinkedIn Import' },
 { to: '/settings', icon: '⚙️', label: 'Settings' },
 ],
 director: [
@@ -46,7 +43,6 @@ director: [
 { to: '/followups', icon: '🕐', label: 'Follow-ups' },
 { to: '/users', icon: '🧑‍💼', label: 'Team Members' },
 { to: '/apollo-import', icon: '🚀', label: 'Apollo Import' },
-{ to: '/linkedin-import', icon: '💼', label: 'LinkedIn Import' },
 { to: '/settings', icon: '⚙️', label: 'Settings' },
 ],
 };
