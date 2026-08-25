@@ -1,363 +1,235 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 
-const SENIORITY_OPTIONS = [
-  { value: 'c_suite', label: 'C-Suite' }, { value: 'vp', label: 'VP' },
-  { value: 'director', label: 'Director' }, { value: 'manager', label: 'Manager' },
-  { value: 'senior', label: 'Senior' }, { value: 'entry', label: 'Entry' },
-];
-const COMPANY_SIZE_OPTIONS = [
-  { value: '1,10', label: '1–10' }, { value: '11,50', label: '11–50' },
-  { value: '51,200', label: '51–200' }, { value: '201,500', label: '201–500' },
-  { value: '501,1000', label: '501–1K' }, { value: '1001,5000', label: '1K–5K' },
-  { value: '5001,10000', label: '5K–10K' }, { value: '10001,99999', label: '10K+' },
-];
-
-async function callFn(body) {
-  const { data, error } = await supabase.functions.invoke('apollo-import', { body });
-  if (error) throw new Error(error.message || 'Edge function error');
+async function callApollo(action, params = {}) {
+  const { data, error } = await supabase.functions.invoke('apollo-proxy', { body: { action, ...params } });
+  if (error) throw new Error(error.message);
+  if (data?.error) throw new Error(data.error);
   return data;
 }
 
-function Tag({ label, onRemove }) {
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#eff6ff',
-      color: '#2563eb', border: '1px solid #bfdbfe', borderRadius: 6, padding: '2px 8px', fontSize: 12 }}>
-      {label}
-      <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#93c5fd', fontSize: 14, padding: 0 }}>×</button>
-    </span>
-  );
-}
-
-function ChipGroup({ options, selected, onChange }) {
-  return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-      {options.map(o => {
-        const active = selected.includes(o.value);
-        return (
-          <button key={o.value} onClick={() => onChange(active ? selected.filter(v => v !== o.value) : [...selected, o.value])}
-            style={{ padding: '4px 12px', borderRadius: 20, border: `1.5px solid ${active ? '#2563eb' : '#e0e0e0'}`,
-              background: active ? '#eff6ff' : '#fff', color: active ? '#2563eb' : '#555',
-              fontSize: 12, fontWeight: active ? 600 : 400, cursor: 'pointer' }}>
-            {o.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function ResultsTable({ results, selected, setSelected, onImport, importing }) {
-  const selectable = results.filter(r => !r.already_imported);
-  const allSelected = selectable.length > 0 && selectable.every(r => selected.has(r.apollo_id));
-
-  function toggleAll() {
-    setSelected(allSelected ? new Set() : new Set(selectable.map(r => r.apollo_id)));
-  }
-  function toggleOne(id) {
-    const next = new Set(selected);
-    next.has(id) ? next.delete(id) : next.add(id);
-    setSelected(next);
-  }
-
-  return (
-    <div style={{ background: '#fff', border: '0.5px solid #e8e8e4', borderRadius: 12, overflow: 'hidden' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '0.5px solid #f0f0ee' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#555', cursor: 'pointer' }}>
-          <input type="checkbox" checked={allSelected} onChange={toggleAll} style={{ width: 14, height: 14 }} />
-          Select all &nbsp;
-          {selected.size > 0 && <span style={{ color: '#2563eb', fontWeight: 600 }}>({selected.size} selected)</span>}
-        </label>
-        <button onClick={onImport} disabled={importing || selected.size === 0}
-          style={{ padding: '7px 18px', background: selected.size > 0 ? '#059669' : '#ccc',
-            color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600,
-            cursor: selected.size > 0 ? 'pointer' : 'not-allowed' }}>
-          {importing ? 'Importing…' : `⬇ Import ${selected.size > 0 ? selected.size + ' ' : ''}Selected`}
-        </button>
-      </div>
-      {results.map(r => {
-        const initials = ((r.first_name?.[0] || '') + (r.last_name?.[0] || '')).toUpperCase() || '?';
-        const isSel = selected.has(r.apollo_id);
-        return (
-          <div key={r.apollo_id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px',
-            borderBottom: '0.5px solid #f5f5f3',
-            background: isSel ? '#f0f7ff' : r.already_imported ? '#fafaf8' : '#fff',
-            opacity: r.already_imported ? 0.6 : 1 }}>
-            <input type="checkbox" checked={isSel} disabled={r.already_imported} onChange={() => toggleOne(r.apollo_id)}
-              style={{ width: 14, height: 14, flexShrink: 0 }} />
-            <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#dbeafe', flexShrink: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#2563eb' }}>
-              {initials}
-            </div>
-            <div style={{ flex: 1.2, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>
-                {r.first_name} {r.last_name}
-                {r.already_imported && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: '#059669', background: '#d1fae5', padding: '1px 6px', borderRadius: 4 }}>Imported</span>}
-              </div>
-              <div style={{ fontSize: 12, color: '#666' }}>{r.title}</div>
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 500, color: '#333' }}>{r.company}</div>
-              <div style={{ fontSize: 11, color: '#999' }}>{r.location}</div>
-            </div>
-            <div style={{ flex: 1, minWidth: 0, textAlign: 'right' }}>
-              {r.email ? <span style={{ fontSize: 12, color: '#2563eb' }}>{r.email}</span>
-                       : <span style={{ fontSize: 11, color: '#ccc' }}>No email</span>}
-            </div>
-            {r.linkedin_url && (
-              <a href={r.linkedin_url} target="_blank" rel="noreferrer"
-                style={{ fontSize: 11, color: '#0a66c2', textDecoration: 'none', flexShrink: 0, fontWeight: 700 }}>in</a>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 export default function ApolloImport() {
-  const [mode, setMode] = useState('search'); // 'search' | 'lists'
-
-  // Search filters
-  const [keywords, setKeywords] = useState('');
-  const [titleInput, setTitleInput] = useState('');
-  const [titles, setTitles] = useState([]);
-  const [locationInput, setLocationInput] = useState('');
-  const [locations, setLocations] = useState([]);
-  const [seniorities, setSeniorities] = useState([]);
-  const [companySizes, setCompanySizes] = useState([]);
-
-  // Lists
+  const { profile } = useAuth();
+  const isSDR = profile?.role === 'sdr';
+  const [step, setStep] = useState('list');
   const [lists, setLists] = useState([]);
-  const [listsLoading, setListsLoading] = useState(false);
-  const [debugInfo, setDebugInfo] = useState(null);
   const [selectedList, setSelectedList] = useState(null);
-
-  // Results
-  const [results, setResults] = useState([]);
-  const [totalEntries, setTotalEntries] = useState(0);
+  const [contacts, setContacts] = useState([]);
+  const [sdrs, setSdrs] = useState([]);
+  const [selectedSdr, setSelectedSdr] = useState('');
+  const [enrichEmails, setEnrichEmails] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [duplicates, setDuplicates] = useState([]);
+  const [duplicateAction, setDuplicateAction] = useState({});
+  const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
+  const [importResults, setImportResults] = useState(null);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [searching, setSearching] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [selected, setSelected] = useState(new Set());
-  const [toast, setToast] = useState(null);
+  const [totalContacts, setTotalContacts] = useState(0);
 
-  function showToast(msg, type = 'success') {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 4000);
-  }
-
-  function addTag(val, list, setList, setInput) {
-    const t = val.trim();
-    if (t && !list.includes(t)) setList([...list, t]);
-    setInput('');
-  }
-
-  // Load Apollo lists when switching to lists tab
   useEffect(() => {
-    if (mode === 'lists' && lists.length === 0) {
-      setListsLoading(true);
-      callFn({ action: 'get_lists' })
-        .then(data => { setLists(data.lists || []); setListsLoading(false); setDebugInfo(data._debug || null); console.log('Apollo full debug:', JSON.stringify(data, null, 2)); })
-        .catch(e => { showToast(e.message, 'error'); setListsLoading(false); });
+    async function init() {
+      setLoading(true); setError(null);
+      try {
+        const data = await callApollo('list_lists');
+        setLists(data.labels || []);
+        if (!isSDR) {
+          const { data: h } = await supabase.from('org_hierarchy').select('*').eq('role', 'sdr');
+          setSdrs(h || []);
+        }
+      } catch (e) { setError(e.message); }
+      setLoading(false);
     }
-  }, [mode]);
+    init();
+  }, []);
 
-  async function doSearch(p = 1, listId = null) {
-    setSearching(true);
-    setSelected(new Set());
+  async function loadContacts(listId, pageNum = 1) {
+    setLoading(true); setError(null);
     try {
-      const filters = listId
-        ? { list_id: listId, page: p }
-        : { keywords, titles, locations, seniorities, company_sizes: companySizes, page: p };
-      const data = await callFn({ action: 'search', filters });
-      if (data.error) { showToast(data.error, 'error'); return; }
-      setResults(data.people || []);
-      setTotalEntries(data.total_entries || 0);
-      setTotalPages(data.total_pages || 1);
-      setPage(p);
-    } catch (e) {
-      showToast(e.message, 'error');
-    } finally {
-      setSearching(false);
-    }
+      const data = await callApollo('list_contacts', { list_id: listId, page: pageNum, per_page: 50 });
+      const fetched = data.contacts || [];
+      setContacts(fetched);
+      setTotalContacts(data.pagination?.total_entries || fetched.length);
+      setPage(pageNum);
+      const emails = fetched.filter(c => c.email).map(c => c.email.toLowerCase());
+      if (emails.length > 0) {
+        const { data: existing } = await supabase.from('contacts').select('email').in('email', emails);
+        const existingEmails = new Set((existing || []).map(c => c.email?.toLowerCase()));
+        const dups = fetched.filter(c => c.email && existingEmails.has(c.email.toLowerCase()));
+        setDuplicates(dups);
+        const def = {}; dups.forEach(d => { def[d.email] = 'skip'; });
+        setDuplicateAction(def);
+      } else { setDuplicates([]); setDuplicateAction({}); }
+      setStep('preview');
+    } catch (e) { setError(e.message); }
+    setLoading(false);
   }
 
-  async function doImport() {
-    const toImport = results.filter(r => selected.has(r.apollo_id) && !r.already_imported);
-    if (!toImport.length) { showToast('No new contacts selected', 'warn'); return; }
-    setImporting(true);
-    try {
-      const data = await callFn({ action: 'import', contacts_to_import: toImport });
-      if (data.error) { showToast(data.error, 'error'); return; }
-      showToast(`✅ Imported ${data.imported} contacts${data.skipped ? ` (${data.skipped} already existed)` : ''}`);
-      setResults(r => r.map(c => selected.has(c.apollo_id) ? { ...c, already_imported: true } : c));
-      setSelected(new Set());
-    } catch (e) {
-      showToast(e.message, 'error');
-    } finally {
-      setImporting(false);
+  async function runImport() {
+    setStep('importing');
+    const assignTo = isSDR ? profile?.user_id : selectedSdr;
+    const { data: allAccounts } = await supabase.from('accounts').select('id, name');
+    const accountMap = {};
+    (allAccounts || []).forEach(a => { accountMap[a.name?.toLowerCase()] = a.id; });
+    const dupSet = new Set(duplicates.map(d => d.email));
+    const toImport = contacts.filter(c => !dupSet.has(c.email) || duplicateAction[c.email] === 'overwrite');
+    setImportProgress({ done: 0, total: toImport.length });
+    let imported = 0, failed = 0;
+    for (let i = 0; i < toImport.length; i++) {
+      const c = toImport[i];
+      try {
+        let email = c.email;
+        if (!email && enrichEmails) {
+          try {
+            const en = await callApollo('enrich_email', { first_name: c.first_name, last_name: c.last_name, organization_name: c.organization?.name });
+            email = en?.person?.email || null;
+          } catch (_) {}
+        }
+        const companyLower = c.organization?.name?.toLowerCase();
+        const accountId = companyLower ? (accountMap[companyLower] || null) : null;
+        const row = { first_name: c.first_name || '', last_name: c.last_name || '', email: email || null, title: c.title || null, company: c.organization?.name || null, linkedin_url: c.linkedin_url || null, owner_id: assignTo, status: 'fresh', account_id: accountId };
+        if (c.email && duplicateAction[c.email] === 'overwrite') {
+          await supabase.from('contacts').update(row).eq('email', c.email);
+        } else {
+          await supabase.from('contacts').insert(row);
+        }
+        imported++;
+      } catch (_) { failed++; }
+      setImportProgress({ done: i + 1, total: toImport.length });
     }
+    setImportResults({ imported, skipped: contacts.length - toImport.length, failed });
+    setStep('done');
   }
 
-  const tabStyle = (active) => ({
-    padding: '8px 18px', fontSize: 13, fontWeight: active ? 600 : 400,
-    border: 'none', borderRadius: 8, cursor: 'pointer',
-    background: active ? '#2563eb' : 'transparent',
-    color: active ? '#fff' : '#666',
-  });
+  const dupEmails = new Set(duplicates.map(d => d.email));
+  const toImportCount = contacts.filter(c => !dupEmails.has(c.email) || duplicateAction[c.email] === 'overwrite').length;
 
   return (
-    <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto' }}>
+    <div style={{ padding: 24, maxWidth: 900 }}>
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 700, color: '#111', margin: 0 }}>Apollo Import</h1>
-        <p style={{ fontSize: 13, color: '#888', margin: '3px 0 0' }}>Search Apollo's database or import from your saved lists</p>
+        <h1 style={{ fontSize: 20, fontWeight: 600, color: '#111', margin: 0 }}>Apollo Import</h1>
+        <p style={{ fontSize: 13, color: '#888', margin: '3px 0 0' }}>Import contacts from your Apollo.io people lists</p>
       </div>
-
-      {/* Mode tabs */}
-      <div style={{ display: 'flex', gap: 4, background: '#f5f5f3', borderRadius: 10, padding: 4, width: 'fit-content', marginBottom: 20 }}>
-        <button style={tabStyle(mode === 'search')} onClick={() => { setMode('search'); setResults([]); setSelectedList(null); }}>🔍 Search Apollo</button>
-        <button style={tabStyle(mode === 'lists')}  onClick={() => { setMode('lists');  setResults([]); setSelectedList(null); }}>📋 My Lists</button>
-      </div>
-
-      {/* Toast */}
-      {toast && (
-        <div style={{ marginBottom: 12, padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-          background: toast.type === 'error' ? '#fef2f2' : toast.type === 'warn' ? '#fffbeb' : '#f0fdf4',
-          color: toast.type === 'error' ? '#dc2626' : toast.type === 'warn' ? '#d97706' : '#059669',
-          border: `1px solid ${toast.type === 'error' ? '#fca5a5' : toast.type === 'warn' ? '#fcd34d' : '#86efac'}` }}>
-          {toast.msg}
+      {error && (
+        <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: 13, color: '#dc2626' }}>
+          {error.includes('API key not configured') ? (<>Apollo API key not configured. Go to <a href="/settings" style={{ color: '#2563eb' }}>Settings</a> to add it.</>) : error}
         </div>
       )}
-
-      {/* No API key banner */}
-      {results.length === 0 && !searching && toast?.msg?.includes('No Apollo API key') && (
-        <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10, padding: '16px 20px', marginBottom: 16 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#92400e', marginBottom: 6 }}>Apollo API key not set</div>
-          <p style={{ fontSize: 13, color: '#78350f', margin: 0 }}>
-            Go to <strong>Settings</strong> → Apollo.io API Key and paste your key. Each user connects their own Apollo account.
-          </p>
-        </div>
-      )}
-
-      {/* ── SEARCH MODE ── */}
-      {mode === 'search' && (
+      {(step === 'list' || step === 'preview') && (
         <div style={{ background: '#fff', border: '0.5px solid #e8e8e4', borderRadius: 12, padding: 20, marginBottom: 16 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', marginBottom: 6 }}>Keywords</label>
-              <input value={keywords} onChange={e => setKeywords(e.target.value)} onKeyDown={e => e.key === 'Enter' && doSearch(1)}
-                placeholder="QA Engineer, SDET, Test Automation…"
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid #e0e0e0', borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#111', marginBottom: 12 }}>Select Apollo List</div>
+          {loading && step === 'list' ? <div style={{ color: '#aaa', fontSize: 13 }}>Loading lists from Apollo…</div> : (
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <select value={selectedList || ''} onChange={e => setSelectedList(e.target.value)} style={{ padding: '9px 12px', border: '1px solid #e0e0e0', borderRadius: 8, fontSize: 13, flex: 1, minWidth: 200 }}>
+                <option value="">Choose a list…</option>
+                {lists.map(l => <option key={l.id} value={l.id}>{l.name} ({l.cached_count ?? '?'} contacts)</option>)}
+              </select>
+              <button onClick={() => selectedList && loadContacts(selectedList, 1)} disabled={!selectedList || loading}
+                style={{ padding: '9px 20px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: selectedList ? 'pointer' : 'not-allowed', opacity: (!selectedList || loading) ? 0.6 : 1 }}>
+                {loading ? 'Loading…' : 'Preview'}
+              </button>
             </div>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', marginBottom: 6 }}>Job Titles</label>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
-                {titles.map(t => <Tag key={t} label={t} onRemove={() => setTitles(titles.filter(x => x !== t))} />)}
-              </div>
-              <input value={titleInput} onChange={e => setTitleInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(titleInput, titles, setTitles, setTitleInput); }}}
-                placeholder="Type and press Enter"
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid #e0e0e0', borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', marginBottom: 6 }}>Locations</label>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
-                {locations.map(l => <Tag key={l} label={l} onRemove={() => setLocations(locations.filter(x => x !== l))} />)}
-              </div>
-              <input value={locationInput} onChange={e => setLocationInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(locationInput, locations, setLocations, setLocationInput); }}}
-                placeholder="Type and press Enter"
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid #e0e0e0', borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', marginBottom: 6 }}>Seniority</label>
-              <ChipGroup options={SENIORITY_OPTIONS} selected={seniorities} onChange={setSeniorities} />
-            </div>
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.4px', display: 'block', marginBottom: 6 }}>Company Size</label>
-            <ChipGroup options={COMPANY_SIZE_OPTIONS} selected={companySizes} onChange={setCompanySizes} />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button onClick={() => doSearch(1)} disabled={searching}
-              style={{ padding: '9px 24px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: searching ? 0.7 : 1 }}>
-              {searching ? 'Searching…' : '🔍 Search Apollo'}
-            </button>
-          </div>
+          )}
         </div>
       )}
-
-      {/* ── LISTS MODE ── */}
-      {mode === 'lists' && (
-        <div style={{ marginBottom: 16 }}>
-          {listsLoading ? (
-            <div style={{ textAlign: 'center', padding: 32, color: '#aaa', fontSize: 13 }}>Loading your Apollo lists…</div>
-          ) : lists.length === 0 ? (
-            <div style={{ padding: 24 }}>
-              <div style={{ textAlign: 'center', color: '#aaa', fontSize: 13, marginBottom: 16 }}>
-                <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
-                No lists found in your Apollo account.
+      {step === 'preview' && contacts.length > 0 && (
+        <>
+          {duplicates.length > 0 && (
+            <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: 16, marginBottom: 16 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#92400e', marginBottom: 10 }}>
+                {duplicates.length} contact{duplicates.length > 1 ? 's' : ''} already exist — choose what to do:
               </div>
-              {debugInfo && (
-                <div style={{ background: '#1e1e2e', borderRadius: 8, padding: 16, fontSize: 11, fontFamily: 'monospace', color: '#cdd6f4', overflow: 'auto', maxHeight: 400 }}>
-                  <div style={{ color: '#a6e3a1', marginBottom: 8, fontWeight: 700 }}>Apollo API Debug Info:</div>
-                  {Object.entries(debugInfo).map(([key, val]) => (
-                    <div key={key} style={{ marginBottom: 12 }}>
-                      <div style={{ color: '#89b4fa', marginBottom: 4 }}>{key}:</div>
-                      <div style={{ color: '#f38ba8' }}>status: {val.status}</div>
-                      <div style={{ color: '#cdd6f4', wordBreak: 'break-all' }}>body: {val.body}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
-              {lists.map(l => (
-                <div key={l.id} onClick={() => { setSelectedList(l); doSearch(1, l.id); }}
-                  style={{ background: selectedList?.id === l.id ? '#eff6ff' : '#fff',
-                    border: `1.5px solid ${selectedList?.id === l.id ? '#2563eb' : '#e8e8e4'}`,
-                    borderRadius: 10, padding: '14px 16px', cursor: 'pointer', transition: 'all 0.15s' }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#111', marginBottom: 4 }}>📋 {l.name}</div>
-                  <div style={{ fontSize: 12, color: '#888' }}>{l.count?.toLocaleString() || 0} contacts</div>
+              {duplicates.map(d => (
+                <div key={d.email} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, fontSize: 13 }}>
+                  <span style={{ flex: 1, color: '#555' }}>{d.first_name} {d.last_name} ({d.email})</span>
+                  <select value={duplicateAction[d.email] || 'skip'} onChange={e => setDuplicateAction(p => ({ ...p, [d.email]: e.target.value }))} style={{ padding: '5px 10px', border: '1px solid #e0e0e0', borderRadius: 6, fontSize: 12 }}>
+                    <option value="skip">Skip</option>
+                    <option value="overwrite">Overwrite</option>
+                  </select>
                 </div>
               ))}
             </div>
           )}
-          {selectedList && (
-            <div style={{ marginTop: 12, fontSize: 13, color: '#555' }}>
-              Showing contacts from: <strong>{selectedList.name}</strong>
-              {searching && ' — loading…'}
+          <div style={{ background: '#fff', border: '0.5px solid #e8e8e4', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+            <div style={{ padding: '12px 16px', borderBottom: '0.5px solid #e8e8e4', fontSize: 13, fontWeight: 600, color: '#111', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Preview — {contacts.length} of {totalContacts} contacts</span>
+              {totalContacts > 50 && (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <button disabled={page===1} onClick={()=>loadContacts(selectedList,page-1)} style={{ padding:'3px 10px',border:'1px solid #e0e0e0',borderRadius:6,fontSize:12,cursor:page===1?'not-allowed':'pointer',opacity:page===1?0.4:1 }}>Prev</button>
+                  <span style={{ fontSize: 12, color: '#888' }}>Page {page}</span>
+                  <button disabled={contacts.length<50} onClick={()=>loadContacts(selectedList,page+1)} style={{ padding:'3px 10px',border:'1px solid #e0e0e0',borderRadius:6,fontSize:12,cursor:contacts.length<50?'not-allowed':'pointer',opacity:contacts.length<50?0.4:1 }}>Next</button>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Results */}
-      {results.length > 0 && (
-        <>
-          <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
-            {totalEntries.toLocaleString()} contacts · page {page} of {totalPages}
+            <table style={{ width:'100%',borderCollapse:'collapse',fontSize:13 }}>
+              <thead><tr style={{ background:'#f9f9f7' }}>{['Name','Title','Company','Email','Status'].map(h=><th key={h} style={{ padding:'8px 12px',textAlign:'left',fontSize:11,color:'#999',fontWeight:500,borderBottom:'0.5px solid #e8e8e4' }}>{h}</th>)}</tr></thead>
+              <tbody>
+                {contacts.map((c,i)=>{
+                  const isDup=c.email&&dupEmails.has(c.email);
+                  const action=isDup?duplicateAction[c.email]:null;
+                  return (<tr key={i} style={{ borderBottom:'0.5px solid #f5f5f3',opacity:action==='skip'?0.45:1 }}>
+                    <td style={{ padding:'9px 12px',fontWeight:500 }}>{c.first_name} {c.last_name}</td>
+                    <td style={{ padding:'9px 12px',color:'#666' }}>{c.title||'—'}</td>
+                    <td style={{ padding:'9px 12px',color:'#666' }}>{c.organization?.name||'—'}</td>
+                    <td style={{ padding:'9px 12px',color:c.email?'#111':'#ccc' }}>{c.email||'No email'}</td>
+                    <td style={{ padding:'9px 12px' }}>
+                      {isDup?<span style={{ fontSize:11,padding:'2px 8px',borderRadius:10,background:action==='skip'?'#f3f4f6':'#fef3c7',color:action==='skip'?'#888':'#92400e',fontWeight:500 }}>{action==='skip'?'Skip':'Overwrite'}</span>
+                        :<span style={{ fontSize:11,padding:'2px 8px',borderRadius:10,background:'#dcfce7',color:'#15803d',fontWeight:500 }}>New</span>}
+                    </td>
+                  </tr>);
+                })}
+              </tbody>
+            </table>
           </div>
-          <ResultsTable results={results} selected={selected} setSelected={setSelected} onImport={doImport} importing={importing} />
-          {totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, padding: 16 }}>
-              <button onClick={() => doSearch(page - 1, selectedList?.id)} disabled={page <= 1 || searching}
-                style={{ padding: '6px 14px', border: '1px solid #e0e0e0', borderRadius: 6, fontSize: 12, cursor: 'pointer', background: '#fff' }}>← Prev</button>
-              <span style={{ fontSize: 12, color: '#888', alignSelf: 'center' }}>Page {page} of {totalPages}</span>
-              <button onClick={() => doSearch(page + 1, selectedList?.id)} disabled={page >= totalPages || searching}
-                style={{ padding: '6px 14px', border: '1px solid #e0e0e0', borderRadius: 6, fontSize: 12, cursor: 'pointer', background: '#fff' }}>Next →</button>
-            </div>
-          )}
+          <div style={{ background:'#fff',border:'0.5px solid #e8e8e4',borderRadius:12,padding:20,marginBottom:16 }}>
+            <div style={{ fontSize:14,fontWeight:600,color:'#111',marginBottom:14 }}>Import Options</div>
+            {!isSDR && (
+              <div style={{ marginBottom:16 }}>
+                <label style={{ fontSize:12,color:'#666',display:'block',marginBottom:6 }}>Assign to SDR</label>
+                <select value={selectedSdr} onChange={e=>setSelectedSdr(e.target.value)} style={{ padding:'9px 12px',border:'1px solid #e0e0e0',borderRadius:8,fontSize:13,width:280 }}>
+                  <option value="">Select SDR…</option>
+                  {sdrs.map(s=><option key={s.user_id} value={s.user_id}>{s.full_name}</option>)}
+                </select>
+              </div>
+            )}
+            <label style={{ display:'flex',alignItems:'center',gap:10,cursor:'pointer',fontSize:13 }}>
+              <input type="checkbox" checked={enrichEmails} onChange={e=>setEnrichEmails(e.target.checked)} style={{ width:16,height:16,cursor:'pointer' }} />
+              <span><strong>Enrich missing emails</strong><span style={{ color:'#888',marginLeft:6 }}>— Uses Apollo credits ({contacts.filter(c=>!c.email).length} without email)</span></span>
+            </label>
+          </div>
+          <button onClick={runImport} disabled={!isSDR&&!selectedSdr}
+            style={{ padding:'10px 28px',background:'#2563eb',color:'#fff',border:'none',borderRadius:8,fontSize:14,fontWeight:600,cursor:(!isSDR&&!selectedSdr)?'not-allowed':'pointer',opacity:(!isSDR&&!selectedSdr)?0.6:1 }}>
+            Import {toImportCount} contacts
+          </button>
         </>
       )}
-
-      {results.length === 0 && !searching && mode === 'search' && (
-        <div style={{ textAlign: 'center', padding: '48px 24px', color: '#aaa' }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>🔍</div>
-          <p style={{ fontSize: 14 }}>Set your filters above and click Search Apollo</p>
+      {step==='importing'&&(
+        <div style={{ background:'#fff',border:'0.5px solid #e8e8e4',borderRadius:12,padding:32,textAlign:'center' }}>
+          <div style={{ fontSize:15,fontWeight:600,color:'#111',marginBottom:12 }}>Importing contacts…</div>
+          <div style={{ background:'#f0f0ee',borderRadius:99,height:8,width:'100%',maxWidth:400,margin:'0 auto 12px' }}>
+            <div style={{ background:'#2563eb',borderRadius:99,height:8,width:importProgress.total?String(Math.round(importProgress.done/importProgress.total*100))+'%':'0%',transition:'width 0.2s' }} />
+          </div>
+          <div style={{ fontSize:13,color:'#888' }}>{importProgress.done} / {importProgress.total}</div>
+        </div>
+      )}
+      {step==='done'&&importResults&&(
+        <div style={{ background:'#fff',border:'0.5px solid #e8e8e4',borderRadius:12,padding:32,textAlign:'center' }}>
+          <div style={{ fontSize:32,marginBottom:12 }}>✅</div>
+          <div style={{ fontSize:16,fontWeight:600,color:'#111',marginBottom:16 }}>Import complete</div>
+          <div style={{ display:'flex',gap:16,justifyContent:'center',marginBottom:24 }}>
+            {[{label:'Imported',value:importResults.imported,color:'#059669'},{label:'Skipped',value:importResults.skipped,color:'#d97706'},{label:'Failed',value:importResults.failed,color:'#dc2626'}].map(m=>(
+              <div key={m.label} style={{ background:'#f9f9f7',borderRadius:10,padding:'14px 24px' }}>
+                <div style={{ fontSize:24,fontWeight:700,color:m.color }}>{m.value}</div>
+                <div style={{ fontSize:12,color:'#888',marginTop:4 }}>{m.label}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display:'flex',gap:10,justifyContent:'center' }}>
+            <button onClick={()=>{setStep('list');setContacts([]);setSelectedList(null);setImportResults(null);}}
+              style={{ padding:'9px 20px',background:'#f5f5f3',color:'#555',border:'0.5px solid #e8e8e4',borderRadius:8,fontSize:13,cursor:'pointer' }}>Import another list</button>
+            <a href="/contacts" style={{ padding:'9px 20px',background:'#2563eb',color:'#fff',borderRadius:8,fontSize:13,fontWeight:500,textDecoration:'none' }}>View contacts</a>
+          </div>
         </div>
       )}
     </div>
