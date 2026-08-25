@@ -300,11 +300,11 @@ export default function ContactDetail() {
             <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#e8f0fe',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 20, fontWeight: 700, color: '#2563eb', flexShrink: 0 }}>
-              {contact.full_name?.charAt(0)?.toUpperCase() || '?'}
+              {(contact.full_name || contact.first_name || '')?.charAt(0)?.toUpperCase() || '?'}
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                <h1 style={{ fontSize: 18, fontWeight: 600, color: '#111', margin: 0 }}>{contact.full_name}</h1>
+                <h1 style={{ fontSize: 18, fontWeight: 600, color: '#111', margin: 0 }}>{contact.full_name || [contact.first_name, contact.last_name].filter(Boolean).join(' ')}</h1>
                 <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, background: sc.bg, color: sc.color, fontWeight: 700 }}>
                   {contact.status}
                 </span>
@@ -332,7 +332,7 @@ export default function ContactDetail() {
                 {contact.phone && <span style={{ fontSize: 12, color: '#555' }}>📞 {contact.phone}</span>}
                 {contact.industry && <span style={{ fontSize: 12, color: '#777' }}>🏢 {contact.industry}</span>}
                 {contact.country && <span style={{ fontSize: 12, color: '#777' }}>📍 {contact.country}</span>}
-                {contact.linkedin_url && <a href={contact.linkedin_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#2563eb', textDecoration: 'none' }}>LinkedIn ↗</a>}
+                {contact.linkedin_url && <a href={contact.linkedin_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#0a66c2', textDecoration: 'none', fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: '#e8f0fe' }}><svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='#0a66c2'><path d='M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z'/></svg> LinkedIn</a>}
               </div>
             </div>
           </div>
@@ -522,7 +522,7 @@ export default function ContactDetail() {
         <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e4', padding: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
             <div>
-              <h2 style={{ fontSize: 15, fontWeight: 600, color: '#111', margin: 0 }}>Account Research</h2>
+              <h2 style={{ fontSize: 15, fontWeight: 600, color: '#111', margin: 0 }}>Contact Research</h2>
               <p style={{ fontSize: 12, color: '#888', margin: '4px 0 0' }}>Fills into AI email generation — the more you add, the better the emails</p>
             </div>
             <button onClick={saveResearch} disabled={savingResearch}
