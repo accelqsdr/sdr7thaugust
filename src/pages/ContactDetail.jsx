@@ -51,6 +51,8 @@ const SIGNAL_FIELDS = [
   { key: 'cicd',            label: 'Active CI/CD pipeline',     icon: '⚙️' },
 ];
 
+const PERSONA_LIST = ['Economic Buyer','Decision Maker','Champion','Technical Buyer','User / End User','Influencer','Gatekeeper','Procurement Buyer','Executive Sponsor'];
+
 const ACTIVITY_LABELS = {
   status_changed:   'Status changed',
   bounce_detected:  'Marked bounced',
@@ -97,6 +99,9 @@ export default function ContactDetail() {
   const [pitch, setPitch] = useState('');
   const [savingPitch, setSavingPitch] = useState(false);
   const [pitchSaved, setPitchSaved] = useState(false);
+  const [persona, setPersona] = useState('');
+  const [savingPersona, setSavingPersona] = useState(false);
+  const [personaSaved, setPersonaSaved] = useState(false);
 
   const [timeline, setTimeline] = useState([]);
   const [advancing, setAdvancing] = useState(false);
@@ -109,7 +114,8 @@ export default function ContactDetail() {
       setContact(data);
       setResearch(data.research || {});
       setSignals(data.signals || {});
-      setPitch(data.notes || '');
+      setPitch(data.pitch || '');
+    setPersona(data.persona || '');
     }
     setLoading(false);
   }, [id]);
@@ -217,8 +223,8 @@ export default function ContactDetail() {
 
   async function savePitch() {
     setSavingPitch(true);
-    await supabase.from('contacts').update({ notes: pitch }).eq('id', id);
-    setContact(c => ({ ...c, notes: pitch }));
+    await supabase.from('contacts').update({ pitch: pitch }).eq('id', id);
+    setContact(c => ({ ...c, pitch: pitch }));
     setSavingPitch(false);
     setPitchSaved(true);
     setTimeout(() => setPitchSaved(false), 2500);
@@ -453,7 +459,7 @@ export default function ContactDetail() {
             {contact.bounced && <InfoRow label="Bounced on" value={contact.bounced_at ? new Date(contact.bounced_at).toLocaleDateString() : 'Yes'} danger />}
           </InfoCard>
           <div style={{ gridColumn: '1 / -1' }}>
-            <InfoCard title="Pitch">
+            <InfoCard title="Pitch & Persona">
               <div style={{ padding: '4px 0' }}>
                 <textarea
                   value={pitch}
@@ -473,6 +479,20 @@ export default function ContactDetail() {
                     {savingPitch ? 'Saving…' : pitchSaved ? '✓ Saved' : 'Save Pitch'}
                   </button>
                 </div>
+              <div style={{marginTop:16}}>
+                <label style={{display:'block',fontSize:11,fontWeight:600,color:'#555',marginBottom:6,textTransform:'uppercase',letterSpacing:'0.3px'}}>Buying Committee Persona</label>
+                <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                  <select value={persona} onChange={e => setPersona(e.target.value)}
+                    style={{flex:1,padding:'8px 12px',borderRadius:8,border:'1px solid #e0e0e0',fontSize:13,color:'#333',background:'#fff',outline:'none',cursor:'pointer'}}>
+                    <option value={''}>{'\u2014 Select persona —'}</option>
+                    {PERSONA_LIST.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                  <button onClick={savePersona} disabled={savingPersona}
+                    style={{padding:'7px 16px',border:'none',borderRadius:8,fontSize:12,fontWeight:500,cursor:'pointer',whiteSpace:'nowrap',background:personaSaved?'#059669':'#2563eb',color:'#fff',transition:'background 0.2s'}}>
+                    {savingPersona ? 'Saving…' : personaSaved ? '✓ Saved' : 'Save'}
+                  </button>
+                </div>
+              </div>
               </div>
             </InfoCard>
           </div>
