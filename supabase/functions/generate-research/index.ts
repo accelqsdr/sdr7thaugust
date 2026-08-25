@@ -64,7 +64,7 @@ Return ONLY a valid JSON object (no markdown, no explanation) with exactly these
   "saasApps": ["list", "of", "industry-specific", "saas", "apps"]
 }
 
-Rules for tools array: Include likely testing tools (e.g. Selenium, Cypress, Playwright, UFT, Tosca, JUnit, TestNG, Postman, k6, etc.)
+Rules for tools array: ONLY include dedicated QA/test automation tools (e.g. Selenium, Cypress, Playwright, UFT, Tosca, JUnit, TestNG, Postman, k6, Appium, Robot Framework, Katalon, LoadRunner, JMeter, NUnit, PyTest). Do NOT include: programming languages (Java, Python, JavaScript, C#), build tools (Maven, Gradle, npm), CI/CD platforms (Jenkins, GitLab CI, GitHub Actions, CircleCI), infrastructure tools (Docker, Kubernetes, Terraform), or cloud providers (AWS, Azure, GCP).
 
 Rules for boolean signals:
 - funding: true if company recently raised funding or had IPO
