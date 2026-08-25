@@ -1043,7 +1043,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
                 <div style={{ fontSize: 14, fontWeight: 600, color: '#5b21b6', marginBottom: 6 }}>No intel yet</div>
                 <div style={{ fontSize: 13, color: '#7c3aed', marginBottom: 16 }}>Run AI Research to generate "Important to Know" pitch bullets and a recent signals feed for this account.</div>
                 <button onClick={runFullAIResearch} disabled={aiResearching} style={{
-                  padding: '10px 24px', background: aiResearching ? '#e'linear-gradient(135deg, #7c3aed, #2563eb)',
+                  padding: '10px 24px', background: aiResearching ? '#e5e7eb' : 'linear-gradient(135deg, #7c3aed, #2563eb)',
                   color: aiResearching ? '#9ca3af' : '#fff', borderRadius: 9, fontSize: 13, fontWeight: 600,
                   border: 'none', cursor: aiResearching ? 'wait' : 'pointer',
                 }}>
