@@ -170,7 +170,7 @@ export default function FollowUps() {
       .or('status.in.(F1,F2,F3,F4,F5,cooling_off),and(status.eq.Fresh,next_followup.not.is.null)')
       .order('last_contacted', { ascending: false, nullsFirst: false }).limit(5000);
 
-    let aQuery = supabase.from('accounts').select('id, name, industry, research, icp_notes, description');
+    let aQuery = supabase.from('accounts').select('id, name, industry, research, icp_notes, description, testing_tools, notes');
     if (!viewAll || !canViewAll) aQuery = aQuery.eq('owner_id', user.id);
 
     const [cRes, aRes, lRes] = await Promise.all([
@@ -261,7 +261,8 @@ export default function FollowUps() {
           stage: emailStage,
           customPrompt: customPrompt || null,
           accountResearch: account.research || {},
-          accountNotes: account.icp_notes || null,
+          testingTools: account.testing_tools || [],
+          accountNotes: account.notes || account.icp_notes || null,
           accountDescription: account.description || null,
           senderName,
           priorEmailBodies: priorBodies,
