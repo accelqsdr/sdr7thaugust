@@ -439,7 +439,22 @@ function UploadCSV({ userId, onDone }) {
 
         if (rows.length === 0) { setMsg('No valid rows found'); setUploading(false); return; }
 
-        const BATCH = 50;
+        
+        // Auto-create/link accounts for each unique company
+        const uniqueCompanies = [...new Set(rows.map(r => r.company).filter(Boolean))];
+        const companyToAccountId = {};
+        for (const companyName of uniqueCompanies) {
+          const { data: existingAcct } = await supabase.from('accounts').select('id').eq('owner_id', userId).ilike('name', companyName).maybeSingle();
+          if (existingAcct) {
+            companyToAccountId[companyName] = existingAcct.id;
+          } else {
+            const { data: newAcct } = await supabase.from('accounts').insert({ name: companyName, owner_id: userId }).select('id').single();
+            if (newAcct) companyToAccountId[companyName] = newAcct.id;
+          }
+        }
+        rows.forEach(r => { if (r.company && companyToAccountId[r.company]) r.account_id = companyToAccountId[r.company]; });
+
+const BATCH = 50;
         let total = 0;
         for (let i = 0; i < rows.length; i += BATCH) {
           const { error } = await supabase.from('contacts').insert(rows.slice(i, i + BATCH));
