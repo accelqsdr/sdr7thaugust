@@ -115,7 +115,7 @@ export default function ContactDetail() {
       setResearch(data.research || {});
       setSignals(data.signals || {});
       setPitch(data.pitch || '');
-    setPersona(data.persona || '');
+      setPersona(data.persona || '');
     }
     setLoading(false);
   }, [id]);
@@ -228,6 +228,15 @@ export default function ContactDetail() {
     setSavingPitch(false);
     setPitchSaved(true);
     setTimeout(() => setPitchSaved(false), 2500);
+  }
+
+  async function savePersona() {
+    setSavingPersona(true);
+    await supabase.from('contacts').update({ persona }).eq('id', id);
+    setContact(c => ({ ...c, persona }));
+    setSavingPersona(false);
+    setPersonaSaved(true);
+    setTimeout(() => setPersonaSaved(false), 2500);
   }
 
   async function addContactNote() {
