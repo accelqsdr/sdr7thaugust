@@ -11,20 +11,20 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Clear all data
+  const [apolloKey, setApolloKey] = useState('');
+  const [apolloSaving, setApolloSaving] = useState(false);
+  const [apolloSaved, setApolloSaved] = useState('');
+
   const [showClear, setShowClear] = useState(false);
   const [clearInput, setClearInput] = useState('');
   const [clearing, setClearing] = useState(false);
   const [clearMsg, setClearMsg] = useState('');
 
-
   async function clearAllData() {
     if (clearInput !== 'DELETE') return;
     setClearing(true);
     const { data: { user } } = await supabase.auth.getUser();
-    // Delete contacts first (cascade removes emails, activity_log, contact_notes)
     await supabase.from('contacts').delete().eq('owner_id', user.id);
-    // Delete accounts
     await supabase.from('accounts').delete().eq('owner_id', user.id);
     setClearing(false);
     setShowClear(false);
@@ -40,16 +40,17 @@ export default function Settings() {
         setApiKey(data.ai_api_key ? '••••••••••••••••' : '');
         setProvider(data.ai_provider || 'anthropic');
       }
+      if (isDirector) {
+        const { data: ap } = await supabase.from('org_settings').select('value').eq('key', 'apollo_api_key').single();
+        if (ap?.value) setApolloKey('••••••••••••••••');
+      }
       setLoading(false);
     }
     load();
-  }, []);
+  }, [isDirector]);
 
   async function save() {
-    if (!apiKey || apiKey.startsWith('••')) {
-      setSaved('No change — key not updated');
-      return;
-    }
+    if (!apiKey || apiKey.startsWith('••')) { setSaved('No change — key not updated'); return; }
     setSaving(true);
     const { data: existing } = await supabase.from('org_config').select('id').single();
     let err;
@@ -66,6 +67,15 @@ export default function Settings() {
     setTimeout(() => setSaved(''), 4000);
   }
 
+  async function saveApollo() {
+    if (!apolloKey || apolloKey.startsWith('••')) { setApolloSaved('No change — key not updated'); return; }
+    setApolloSaving(true);
+    const { error } = await supabase.from('org_settings').upsert({ key: 'apollo_api_key', value: apolloKey }, { onConflict: 'key' });
+    setApolloSaving(false);
+    if (error) { setApolloSaved('Error: ' + error.message); }
+    else { setApolloSaved('Apollo API key saved!'); setApolloKey('••••••••••••••••'); }
+    setTimeout(() => setApolloSaved(''), 4000);
+  }
 
   return (
     <div style={{ padding: 24 }}>
@@ -99,28 +109,47 @@ export default function Settings() {
             </div>
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 6 }}>API key</label>
-              <input
-                type="password"
-                value={apiKey}
-                onChange={e => setApiKey(e.target.value)}
-                placeholder="sk-ant-api03-..."
-                style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13, width: '100%', boxSizing: 'border-box', outline: 'none' }}
-              />
+              <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="sk-ant-api03-..."
+                style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13, width: '100%', boxSizing: 'border-box', outline: 'none' }} />
               <div style={{ fontSize: 11, color: '#aaa', marginTop: 5 }}>Paste a new key to update. Existing key is masked.</div>
             </div>
             <button onClick={save} disabled={saving}
               style={{ padding: '9px 20px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
               {saving ? 'Saving…' : 'Save API key'}
             </button>
-            {saved && (
-              <div style={{ marginTop: 12, fontSize: 13, color: saved.startsWith('Error') ? '#dc2626' : '#059669' }}>{saved}</div>
-            )}
+            {saved && <div style={{ marginTop: 12, fontSize: 13, color: saved.startsWith('Error') ? '#dc2626' : '#059669' }}>{saved}</div>}
           </>
         )}
       </div>
 
+      {/* Apollo API Key */}
+      <div style={{ background: '#fff', border: '0.5px solid #e8e8e4', borderRadius: 12, padding: 20, maxWidth: 560, marginTop: 16 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#111', marginBottom: 6 }}>Apollo.io API Key</div>
+        <p style={{ fontSize: 13, color: '#888', marginBottom: 16, lineHeight: 1.6 }}>
+          Used to import contacts from your Apollo people lists. Only the Director can set this key.
+        </p>
+        {!isDirector ? (
+          <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#0369a1' }}>
+            ✓ Apollo API key is configured by your Director.
+          </div>
+        ) : (
+          <>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 6 }}>API key</label>
+              <input type="password" value={apolloKey} onChange={e => setApolloKey(e.target.value)} placeholder="Paste Apollo API key…"
+                style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13, width: '100%', boxSizing: 'border-box', outline: 'none' }} />
+              <div style={{ fontSize: 11, color: '#aaa', marginTop: 5 }}>Paste a new key to update. Existing key is masked.</div>
+            </div>
+            <button onClick={saveApollo} disabled={apolloSaving}
+              style={{ padding: '9px 20px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', opacity: apolloSaving ? 0.7 : 1 }}>
+              {apolloSaving ? 'Saving…' : 'Save Apollo key'}
+            </button>
+            {apolloSaved && <div style={{ marginTop: 12, fontSize: 13, color: apolloSaved.startsWith('Error') ? '#dc2626' : '#059669' }}>{apolloSaved}</div>}
+          </>
+        )}
+      </div>
 
-            {/* Danger Zone */}
+      {/* Danger Zone */}
       <div style={{ background: '#fff', border: '1px solid #fecaca', borderRadius: 12, padding: 20, maxWidth: 560, marginTop: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: '#dc2626', marginBottom: 6 }}>Danger Zone</div>
         <p style={{ fontSize: 13, color: '#888', marginBottom: 14, lineHeight: 1.6 }}>
@@ -141,12 +170,8 @@ export default function Settings() {
             <p style={{ fontSize: 13, color: '#dc2626', fontWeight: 600, marginBottom: 10 }}>
               Type DELETE to confirm. This will erase all your contacts, accounts, emails and activity.
             </p>
-            <input
-              value={clearInput}
-              onChange={e => setClearInput(e.target.value)}
-              placeholder='Type DELETE'
-              style={{ padding: '8px 12px', borderRadius: 7, border: '1px solid #fca5a5', fontSize: 13, width: '100%', boxSizing: 'border-box', outline: 'none', marginBottom: 12, letterSpacing: 1 }}
-            />
+            <input value={clearInput} onChange={e => setClearInput(e.target.value)} placeholder='Type DELETE'
+              style={{ padding: '8px 12px', borderRadius: 7, border: '1px solid #fca5a5', fontSize: 13, width: '100%', boxSizing: 'border-box', outline: 'none', marginBottom: 12, letterSpacing: 1 }} />
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={clearAllData} disabled={clearInput !== 'DELETE' || clearing}
                 style={{ padding: '8px 18px', background: clearInput === 'DELETE' ? '#dc2626' : '#e5e7eb', color: clearInput === 'DELETE' ? '#fff' : '#9ca3af', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: clearInput === 'DELETE' ? 'pointer' : 'not-allowed' }}>
