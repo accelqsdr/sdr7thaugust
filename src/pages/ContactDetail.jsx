@@ -34,22 +34,11 @@ const NEXT_STAGE = { Fresh: 'F1', F1: 'F2', F2: 'F3', F3: 'F4', F4: 'F5', F5: nu
 const DAYS_UNTIL_NEXT = { F1: 3, F2: 4, F3: 5, F4: 7, F5: 10 };
 
 const RESEARCH_FIELDS = [
-  { key: 'whyTarget',    label: 'Why target this account', placeholder: 'Why this company fits ACCELQ ICP…' },
-  { key: 'techStack',    label: 'Known tech stack',        placeholder: 'SAP, Selenium, Jenkins, Jira…' },
-  { key: 'qaHiring',     label: 'QA hiring activity',      placeholder: 'Hiring 3 SDET roles on LinkedIn…' },
-  { key: 'recentNews',   label: 'Recent news',             placeholder: 'Raised $50M Series B in March…' },
-  { key: 'painPoints',   label: 'Pain points',             placeholder: 'Manual regression takes 2 weeks per release…' },
-  { key: 'openingLine',  label: 'Opening line idea',       placeholder: 'Draft a hook to start the cold email…' },
+  { key: 'whyTarget', label: 'Why target this contact', placeholder: 'Why this contact fits ACCELQ ICP…' },
+  { key: 'techStack', label: 'Known tech stack used by contact', placeholder: 'SAP, Selenium, Jenkins, Jira…' },
 ];
 
-const SIGNAL_FIELDS = [
-  { key: 'competitorTools', label: 'Competitor tools detected', icon: '🔍' },
-  { key: 'recentFunding',   label: 'Recent funding',           icon: '💰' },
-  { key: 'hiringQA',        label: 'Hiring QA engineers',      icon: '👥' },
-  { key: 'recentLaunch',    label: 'Recent product launch',     icon: '🚀' },
-  { key: 'outage',          label: 'Recent outage / incident',  icon: '⚠️' },
-  { key: 'cicd',            label: 'Active CI/CD pipeline',     icon: '⚙️' },
-];
+const SIGNAL_FIELDS = [];
 
 const PERSONA_LIST = ['Economic Buyer','Decision Maker','Champion','Technical Buyer','User / End User','Influencer','Gatekeeper','Procurement Buyer','Executive Sponsor'];
 
