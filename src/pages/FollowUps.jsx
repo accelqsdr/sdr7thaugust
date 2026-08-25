@@ -250,6 +250,8 @@ export default function FollowUps() {
     // Fresh contacts use 'Fresh' stage (initial email)
     const emailStage = contact.status === 'Fresh' ? 'Fresh' : contact.status;
     try {
+      const { data: notesData } = await supabase.from('contact_notes').select('note').eq('contact_id', contact.id).order('created_at', { ascending: false }).limit(5);
+      const contactNotes = (notesData || []).map(n => n.note).filter(Boolean).join('\n');
       const res = await supabase.functions.invoke('generate-email', {
         body: {
           contact: {
@@ -257,6 +259,7 @@ export default function FollowUps() {
             company: contact.company, email: contact.email,
             response: contact.response_type, pitch: contact.pitch,
                 persona: contact.persona,
+                contactNotes: contactNotes || null,
             industry: account.industry,
           },
           stage: emailStage,
