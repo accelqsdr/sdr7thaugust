@@ -52,15 +52,17 @@ export default function Contacts() {
   const [sdrs, setSdrs] = useState([]);
   const [batchStarting, setBatchStarting] = useState(false);
   const [batchMsg, setBatchMsg] = useState('');
+  const [page, setPage] = useState(0);
 
-  useEffect(() => { fetchContacts(); }, [filter, viewAll]);
+  useEffect(() => { setPage(0); }, [filter, viewAll]);
+  useEffect(() => { fetchContacts(); }, [filter, viewAll, page]);
 
   async function fetchContacts() {
     setLoading(true);
     let q = supabase.from('contacts').select('*').order('created_at', { ascending: false });
     if (!viewAll || !canViewAll) q = q.eq('owner_id', user.id);
     if (filter !== 'all') q = q.eq('status', filter);
-    const { data } = await q.limit(50);
+    const { data } = await q.range(page * 50, page * 50 + 49);
     setContacts(data || []);
     setLoading(false);
     setSelected(new Set());
@@ -400,6 +402,19 @@ async function deleteContact(id) {
             })}
           </tbody>
         </table>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', marginTop: 4, borderTop: '1px solid #f3f3f3' }}>
+          <span style={{ fontSize: 12, color: '#888' }}>Page {page + 1} &mdash; showing {contacts.length} of {contacts.length < 50 ? (page * 50 + contacts.length) : 'many'} contacts</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
+              style={{ padding: '4px 14px', borderRadius: 6, border: '1px solid #e0e0e0', background: page === 0 ? '#f5f5f5' : '#fff', color: page === 0 ? '#bbb' : '#333', cursor: page === 0 ? 'default' : 'pointer', fontSize: 13 }}>
+              {String.fromCharCode(8592)} Prev
+            </button>
+            <button onClick={() => setPage(p => p + 1)} disabled={contacts.length < 50}
+              style={{ padding: '4px 14px', borderRadius: 6, border: '1px solid #e0e0e0', background: contacts.length < 50 ? '#f5f5f5' : '#fff', color: contacts.length < 50 ? '#bbb' : '#333', cursor: contacts.length < 50 ? 'default' : 'pointer', fontSize: 13 }}>
+              Next {String.fromCharCode(8594)}
+            </button>
+          </div>
+        </div>
       </div>
 
       {filtered.length > 0 && (
