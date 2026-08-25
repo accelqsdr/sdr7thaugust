@@ -255,7 +255,8 @@ export default function FollowUps() {
           contact: {
             full_name: ((contact.first_name || '') + ' ' + (contact.last_name || '')).trim(), title: contact.title,
             company: contact.company, email: contact.email,
-            response: contact.response_type, pitch: contact.notes,
+            response: contact.response_type, pitch: contact.pitch,
+                persona: contact.persona,
             industry: account.industry,
           },
           stage: emailStage,
