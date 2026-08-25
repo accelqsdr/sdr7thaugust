@@ -398,8 +398,9 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
     setSaving(true);
     const merged = { ...data, ...updates };
     setData(merged);
-    await supabase.from('accounts').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', data.id);
-    setSaving(false);
+   const { error: patchErr } =  await supabase.from('accounts').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', data.id);
+    if (patchErr) console.error('patch error:', patchErr);
+setSaving(false);
     onUpdate();
   }
   async function addTool() {
@@ -502,6 +503,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
       });
       if (result.error || !result.data?.full) {
         console.error('AI Research error:', result.error || result.data?.error);
+        setAiResearching(false);
         return;
       }
       const r = result.data.full;
