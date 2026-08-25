@@ -29,6 +29,8 @@ const RESEARCH_DEFAULTS = [
   { key: 'painPoints', label: 'Pain Points',       icon: '🔥', hint: 'top 2 QA/testing pain points ACCELQ solves for this company' },
 ];
 const COMMON_ENTERPRISE_APPS = ['SAP','Oracle','Workday','ServiceNow','Salesforce','Microsoft Dynamics','SAP S/4HANA','Oracle EBS','PeopleSoft','Guidewire','Siebel','Veeva'];
+const PITCH_TYPES = ['Autopilot (AI)','Automate Web','Automate Mobile','Automate API','ACCELQ Unified','Salesforce','ServiceNow','SAP','Workday','Oracle','MS Dynamics','Pega','nCino','Coupa','Financial Services','Healthcare','Telecom','Insurance','Retail','IT Services'];
+const PERSONA_LIST = ['Economic Buyer','Decision Maker','Champion','Technical Buyer','User / End User','Influencer','Gatekeeper','Procurement Buyer','Executive Sponsor'];
 const STAGE_COLORS = {
   Fresh: { bg: '#dbeafe', color: '#1d4ed8' },
   F1:    { bg: '#d1fae5', color: '#065f46' },
@@ -447,6 +449,17 @@ setSaving(false);
     setEditingCompanyDetails(false);
   }
 
+  async function updateContactPitchType(cId, pt) {
+    const val = pt === '' ? null : pt;
+    await supabase.from('contacts').update({ pitch_type: val }).eq('id', cId);
+    onUpdate();
+  }
+
+  async function updateContactPersona(cId, ps) {
+    const val = ps === '' ? null : ps;
+    await supabase.from('contacts').update({ persona: val }).eq('id', cId);
+    onUpdate();
+  }
   async function startContact(c) {
     setQualifying(c.id);
     const now = new Date().toISOString();
@@ -842,7 +855,19 @@ setSaving(false);
                         {c.notes && <div style={{ fontSize: 11, color: '#7c3aed', marginTop: 4, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 380 }}>"{c.notes}"</div>}
                       </div>
                       <span style={{ fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 8, background: sc2.bg, color: sc2.color, flexShrink: 0 }}>{c.status}</span>
-                      {c.email ? (
+                      <div style={{ display: 'flex', gap: 4, marginBottom: 4, flexWrap: 'wrap' }}>
+                <select value={c.pitch_type || ''} onChange={e => updateContactPitchType(c.id, e.target.value)}
+                  style={{ fontSize: 10, padding: '2px 4px', borderRadius: 5, border: '1px solid #e0e0e0', background: c.pitch_type ? '#eff6ff' : '#fff', color: c.pitch_type ? '#1d4ed8' : '#999', maxWidth: 110, cursor: 'pointer' }}>
+                  <option value=''>Pitch type...</option>
+                  {PITCH_TYPES.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+                <select value={c.persona || ''} onChange={e => updateContactPersona(c.id, e.target.value)}
+                  style={{ fontSize: 10, padding: '2px 4px', borderRadius: 5, border: '1px solid #e0e0e0', background: c.persona ? '#f0fdf4' : '#fff', color: c.persona ? '#166534' : '#999', maxWidth: 110, cursor: 'pointer' }}>
+                  <option value=''>Persona...</option>
+                  {PERSONA_LIST.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+              {c.email ? (
                         <span style={{ fontSize: 12, color: '#374151', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }} title={c.email}>✉️ {c.email}</span>
                       ) : (
                         <button onClick={() => window.open(`https://app.apollo.io/#/people?name=${encodeURIComponent((c.first_name + ' ' + (c.last_name || '')).trim())}&organization_name=${encodeURIComponent(data.name)}`, '_blank')}
