@@ -11,6 +11,7 @@ const navByRole = {
     { to: '/followups', icon: '🕐', label: 'Follow-ups' },
     { to: '/pipeline', icon: '📊', label: 'Pipeline' },
     { to: '/sequences', icon: '🔁', label: 'Sequences' },
+    { to: '/apollo-import', icon: '🚀', label: 'Apollo Import' },
     { to: '/settings', icon: '⚙️', label: 'Settings' },
   ],
   poc: [
@@ -21,6 +22,7 @@ const navByRole = {
     { to: '/followups', icon: '🕐', label: 'Follow-ups' },
     { to: '/activity', icon: '📡', label: 'Activity feed' },
     { to: '/reports', icon: '📈', label: 'Reports' },
+    { to: '/apollo-import', icon: '🚀', label: 'Apollo Import' },
     { to: '/settings', icon: '⚙️', label: 'Settings' },
   ],
   manager: [
@@ -30,6 +32,7 @@ const navByRole = {
     { to: '/accounts', icon: '🏢', label: 'Accounts' },
     { to: '/followups', icon: '🕐', label: 'Follow-ups' },
     { to: '/users', icon: '🧑‍💼', label: 'Team Members' },
+    { to: '/apollo-import', icon: '🚀', label: 'Apollo Import' },
     { to: '/settings', icon: '⚙️', label: 'Settings' },
   ],
   director: [
@@ -39,6 +42,7 @@ const navByRole = {
     { to: '/accounts', icon: '🏢', label: 'Accounts' },
     { to: '/followups', icon: '🕐', label: 'Follow-ups' },
     { to: '/users', icon: '🧑‍💼', label: 'Team Members' },
+    { to: '/apollo-import', icon: '🚀', label: 'Apollo Import' },
     { to: '/settings', icon: '⚙️', label: 'Settings' },
   ],
 };
@@ -64,7 +68,6 @@ export default function Sidebar() {
 
   return (
     <div style={{ width: 200, background: '#fafaf8', borderRight: '0.5px solid #e8e8e4', display: 'flex', flexDirection: 'column', height: '100vh', flexShrink: 0 }}>
-      {/* Logo */}
       <div style={{ padding: '16px 16px 14px', borderBottom: '0.5px solid #e8e8e4' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 30, height: 30, background: '#e8f0fe', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -76,8 +79,6 @@ export default function Sidebar() {
           </div>
         </div>
       </div>
-
-      {/* Role badge */}
       <div style={{ padding: '10px 16px', borderBottom: '0.5px solid #e8e8e4' }}>
         <div style={{ fontSize: 11, color: '#999', marginBottom: 4 }}>Signed in as</div>
         <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{displayName}</div>
@@ -85,8 +86,6 @@ export default function Sidebar() {
           {roleLabels[role]}
         </span>
       </div>
-
-      {/* Nav */}
       <nav style={{ flex: 1, padding: '10px 8px', overflowY: 'auto' }}>
         <div style={{ fontSize: 10, color: '#bbb', padding: '6px 8px 4px', letterSpacing: '0.5px' }}>MENU</div>
         {nav.map(item => (
@@ -96,13 +95,8 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
-
-      {/* Sign out */}
       <div style={{ padding: '12px 8px', borderTop: '0.5px solid #e8e8e4' }}>
-        <button
-          onClick={signOut}
-          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, border: 'none', background: 'transparent', color: '#888', fontSize: 13, cursor: 'pointer' }}
-        >
+        <button onClick={signOut} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, border: 'none', background: 'transparent', color: '#888', fontSize: 13, cursor: 'pointer' }}>
           <span>↩</span> Sign out
         </button>
       </div>
