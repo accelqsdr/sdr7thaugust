@@ -42,6 +42,16 @@ const STAGE_COLORS = {
   unsubscribed: { bg: '#f3f4f6', color: '#6b7280' },
 };
 const AVATAR_PALETTE = ['#2563eb','#7c3aed','#059669','#d97706','#dc2626','#0891b2','#9333ea','#16a34a','#c2410c','#0f766e'];
+const SIGNAL_TYPE_COLORS = {
+  'Layoffs':           { bg: '#fee2e2', color: '#dc2626' },
+  'C-suite Addition':  { bg: '#d1fae5', color: '#059669' },
+  'C-suite Departure': { bg: '#fef3c7', color: '#d97706' },
+  'Product Launch':    { bg: '#dbeafe', color: '#1d4ed8' },
+  'Funding':           { bg: '#d1fae5', color: '#059669' },
+  'Acquisition':       { bg: '#ede9fe', color: '#7c3aed' },
+  'Digital Transformation': { bg: '#e0f2fe', color: '#0891b2' },
+  'Hiring Surge':      { bg: '#ede9fe', color: '#7c3aed' },
+};
 
 function avatarColor(name) {
   let h = 0;
@@ -70,7 +80,7 @@ function calcScore(account, contacts) {
   const replied = (contacts || []).filter(c => c.response_type === 'warm' || c.response_type === 'prospect').length;
   score += Math.min(replied * 5, 15);
   const r = account.research || {};
-  score += Math.min(Object.values(r).filter(v => v && v.length > 10).length * 2, 10);
+  score += Math.min(Object.values(r).filter(v => v && typeof v === 'string' && v.length > 10).length * 2, 10);
   return Math.min(score, 100);
 }
 function getInitials(name) {
@@ -88,7 +98,6 @@ function getSignalBadges(account) {
   return badges;
 }
 
-/* ─── FILTER PILL ────────────────────────────────────────── */
 function FilterPill({ label, active, onClick }) {
   return (
     <button onClick={onClick} style={{
@@ -99,7 +108,6 @@ function FilterPill({ label, active, onClick }) {
   );
 }
 
-/* ─── MAIN COMPONENT ─────────────────────────────────────── */
 export default function Accounts() {
   const { user, profile } = useAuth();
   const canViewAll = ['director', 'manager'].includes(profile?.role);
@@ -107,10 +115,6 @@ export default function Accounts() {
   const navigate = useNavigate();
   const location = useLocation();
   const [accounts, setAccounts] = useState([]);
-  const [hqsList, setHqsList] = useState([]);
-  const [hqReassignModal, setHqReassignModal] = useState(false);
-  const [hqReassignTarget, setHqReassignTarget] = useState('');
-  const [selectedAccounts, setSelectedAccounts] = useState(new Set());
   const [contactsByAccount, setContactsByAccount] = useState({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -124,17 +128,15 @@ export default function Accounts() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     let aQ = supabase.from('accounts').select('*');
-    let cQ = supabase.from('contacts').select('id, account_id, first_name, last_name, title, status, response_type, response_state, email, notes, next_followup, linkedin_url, sender_email');
+    let cQ = supabase.from('contacts').select('id, account_id, first_name, last_name, title, status, response_type, email, notes, next_followup');
     if (!viewAll || !canViewAll) { aQ = aQ.eq('owner_id', user.id); cQ = cQ.eq('owner_id', user.id); }
-    const { data: accs } = await aQ.range(0, 4999);
-    const cts = []; {let _o=0; for(;;){const{data:_d}=await cQ.range(_o,_o+999); if(!_d?.length)break; cts.push(..._d); if(_d.length<1000)break; _o+=1000;}}
+    const [{ data: accs }, { data: cts }] = await Promise.all([aQ, cQ]);
     const byAcct = {};
     (cts || []).forEach(c => {
       if (c.account_id) { if (!byAcct[c.account_id]) byAcct[c.account_id] = []; byAcct[c.account_id].push(c); }
     });
     setContactsByAccount(byAcct);
     setAccounts(accs || []);
-    supabase.from('hqs').select('id,name').then(({data}) => setHqsList(data||[]));
     setLoading(false);
   }, [user.id, viewAll, canViewAll]);
 
@@ -142,17 +144,6 @@ export default function Accounts() {
   useEffect(() => {
     if (location.state?.selectId) { setSelectedId(location.state.selectId); window.history.replaceState({}, ''); }
   }, [location.state]);
-
-  async function reassignToHQ(hqId) {
-    if(!hqId || selectedAccounts.size===0) return;
-    await supabase.from('accounts').update({ hq_id: hqId }).in('id', [...selectedAccounts]);
-    setSelectedAccounts(new Set());
-    setHqReassignModal(false);
-    setHqReassignTarget('');
-    // Re-fetch accounts
-    const { data } = await supabase.from('accounts').select('*').order('name', { ascending: true });
-    setAccounts(data || []);
-  }
 
   async function addAccount() {
     if (!newAcct.name.trim()) return;
@@ -201,10 +192,8 @@ export default function Accounts() {
   return (
     <div style={{ display: 'flex', height: 'calc(100vh - 56px)', overflow: 'hidden', background: '#f8f9fb' }}>
 
-      {/* ── LEFT PANEL ── */}
+      {/* LEFT PANEL */}
       <div style={{ width: 300, minWidth: 260, borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', background: '#fff' }}>
-
-        {/* Header */}
         <div style={{ padding: '16px 14px 12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <div>
@@ -228,15 +217,11 @@ export default function Accounts() {
               fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', letterSpacing: '0.01em',
             }}>+ Add</button>
           </div>
-
-          {/* Search */}
           <div style={{ position: 'relative', marginBottom: 10 }}>
             <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#9ca3af', pointerEvents: 'none' }}>🔍</span>
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search accounts…"
               style={{ width: '100%', padding: '7px 10px 7px 28px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12, outline: 'none', boxSizing: 'border-box', background: '#f9fafb', color: '#111' }} />
           </div>
-
-          {/* Sort */}
           <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{
             width: '100%', fontSize: 11, padding: '5px 8px', borderRadius: 7, border: '1px solid #e5e7eb',
             background: '#f9fafb', cursor: 'pointer', color: '#555', marginBottom: 10,
@@ -245,14 +230,10 @@ export default function Accounts() {
             <option value="contacts">↕ Sort by Contacts</option>
             <option value="name">↕ Sort A–Z</option>
           </select>
-
-          {/* Filter pills */}
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
             {FILTERS.map(f => <FilterPill key={f.key} label={f.label} active={filterBy === f.key} onClick={() => setFilterBy(f.key)} />)}
           </div>
         </div>
-
-        {/* Account list */}
         <div style={{ flex: 1, overflowY: 'auto', borderTop: '1px solid #f3f4f6' }}>
           {loading ? (
             <div style={{ padding: 32, textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>Loading…</div>
@@ -275,7 +256,6 @@ export default function Accounts() {
                 transition: 'background 0.1s',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  {/* Avatar */}
                   <div style={{ width: 36, height: 36, borderRadius: 10, background: ac, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0, letterSpacing: '0.5px' }}>
                     {getInitials(a.name)}
                   </div>
@@ -287,16 +267,13 @@ export default function Accounts() {
                       {a.country ? ` · ${a.country}` : ''}
                     </div>
                   </div>
-                  {/* Score badge */}
                   <div style={{ textAlign: 'center', flexShrink: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: sc.color }}>{score}</div>
                     <div style={{ width: 28, height: 3, borderRadius: 2, background: '#f0f0f0', marginTop: 2 }}>
                       <div style={{ width: `${score}%`, height: '100%', borderRadius: 2, background: sc.bar }} />
                     </div>
                   </div>
-                  {(()=>{ const w=ctcs.filter(c=>c.response_state==='Warm'||c.response_state==='Lead').length; const p=ctcs.filter(c=>c.response_state==='Prospecting').length; return (w||p) ? <div style={{display:'flex',flexDirection:'column',gap:2,flexShrink:0}}>{w>0&&<span style={{fontSize:10,fontWeight:700,color:'#059669',background:'#d1fae5',padding:'1px 5px',borderRadius:6}}>{w}🟢</span>}{p>0&&<span style={{fontSize:10,fontWeight:700,color:'#d97706',background:'#fef3c7',padding:'1px 5px',borderRadius:6}}>{p}🟡</span>}</div> : null; })()}
                 </div>
-                {/* Signal + revenue row */}
                 {(activeSignalCount > 0 || a.revenue_millions) && (
                   <div style={{ display: 'flex', gap: 4, marginTop: 7, marginLeft: 46, flexWrap: 'wrap' }}>
                     {SIGNAL_DEFS.filter(s => signals[s.key]).slice(0, 3).map(s => (
@@ -315,7 +292,7 @@ export default function Accounts() {
         </div>
       </div>
 
-      {/* ── RIGHT PANEL ── */}
+      {/* RIGHT PANEL */}
       <div style={{ flex: 1, overflowY: 'auto', background: '#f8f9fb' }}>
         {!selected ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#9ca3af' }}>
@@ -324,11 +301,11 @@ export default function Accounts() {
             <div style={{ fontSize: 13, marginTop: 6 }}>or click + Add to create one</div>
           </div>
         ) : (
-          <AccountDetail key={selected.id} account={selected} contacts={contactsByAccount[selected.id] || []} onUpdate={fetchAll} navigate={navigate} hqsList={hqsList} />
+          <AccountDetail key={selected.id} account={selected} contacts={contactsByAccount[selected.id] || []} onUpdate={fetchAll} navigate={navigate} />
         )}
       </div>
 
-      {/* ── ADD ACCOUNT MODAL ── */}
+      {/* ADD ACCOUNT MODAL */}
       {showAddAccount && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           onClick={e => e.target === e.currentTarget && setShowAddAccount(false)}>
@@ -370,12 +347,11 @@ export default function Accounts() {
 /* ─────────────────────────────────────────────────────────── */
 /*  ACCOUNT DETAIL                                            */
 /* ─────────────────────────────────────────────────────────── */
-function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) {
+function AccountDetail({ account, contacts, onUpdate, navigate }) {
   const { user, profile } = useAuth();
   const canViewAll = ['director', 'manager'].includes(profile?.role);
-  const [viewAll, setViewAll] = useState(false);
   const [data, setData] = useState(account);
-  const [qualifying, setQualifying] = useState(null); // contact id being qualified
+  const [qualifying, setQualifying] = useState(null);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [editingLinkedIn, setEditingLinkedIn] = useState(false);
@@ -393,6 +369,12 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
   const [showAddCustom, setShowAddCustom] = useState(false);
   const [notesValue, setNotesValue] = useState(account.notes || '');
   const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
+  const [editingCompanyDetails, setEditingCompanyDetails] = useState(false);
+  const [companyDetailsDraft, setCompanyDetailsDraft] = useState({
+    founded_year: account.founded_year || '',
+    ticker: account.ticker || '',
+    parent_company: account.parent_company || '',
+  });
   const notesTimer = useRef(null);
 
   const score = calcScore(data, contacts);
@@ -406,6 +388,11 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
   const signals = data.signals || {};
   const research = data.research || {};
   const customResearch = data.custom_research || [];
+
+  const aiSignals = Array.isArray(research.ai_signals) ? research.ai_signals : [];
+  const importantToKnow = Array.isArray(research.important_to_know) ? research.important_to_know : [];
+  const industries = Array.isArray(research.industries) ? research.industries : [];
+  const productServices = Array.isArray(research.products_services) ? research.products_services : [];
 
   async function patch(updates) {
     setSaving(true);
@@ -449,14 +436,22 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
     notesTimer.current = setTimeout(() => patch({ notes: val }), 800);
   }
   async function saveLinkedIn() { await patch({ linkedin_url: linkedInDraft }); setEditingLinkedIn(false); }
+  async function saveCompanyDetails() {
+    const updates = {};
+    if (companyDetailsDraft.founded_year) updates.founded_year = parseInt(companyDetailsDraft.founded_year) || null;
+    else updates.founded_year = null;
+    updates.ticker = companyDetailsDraft.ticker || null;
+    updates.parent_company = companyDetailsDraft.parent_company || null;
+    await patch(updates);
+    setEditingCompanyDetails(false);
+  }
 
   async function startContact(c) {
     setQualifying(c.id);
-    // Keep status as Fresh — contact will appear in Follow-up Queue "New Contacts" section
     const now = new Date().toISOString();
     await supabase.from('contacts').update({
       status: 'Fresh',
-      next_followup: now,  // mark as "ready to start" so queue picks it up
+      next_followup: now,
     }).eq('id', c.id);
     await supabase.from('activity_log').insert({
       actor_id: user.id, contact_id: c.id,
@@ -465,6 +460,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
     setQualifying(null);
     onUpdate();
   }
+
   async function generateResearch(key, label) {
     setResearchGenerating(g => ({ ...g, [key]: true }));
     try {
@@ -475,11 +471,13 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
     } catch(e) { console.error(e); }
     setResearchGenerating(g => ({ ...g, [key]: false }));
   }
+
   async function generateAll() {
     for (const r of RESEARCH_DEFAULTS) {
       if (!research[r.key]) await generateResearch(r.key, r.label);
     }
   }
+
   async function runFullAIResearch() {
     setAiResearching(true);
     try {
@@ -490,7 +488,12 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
             name: data.name,
             industry: data.industry,
             country: data.country,
+            headquarters: data.headquarters,
+            website: data.website,
+            annual_revenue: data.annual_revenue,
             revenue_millions: data.revenue_millions,
+            employees: data.employees,
+            employee_count: data.employee_count,
             notes: data.notes,
             testing_tools: data.testing_tools,
             contacts: contacts.slice(0, 5).map(c => ({ full_name: (c.first_name + ' ' + (c.last_name || '')).trim(), title: c.title })),
@@ -503,23 +506,39 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
       }
       const r = result.data.full;
       const updates = {};
-      // Research text sections
       const newResearch = { ...research };
-      if (r.why)  { newResearch.whyTarget  = r.why; }
-      if (r.tech) { newResearch.techStack   = r.tech; }
-      if (r.qaHiring) { newResearch.qaHiring = r.qaHiring; }
-      if (r.news) { newResearch.recentNews  = r.news; }
-      if (r.pain) { newResearch.painPoints  = r.pain; }
+
+      // Research text sections
+      if (r.why)      newResearch.whyTarget  = r.why;
+      if (r.tech)     newResearch.techStack   = r.tech;
+      if (r.qaHiring) newResearch.qaHiring    = r.qaHiring;
+      if (r.news)     newResearch.recentNews  = r.news;
+      if (r.pain)     newResearch.painPoints  = r.pain;
+
+      // New company intel fields
+      if (r.founded_year)           updates.founded_year   = r.founded_year;
+      if (r.ticker)                 updates.ticker          = r.ticker;
+      if (r.parent_company)         updates.parent_company  = r.parent_company;
+      if (r.funding_total)          newResearch.funding_total          = r.funding_total;
+      if (r.funding_last_round)     newResearch.funding_last_round     = r.funding_last_round;
+      if (r.funding_last_round_date) newResearch.funding_last_round_date = r.funding_last_round_date;
+      if (r.is_public !== undefined) newResearch.is_public = r.is_public;
+      if (Array.isArray(r.industries) && r.industries.length > 0)          newResearch.industries        = r.industries;
+      if (Array.isArray(r.products_services) && r.products_services.length > 0) newResearch.products_services = r.products_services;
+      if (r.sic_code)               newResearch.sic_code   = r.sic_code;
+      if (r.naics_code)             newResearch.naics_code = r.naics_code;
+      if (Array.isArray(r.signals) && r.signals.length > 0)                newResearch.ai_signals        = r.signals;
+      if (Array.isArray(r.important_to_know) && r.important_to_know.length > 0) newResearch.important_to_know = r.important_to_know;
+
       updates.research = newResearch;
-      // Testing tools — merge with existing, don't overwrite manually added ones
+
+      // Testing tools — merge
       if (Array.isArray(r.tools) && r.tools.length > 0) {
         const existingNames = (data.testing_tools || []).map(t => t.tool.toLowerCase());
         const newTools = r.tools
           .filter(t => !existingNames.includes(t.toLowerCase()))
           .map(t => ({ tool: t, status: 'Legacy', addedAt: new Date().toISOString().slice(0, 10), source: 'ai' }));
-        if (newTools.length > 0) {
-          updates.testing_tools = [...(data.testing_tools || []), ...newTools];
-        }
+        if (newTools.length > 0) updates.testing_tools = [...(data.testing_tools || []), ...newTools];
       }
       // Enterprise apps — merge
       if (Array.isArray(r.enterpriseApps) && r.enterpriseApps.length > 0) {
@@ -527,9 +546,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
         const newApps = r.enterpriseApps
           .filter(a => !existingApps.includes(a.toLowerCase()))
           .map(a => ({ app: a, addedAt: new Date().toISOString().slice(0, 10), source: 'ai' }));
-        if (newApps.length > 0) {
-          updates.enterprise_apps = [...(data.enterprise_apps || []), ...newApps];
-        }
+        if (newApps.length > 0) updates.enterprise_apps = [...(data.enterprise_apps || []), ...newApps];
       }
       // SaaS apps — merge
       if (Array.isArray(r.saasApps) && r.saasApps.length > 0) {
@@ -537,11 +554,9 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
         const newSaas = r.saasApps
           .filter(a => !existingSaas.includes(a.toLowerCase()))
           .map(a => ({ app: a, addedAt: new Date().toISOString().slice(0, 10), source: 'ai' }));
-        if (newSaas.length > 0) {
-          updates.saas_apps = [...(data.saas_apps || []), ...newSaas];
-        }
+        if (newSaas.length > 0) updates.saas_apps = [...(data.saas_apps || []), ...newSaas];
       }
-      // Intent signals — merge (only set true, don't clear existing trues)
+      // Intent signals — merge (only set true)
       const sigMap = { funding: 'funding', hiringQA: 'hiringQA', launch: 'recentLaunch', leadership: 'leadershipChange', outage: 'outage', cicd: 'cicd' };
       const newSignals = { ...signals };
       let signalsChanged = false;
@@ -549,6 +564,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
         if (r[aiKey] === true && !newSignals[sigKey]) { newSignals[sigKey] = true; signalsChanged = true; }
       }
       if (signalsChanged) updates.signals = newSignals;
+
       await patch(updates);
     } catch(e) { console.error('runFullAIResearch error:', e); }
     setAiResearching(false);
@@ -556,19 +572,17 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
 
   const TABS = [
     { key: 'overview',  label: 'Overview'  },
-    { key: 'contacts',  label: `Contacts ${contacts.length > 0 ? `(${contacts.length})` : ''}` },
+    { key: 'contacts',  label: `Contacts${contacts.length > 0 ? ` (${contacts.length})` : ''}` },
     { key: 'techstack', label: 'Tech Stack' },
-    { key: 'research',  label: 'Research'  },
+    { key: 'intel',     label: '💡 Intel'   },
     { key: 'notes',     label: 'Notes'     },
-    { key: 'responses', label: 'Responses' },
   ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-      {/* ── STICKY HEADER ── */}
+      {/* STICKY HEADER */}
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '18px 24px 0', position: 'sticky', top: 0, zIndex: 10 }}>
-        {/* Top row */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 14 }}>
           <div style={{ width: 52, height: 52, borderRadius: 14, background: ac, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, flexShrink: 0, letterSpacing: '0.5px' }}>
             {getInitials(data.name)}
@@ -579,9 +593,11 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
               {data.industry && <span>🏭 {data.industry}</span>}
               {data.country && <span>📍 {data.country}</span>}
               {data.revenue_millions && <span>💰 ${Number(data.revenue_millions).toLocaleString()}M</span>}
+              {data.ticker && <span style={{ color: '#059669', fontWeight: 600 }}>📈 {data.ticker}</span>}
+              {data.founded_year && <span>📅 Est. {data.founded_year}</span>}
+              {data.parent_company && <span>🏢 Sub. of {data.parent_company}</span>}
             </div>
           </div>
-          {/* Actions */}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
             <button onClick={() => setShowScoreBreakdown(true)} title="Score breakdown" style={{
               display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 8,
@@ -622,8 +638,6 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
             {saving && <span style={{ fontSize: 11, color: '#9ca3af' }}>Saving…</span>}
           </div>
         </div>
-
-        {/* Tab bar */}
         <div style={{ display: 'flex', gap: 0 }}>
           {TABS.map(t => (
             <button key={t.key} onClick={() => setActiveTab(t.key)} style={{
@@ -636,10 +650,10 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
         </div>
       </div>
 
-      {/* ── TAB CONTENT ── */}
+      {/* TAB CONTENT */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
 
-        {/* ── OVERVIEW TAB ── */}
+        {/* OVERVIEW TAB */}
         {activeTab === 'overview' && (
           <div style={{ maxWidth: 860 }}>
             {/* Metric cards */}
@@ -658,33 +672,96 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
               ))}
             </div>
 
-            {/* HQ / Company Info */}
-            {(data.hq_id || data.employees || data.funding || data.about || data.revenue_millions) && (
-              <div style={{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:12, padding:'16px 20px', marginBottom:16 }}>
-                <div style={{ fontSize:12, fontWeight:700, color:'#374151', marginBottom:12, textTransform:'uppercase', letterSpacing:'0.05em' }}>Company Info</div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
-                  {data.revenue_millions && <div><div style={{fontSize:10,color:'#9ca3af',fontWeight:600,marginBottom:2}}>REVENUE</div><div style={{fontSize:13,color:'#111'}}>${Number(data.revenue_millions).toLocaleString()}M</div></div>}
-                  {data.employees && <div><div style={{fontSize:10,color:'#9ca3af',fontWeight:600,marginBottom:2}}>EMPLOYEES</div><div style={{fontSize:13,color:'#111'}}>{data.employees}</div></div>}
-                  {data.funding && <div><div style={{fontSize:10,color:'#9ca3af',fontWeight:600,marginBottom:2}}>FUNDING</div><div style={{fontSize:13,color:'#111'}}>{data.funding}</div></div>}
-                </div>
-                {data.about && <div style={{marginTop:10,fontSize:13,color:'#374151',lineHeight:1.5}}>{data.about}</div>}
+            {/* Company Details card */}
+            <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '16px 18px', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', flex: 1 }}>🏢 Company Details</div>
+                {!editingCompanyDetails ? (
+                  <button onClick={() => setEditingCompanyDetails(true)} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', color: '#6b7280' }}>✏️ Edit</button>
+                ) : (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={saveCompanyDetails} style={{ fontSize: 11, padding: '4px 12px', borderRadius: 7, border: 'none', background: '#2563eb', color: '#fff', cursor: 'pointer' }}>Save</button>
+                    <button onClick={() => setEditingCompanyDetails(false)} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', color: '#555' }}>Cancel</button>
+                  </div>
+                )}
               </div>
-            )}
 
-            {/* HQ Assignment */}
-            <div style={{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:12, padding:'16px 20px', marginBottom:16 }}>
-              <div style={{ fontSize:12, fontWeight:700, color:'#374151', marginBottom:12, textTransform:'uppercase', letterSpacing:'0.05em' }}>HQ Assignment</div>
-              <div style={{ display:'flex', gap:10, alignItems:'center' }}>
-                <select value={data.hq_id||''} onChange={async e=>{
-                  const newHqId = e.target.value || null;
-                  await supabase.from('accounts').update({ hq_id: newHqId }).eq('id', data.id);
-                  setData(d=>({...d, hq_id: newHqId}));
-                  onUpdate();
-                }} style={{ flex:1, padding:'8px 10px', borderRadius:8, border:'1px solid #d1d5db', fontSize:13, background:'#f9fafb' }}>
-                  <option value="">— No HQ assigned —</option>
-                  {hqsList.map(h=><option key={h.id} value={h.id}>{h.name}</option>)}
-                </select>
-              </div>
+              {editingCompanyDetails ? (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                  {[
+                    { key: 'founded_year', label: 'Year Founded', placeholder: 'e.g. 1994', type: 'number' },
+                    { key: 'ticker', label: 'Ticker / Exchange', placeholder: 'e.g. NASDAQ: TMUS' },
+                    { key: 'parent_company', label: 'Parent Company', placeholder: 'e.g. Deutsche Telekom' },
+                  ].map(f => (
+                    <div key={f.key}>
+                      <label style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 4 }}>{f.label}</label>
+                      <input
+                        type={f.type || 'text'}
+                        value={companyDetailsDraft[f.key]}
+                        onChange={e => setCompanyDetailsDraft(d => ({ ...d, [f.key]: e.target.value }))}
+                        placeholder={f.placeholder}
+                        style={{ width: '100%', padding: '7px 10px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 14 }}>
+                  {data.founded_year && (
+                    <div><div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 3 }}>Year Founded</div><div style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>{data.founded_year}</div></div>
+                  )}
+                  {data.ticker && (
+                    <div><div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 3 }}>Ticker</div><div style={{ fontSize: 14, fontWeight: 700, color: '#059669' }}>{data.ticker}</div></div>
+                  )}
+                  {data.parent_company && (
+                    <div><div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 3 }}>Subsidiary of</div><div style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>{data.parent_company}</div></div>
+                  )}
+                  {research.funding_total && (
+                    <div><div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 3 }}>Total Funding</div><div style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>{research.funding_total}</div></div>
+                  )}
+                  {research.funding_last_round && (
+                    <div>
+                      <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 3 }}>Last Round{research.funding_last_round_date ? ` · ${research.funding_last_round_date}` : ''}</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>{research.funding_last_round}</div>
+                    </div>
+                  )}
+                  {research.sic_code && (
+                    <div><div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 3 }}>SIC Code</div><div style={{ fontSize: 13, color: '#374151' }}>{research.sic_code}</div></div>
+                  )}
+                  {research.naics_code && (
+                    <div><div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 3 }}>NAICS Code</div><div style={{ fontSize: 13, color: '#374151' }}>{research.naics_code}</div></div>
+                  )}
+                  {!data.founded_year && !data.ticker && !data.parent_company && !research.funding_total && (
+                    <div style={{ fontSize: 13, color: '#9ca3af', gridColumn: '1 / -1' }}>
+                      Click ✏️ Edit to add company details, or run 🤖 AI Research to auto-fill.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Industries */}
+              {industries.length > 0 && (
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #f3f4f6' }}>
+                  <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 6 }}>Industries</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                    {industries.map((ind, i) => (
+                      <span key={i} style={{ fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 10, background: '#dbeafe', color: '#1d4ed8' }}>{ind}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Products & Services */}
+              {productServices.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 6 }}>Products & Services</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                    {productServices.slice(0, 15).map((p, i) => (
+                      <span key={i} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 8, background: '#f1f5f9', color: '#475569' }}>{p}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Stage pipeline */}
@@ -729,7 +806,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
               </div>
             </div>
 
-            {/* Quick notes preview */}
+            {/* Quick notes */}
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '16px 18px' }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 10 }}>📝 Notes</div>
               <textarea value={notesValue} onChange={e => handleNotesChange(e.target.value)}
@@ -739,7 +816,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
           </div>
         )}
 
-        {/* ── CONTACTS TAB ── */}
+        {/* CONTACTS TAB */}
         {activeTab === 'contacts' && (
           <div style={{ maxWidth: 860 }}>
             {contacts.length === 0 ? (
@@ -754,19 +831,15 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
                   const initColor = avatarColor((c.first_name + ' ' + (c.last_name || '')).trim());
                   return (
                     <div key={c.id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
-                      {/* Avatar */}
                       <div style={{ width: 40, height: 40, borderRadius: '50%', background: initColor, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
                         {getInitials((c.first_name + ' ' + (c.last_name || '')).trim())}
                       </div>
-                      {/* Info */}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>{(c.first_name + ' ' + (c.last_name || '')).trim()}</div>
                         <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{c.title || ''}</div>
                         {c.notes && <div style={{ fontSize: 11, color: '#7c3aed', marginTop: 4, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 380 }}>"{c.notes}"</div>}
                       </div>
-                      {/* Stage */}
                       <span style={{ fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 8, background: sc2.bg, color: sc2.color, flexShrink: 0 }}>{c.status}</span>
-                      {/* Email */}
                       {c.email ? (
                         <span style={{ fontSize: 12, color: '#374151', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }} title={c.email}>✉️ {c.email}</span>
                       ) : (
@@ -775,28 +848,21 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
                           🔍 Find Email
                         </button>
                       )}
-                      {/* Start button — Fresh contacts not yet queued */}
                       {c.status === 'Fresh' && !c.next_followup && (
-                        <button
-                          onClick={() => startContact(c)}
-                          disabled={qualifying === c.id}
-                          title="Add to Follow-up Queue as Fresh"
-                          style={{ fontSize: 12, padding: '6px 14px', borderRadius: 8, border: 'none',
-                            background: qualifying === c.id ? '#d1fae5' : 'linear-gradient(135deg, #2563eb, #7c3aed)',
-                            color: '#fff', cursor: qualifying === c.id ? 'wait' : 'pointer', fontWeight: 600, flexShrink: 0,
-                            boxShadow: '0 1px 4px rgba(37,99,235,0.3)' }}>
+                        <button onClick={() => startContact(c)} disabled={qualifying === c.id} style={{
+                          fontSize: 12, padding: '6px 14px', borderRadius: 8, border: 'none',
+                          background: qualifying === c.id ? '#d1fae5' : 'linear-gradient(135deg, #2563eb, #7c3aed)',
+                          color: '#fff', cursor: qualifying === c.id ? 'wait' : 'pointer', fontWeight: 600, flexShrink: 0,
+                          boxShadow: '0 1px 4px rgba(37,99,235,0.3)',
+                        }}>
                           {qualifying === c.id ? '⏳ Starting…' : '🚀 Start'}
                         </button>
                       )}
-                      {/* In Queue badge — Fresh contacts already started */}
                       {c.status === 'Fresh' && c.next_followup && (
-                        <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8,
-                          background: '#d1fae5', color: '#059669', fontWeight: 600, flexShrink: 0,
-                          border: '1px solid #6ee7b7' }}>
+                        <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, background: '#d1fae5', color: '#059669', fontWeight: 600, flexShrink: 0, border: '1px solid #6ee7b7' }}>
                           📬 In Queue
                         </span>
                       )}
-                      {/* View button */}
                       <button onClick={() => navigate(`/contacts/${c.id}`, { state: { from: 'account', accountId: data.id, accountName: data.name } })}
                         style={{ fontSize: 12, padding: '6px 14px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#2563eb', cursor: 'pointer', fontWeight: 500, flexShrink: 0 }}>
                         View →
@@ -809,14 +875,13 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
           </div>
         )}
 
-        {/* ── TECH STACK TAB ── */}
+        {/* TECH STACK TAB */}
         {activeTab === 'techstack' && (
           <div style={{ maxWidth: 860 }}>
-            {/* AI generate bar */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, padding: '12px 16px', background: 'linear-gradient(135deg, #f5f3ff, #eff6ff)', borderRadius: 12, border: '1px solid #ddd6fe' }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#5b21b6' }}>🤖 AI-Powered Tech Intelligence</div>
-                <div style={{ fontSize: 11, color: '#7c3aed', marginTop: 2 }}>Auto-detect testing tools, enterprise apps & SaaS platforms. Manual add always available below.</div>
+                <div style={{ fontSize: 11, color: '#7c3aed', marginTop: 2 }}>Auto-detect testing tools, enterprise apps & SaaS platforms.</div>
               </div>
               <button onClick={runFullAIResearch} disabled={aiResearching} style={{
                 padding: '8px 18px', background: aiResearching ? '#e5e7eb' : 'linear-gradient(135deg, #7c3aed, #2563eb)',
@@ -826,6 +891,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
                 {aiResearching ? '⏳ Generating…' : '✨ Generate with AI'}
               </button>
             </div>
+
             {/* Testing Tools */}
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 20px', marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
@@ -926,11 +992,70 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
           </div>
         )}
 
-        {/* ── RESEARCH TAB ── */}
-        {activeTab === 'research' && (
+        {/* INTEL TAB */}
+        {activeTab === 'intel' && (
           <div style={{ maxWidth: 860 }}>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-              <button onClick={generateAll} style={{ padding: '8px 20px', background: 'linear-gradient(135deg, #7c3aed, #2563eb)', color: '#fff', borderRadius: 9, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
+
+            {/* Important to Know */}
+            {importantToKnow.length > 0 && (
+              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: '18px 20px', marginBottom: 20 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#92400e', marginBottom: 16 }}>💡 Important to Know</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                           {importantToKnow.map((item, i) => (
+                    <div key={i} style={{
+                      paddingBottom: i < importantToKnow.length - 1 ? 16 : 0,
+                      marginBottom: i < importantToKnow.length - 1 ? 16 : 0,
+                      borderBottom: i < importantToKnow.length - 1 ? '1px solid #fde68a' : 'none',
+                    }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#78350f', marginBottom: 6 }}>{item.title}</div>
+                      <div style={{ fontSize: 13, color: '#92400e', lineHeight: 1.7 }}>{item.body}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Signals Feed */}
+            {aiSignals.length > 0 && (
+              <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 20px', marginBottom: 20 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 14 }}>📡 Recent Signals</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {aiSignals.map((sig, i) => {
+                    const tc = SIGNAL_TYPE_COLORS[sig.type] || { bg: '#f1f5f9', color: '#475569' };
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px', borderRadius: 10, background: '#f9fafb', border: '1px solid #f0f0ee' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 8, background: tc.bg, color: tc.color, flexShrink: 0, whiteSpace: 'nowrap', marginTop: 1 }}>{sig.type}</span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.6 }}>{sig.text}</div>
+                          {sig.date && <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>{sig.date}</div>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Placeholder if no intel yet */}
+            {importantToKnow.length === 0 && aiSignals.length === 0 && (
+              <div style={{ background: 'linear-gradient(135deg, #f5f3ff, #eff6ff)', border: '1px solid #ddd6fe', borderRadius: 12, padding: '28px 24px', marginBottom: 20, textAlign: 'center' }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>🤖</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#5b21b6', marginBottom: 6 }}>No intel yet</div>
+                <div style={{ fontSize: 13, color: '#7c3aed', marginBottom: 16 }}>Run AI Research to generate "Important to Know" pitch bullets and a recent signals feed for this account.</div>
+                <button onClick={runFullAIResearch} disabled={aiResearching} style={{
+                  padding: '10px 24px', background: aiResearching ? '#e'linear-gradient(135deg, #7c3aed, #2563eb)',
+                  color: aiResearching ? '#9ca3af' : '#fff', borderRadius: 9, fontSize: 13, fontWeight: 600,
+                  border: 'none', cursor: aiResearching ? 'wait' : 'pointer',
+                }}>
+                  {aiResearching ? '⏳ Researching…' : '🤖 Run AI Research'}
+                </button>
+              </div>
+            )}
+
+            {/* Research cards */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Research Notes</div>
+              <button onClick={generateAll} style={{ padding: '7px 18px', background: 'linear-gradient(135deg, #7c3aed, #2563eb)', color: '#fff', borderRadius: 9, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
                 ✨ Generate All Missing
               </button>
             </div>
@@ -947,7 +1072,6 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
                   onSave={val => saveCustomResearch(idx, val)}
                   onRemove={() => removeCustomSection(idx)} />
               ))}
-              {/* Add custom */}
               <div style={{ border: '2px dashed #e5e7eb', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 100, cursor: showAddCustom ? 'default' : 'pointer' }}
                 onClick={() => !showAddCustom && setShowAddCustom(true)}>
                 {showAddCustom ? (
@@ -969,32 +1093,8 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
           </div>
         )}
 
-        {/* ── NOTES TAB ── */}
-        {activeTab === 'responses' && (
-          <div>
-            <div style={{ fontSize:14, fontWeight:600, color:'#374151', marginBottom:16 }}>Response Tracker</div>
-            {contacts.length === 0 ? (
-              <div style={{color:'#9ca3af',fontSize:13}}>No contacts yet.</div>
-            ) : (
-              <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                {contacts.map(c => (
-                  <div key={c.id} style={{background:'#fff',border:'1px solid #e5e7eb',borderRadius:10,padding:'12px 16px',display:'flex',alignItems:'center',gap:12}}>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:13,fontWeight:600,color:'#111'}}>{c.full_name}</div>
-                      <div style={{fontSize:11,color:'#6b7280'}}>{c.title}</div>
-                    </div>
-                    <div style={{display:'flex',gap:6,alignItems:'center'}}>
-                      <span style={{fontSize:11,padding:'2px 8px',borderRadius:8,background:'#f3f4f6',color:'#374151'}}>{c.status||'—'}</span>
-                      {c.response_state && <span style={{fontSize:11,fontWeight:700,padding:'2px 8px',borderRadius:8,background:c.response_state==='Lead'?'#d1fae5':c.response_state==='Warm'?'#fef9c3':c.response_state==='Prospecting'?'#fef3c7':c.response_state==='Bounce'?'#fee2e2':'#f3f4f6',color:c.response_state==='Lead'?'#065f46':c.response_state==='Warm'?'#854d0e':c.response_state==='Prospecting'?'#92400e':c.response_state==='Bounce'?'#991b1b':'#374151'}}>{c.response_state}</span>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-                {activeTab === 'notes' && (
+        {/* NOTES TAB */}
+        {activeTab === 'notes' && (
           <div style={{ maxWidth: 860 }}>
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 20px' }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 12 }}>📝 Account Notes</div>
@@ -1008,7 +1108,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
         )}
       </div>
 
-      {/* ── SCORE BREAKDOWN POPUP ── */}
+      {/* SCORE BREAKDOWN POPUP */}
       {showScoreBreakdown && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           onClick={() => setShowScoreBreakdown(false)}>
@@ -1028,8 +1128,8 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
                 detail: SIGNAL_DEFS.filter(s=>signals[s.key]).map(s=>s.label).join(', ') || 'No signals active' },
               { label: '💬 Engagement', pts: Math.min(contacts.filter(c=>c.response_type==='warm'||c.response_type==='prospect').length*5,15), max: 15,
                 detail: `${contacts.filter(c=>c.response_type==='warm'||c.response_type==='prospect').length} warm/prospect contacts` },
-              { label: '🔬 Research', pts: Math.min(Object.values(data.research||{}).filter(v=>v&&v.length>10).length*2,10), max: 10,
-                detail: `${Object.values(data.research||{}).filter(v=>v&&v.length>10).length} of ${RESEARCH_DEFAULTS.length} sections filled` },
+              { label: '🔬 Research', pts: Math.min(Object.values(data.research||{}).filter(v=>v&&typeof v==='string'&&v.length>10).length*2,10), max: 10,
+                detail: `${Object.values(data.research||{}).filter(v=>v&&typeof v==='string'&&v.length>10).length} of ${RESEARCH_DEFAULTS.length} sections filled` },
             ].map(row => (
               <div key={row.label} style={{ marginBottom: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
@@ -1049,7 +1149,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate, hqsList = [] }) 
   );
 }
 
-/* ─── RESEARCH CARD ─────────────────────────────────────── */
+/* RESEARCH CARD */
 function ResearchCard({ icon, label, value, generating, onGenerate, onSave, onRemove }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
