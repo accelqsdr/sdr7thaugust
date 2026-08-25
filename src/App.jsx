@@ -20,7 +20,6 @@ import Accounts from './pages/Accounts';
 import AccountDetail from './pages/AccountDetail';
 import ProspectDiscovery from './pages/ProspectDiscovery';
 import ApolloImport from './pages/ApolloImport';
-import LinkedInImport from './pages/LinkedInImport';
 
 const Spinner = () => (
 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f5f5f3' }}>
@@ -86,7 +85,6 @@ return (
 <Route path="sequences" element={<Sequences />} />
 <Route path="reports" element={<Reports />} />
 <Route path="apollo-import" element={<ApolloImport />} />
-<Route path="linkedin-import" element={<LinkedInImport />} />
 </Route>
 <Route path="*" element={<Navigate to="/" replace />} />
 </Routes>
