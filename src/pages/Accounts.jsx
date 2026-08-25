@@ -539,7 +539,7 @@ setSaving(false);
         const existingNames = (data.testing_tools || []).map(t => t.tool.toLowerCase());
         const newTools = r.tools
           .filter(t => !existingNames.includes(t.toLowerCase()))
-          .map(t => ({ tool: t, status: 'Legacy', addedAt: new Date().toISOString().slice(0, 10), source: 'ai' }));
+          .map(t => ({ tool: t, status: MODERN_TOOLS.includes(t.toLowerCase()) ? 'Modern' : LEGACY_TOOLS.includes(t.toLowerCase()) ? 'Legacy' : 'Active', addedAt: new Date().toISOString().slice(0, 10), source: 'ai' }));
         if (newTools.length > 0) updates.testing_tools = [...(data.testing_tools || []), ...newTools];
       }
       // Enterprise apps — merge
