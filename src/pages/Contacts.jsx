@@ -26,6 +26,9 @@ const RESPONSE_STYLE = {
   prospect:      { bg: '#dcfce7', color: '#15803d', label: 'Prospect' },
 };
 
+const PITCH_TYPES = ['Autopilot (AI)','Automate Web','Automate Mobile','Automate API','ACCELQ Unified','Salesforce','ServiceNow','SAP','Workday','Oracle','MS Dynamics','Pega','nCino','Coupa','Financial Services','Healthcare','Telecom','Insurance','Retail','IT Services'];
+const PERSONA_LIST = ['Economic Buyer','Decision Maker','Champion','Technical Buyer','User / End User','Influencer','Gatekeeper','Procurement Buyer','Executive Sponsor'];
+
 function contactName(c) {
   return [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email || '—';
 }
@@ -57,7 +60,7 @@ export default function Contacts() {
     let q = supabase.from('contacts').select('*').order('created_at', { ascending: false });
     if (!viewAll || !canViewAll) q = q.eq('owner_id', user.id);
     if (filter !== 'all') q = q.eq('status', filter);
-    const data = []; {let _o=0; for(;;){const{data:_d}=await q.range(_o,_o+999); if(!_d?.length)break; data.push(..._d); if(_d.length<1000)break; _o+=1000;}}
+    const { data } = await q.limit(50);
     setContacts(data || []);
     setLoading(false);
     setSelected(new Set());
@@ -79,7 +82,19 @@ export default function Contacts() {
     fetchContacts();
   }
 
-  async function deleteContact(id) {
+  async function updatePitchType(id, pitch_type) {
+  const val = pitch_type === '' ? null : pitch_type;
+  await supabase.from('contacts').update({ pitch_type: val }).eq('id', id);
+  setContacts(prev => prev.map(c => c.id === id ? { ...c, pitch_type: val } : c));
+}
+
+async function updatePersona(id, persona) {
+  const val = persona === '' ? null : persona;
+  await supabase.from('contacts').update({ persona: val }).eq('id', id);
+  setContacts(prev => prev.map(c => c.id === id ? { ...c, persona: val } : c));
+}
+
+async function deleteContact(id) {
     await supabase.from('contacts').delete().eq('id', id).eq('owner_id', user.id);
     setDeleteConfirm(null);
     fetchContacts();
@@ -293,7 +308,7 @@ export default function Contacts() {
                   onChange={toggleSelectAll}
                   style={{ cursor: 'pointer' }} />
               </th>
-              {['Name', 'Company', 'Email', 'Title', 'Status', 'Response', 'LinkedIn', 'Actions'].map(h => (
+              {['Name', 'Company', 'Title', 'Status', 'Response', 'Pitch Type', 'Persona', 'Actions'].map(h => (
                 <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, color: '#999', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4 }}>{h}</th>
               ))}
             </tr>
@@ -327,7 +342,6 @@ export default function Contacts() {
                     {isBounced && <span style={{ marginLeft: 6, fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 10 }}>BOUNCED</span>}
                   </td>
                   <td style={{ padding: '10px 14px', color: '#444' }}>{c.company || '—'}</td>
-                  <td style={{ padding: '10px 14px', color: '#666' }}>{c.email || '—'}</td>
                   <td style={{ padding: '10px 14px', color: '#666' }}>{c.title || '—'}</td>
                   <td style={{ padding: '10px 14px' }}>
                     <span style={{ padding: '3px 9px', borderRadius: 20, fontSize: 11, background: ss.bg, color: ss.color, fontWeight: 600, whiteSpace: 'nowrap' }}>
@@ -353,12 +367,22 @@ export default function Contacts() {
                       </select>
                     )}
                   </td>
-         
 
-                  <td style={{ padding: '10px 14px', fontSize: 12 }}>
-                    {c.linkedin_url ? <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer" style={{color:'#2563eb',textDecoration:'none'}}>🔗 LinkedIn</a> : <span style={{color:'#ccc'}}>—</span>}
-                  </td>
-                  <td style={{ padding: '10px 14px' }}>
+                  <td style={{ padding: '8px 6px' }}>
+<select value={c.pitch_type || ''} onChange={e => updatePitchType(c.id, e.target.value)}
+  style={{ fontSize: 11, padding: '3px 5px', borderRadius: 6, border: '1px solid #e0e0e0', cursor: 'pointer', background: c.pitch_type ? '#eff6ff' : '#fff', color: c.pitch_type ? '#1d4ed8' : '#999', width: '100%', maxWidth: 120 }}>
+  <option value={''}>Pitch type…</option>
+  {PITCH_TYPES.map(p => <option key={p} value={p}>{p}</option>)}
+</select>
+</td>
+<td style={{ padding: '8px 6px' }}>
+<select value={c.persona || ''} onChange={e => updatePersona(c.id, e.target.value)}
+  style={{ fontSize: 11, padding: '3px 5px', borderRadius: 6, border: '1px solid #e0e0e0', cursor: 'pointer', background: c.persona ? '#f0fdf4' : '#fff', color: c.persona ? '#15803d' : '#999', width: '100%', maxWidth: 120 }}>
+  <option value={''}>Persona…</option>
+  {PERSONA_LIST.map(p => <option key={p} value={p}>{p}</option>)}
+</select>
+</td>
+<td style={{ padding: '10px 14px' }}>
                     <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
                       <select value={c.status} onChange={e => updateStatus(c.id, e.target.value)}
                         style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '1px solid #e0e0e0', cursor: 'pointer', background: '#fff' }}>
@@ -434,6 +458,8 @@ function UploadCSV({ userId, onDone }) {
             linkedin_url:obj.linkedin || obj.linkedin_url || obj.linkedin_profile || '',
             status:      'Fresh',
             notes:       obj.notes || obj.note || '',
+          pitch_type: obj.pitch_type || obj.pitchtype || '',
+          persona: obj.persona || '',
           };
         }).filter(r => r.first_name || r.last_name || r.email);
 
