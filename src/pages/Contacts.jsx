@@ -26,17 +26,12 @@ const RESPONSE_STYLE = {
   prospect:      { bg: '#dcfce7', color: '#15803d', label: 'Prospect' },
 };
 
-const PITCH_TYPES = ['Autopilot (AI)','Automate Web','Automate Mobile','Automate API','ACCELQ Unified','Salesforce','ServiceNow','SAP','Workday','Oracle','MS Dynamics','Pega','nCino','Coupa','Financial Services','Healthcare','Telecom','Insurance','Retail','IT Services'];
-const PERSONA_LIST = ['Economic Buyer','Decision Maker','Champion','Technical Buyer','User / End User','Influencer','Gatekeeper','Procurement Buyer','Executive Sponsor'];
-
 function contactName(c) {
   return [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email || '—';
 }
 
 export default function Contacts() {
-  const { user, profile } = useAuth();
-  const canViewAll = ['director', 'manager'].includes(profile?.role);
-  const [viewAll, setViewAll] = useState(false);
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,33 +41,23 @@ export default function Contacts() {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [selected, setSelected] = useState(new Set());
-  const [reassignModal, setReassignModal] = useState(null); // 'account' | 'sdr'
-  const [reassignTarget, setReassignTarget] = useState('');
-  const [accounts, setAccounts] = useState([]);
-  const [sdrs, setSdrs] = useState([]);
   const [batchStarting, setBatchStarting] = useState(false);
   const [batchMsg, setBatchMsg] = useState('');
-  const [page, setPage] = useState(0);
 
-  useEffect(() => { setPage(0); }, [filter, viewAll]);
-  useEffect(() => { fetchContacts(); }, [filter, viewAll, page]);
+  useEffect(() => { fetchContacts(); }, [filter]);
 
   async function fetchContacts() {
     setLoading(true);
-    let q = supabase.from('contacts').select('*').order('created_at', { ascending: false });
-    if (!viewAll || !canViewAll) q = q.eq('owner_id', user.id);
+    let q = supabase.from('contacts').select('*').eq('owner_id', user.id).order('created_at', { ascending: false });
     if (filter !== 'all') q = q.eq('status', filter);
-    const { data } = await q.range(page * 50, page * 50 + 49);
+    const { data } = await q;
     setContacts(data || []);
     setLoading(false);
     setSelected(new Set());
-    // Fetch accounts and SDRs for reassignment
-    supabase.from('accounts').select('id,name').then(({data}) => setAccounts(data||[]));
-    supabase.from('org_hierarchy').select('id,full_name,role').in('role',['sdr','poc','manager','director']).then(({data}) => setSdrs(data||[]));
   }
 
   async function updateStatus(id, status) {
-    await supabase.from('contacts').update({ status }).eq('id', id);
+    await supabase.from('contacts').update({ status, last_touchpoint_date: new Date().toISOString() }).eq('id', id);
     await supabase.from('activity_log').insert({ actor_id: user.id, contact_id: id, activity_type: 'status_changed', details: { status } });
     fetchContacts();
   }
@@ -84,19 +69,7 @@ export default function Contacts() {
     fetchContacts();
   }
 
-  async function updatePitchType(id, pitch_type) {
-  const val = pitch_type === '' ? null : pitch_type;
-  await supabase.from('contacts').update({ pitch_type: val }).eq('id', id);
-  setContacts(prev => prev.map(c => c.id === id ? { ...c, pitch_type: val } : c));
-}
-
-async function updatePersona(id, persona) {
-  const val = persona === '' ? null : persona;
-  await supabase.from('contacts').update({ persona: val }).eq('id', id);
-  setContacts(prev => prev.map(c => c.id === id ? { ...c, persona: val } : c));
-}
-
-async function deleteContact(id) {
+  async function deleteContact(id) {
     await supabase.from('contacts').delete().eq('id', id).eq('owner_id', user.id);
     setDeleteConfirm(null);
     fetchContacts();
@@ -105,20 +78,6 @@ async function deleteContact(id) {
   async function clearAllContacts() {
     await supabase.from('contacts').delete().eq('owner_id', user.id);
     setShowClearConfirm(false);
-    fetchContacts();
-  }
-
-    async function reassignContacts(type, targetId) {
-    if(!targetId || selected.size===0) return;
-    const ids = [...selected];
-    if(type==='account') {
-      await supabase.from('contacts').update({ account_id: targetId }).in('id', ids);
-    } else if(type==='sdr') {
-      await supabase.from('contacts').update({ owner_id: targetId }).in('id', ids);
-    }
-    setSelected(new Set());
-    setReassignModal(null);
-    setReassignTarget('');
     fetchContacts();
   }
 
@@ -183,19 +142,7 @@ async function deleteContact(id) {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', margin: 0 }}>
-              {viewAll && canViewAll ? 'All Contacts' : 'My Contacts'}
-            </h1>
-            {canViewAll && (
-              <button onClick={() => setViewAll(v => !v)}
-                style={{ padding: '4px 12px', borderRadius: 20, border: '1.5px solid #e0e0e0',
-                  fontSize: 12, fontWeight: 500, cursor: 'pointer', background: viewAll ? '#111' : '#fff',
-                  color: viewAll ? '#fff' : '#555', transition: 'all 0.15s' }}>
-                {viewAll ? '👥 Team view' : 'View all'}
-              </button>
-            )}
-          </div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', margin: 0 }}>My Contacts</h1>
           <p style={{ fontSize: 13, color: '#888', margin: '4px 0 0' }}>
             {activeCount} active · {freshCount} fresh · {bouncedCount} bounced
           </p>
@@ -212,18 +159,6 @@ async function deleteContact(id) {
               {batchStarting ? 'Starting…' : `▶ Start ${freshSelected.length} Fresh`}
             </button>
           )}
-                    <button
-            onClick={() => setReassignModal('account')}
-            disabled={selected.size === 0}
-            style={{ padding: '6px 12px', background: '#eff6ff', color: '#2563eb', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid #bfdbfe' }}>
-            ⇄ Reassign Account
-          </button>
-          <button
-            onClick={() => setReassignModal('sdr')}
-            disabled={selected.size === 0}
-            style={{ padding: '6px 12px', background: '#f0fdf4', color: '#15803d', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid #bbf7d0' }}>
-            ⇄ Reassign SDR
-          </button>
           <button
             onClick={() => setShowClearConfirm(true)}
             style={{ padding: '8px 14px', background: '#fff', color: '#dc2626', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid #fecaca' }}>
@@ -232,31 +167,6 @@ async function deleteContact(id) {
           <UploadCSV userId={user.id} onDone={fetchContacts} />
         </div>
       </div>
-
-            {/* Reassign Modal */}
-      {reassignModal && (
-        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center' }}>
-          <div style={{ background:'#fff',borderRadius:14,padding:28,width:360,boxShadow:'0 8px 32px rgba(0,0,0,0.18)' }}>
-            <div style={{ fontSize:16,fontWeight:700,marginBottom:16,color:'#111' }}>
-              {reassignModal==='account' ? 'Reassign Account' : 'Reassign SDR'}
-              <span style={{ fontSize:12,fontWeight:400,color:'#6b7280',marginLeft:8 }}>({selected.size} contact{selected.size!==1?'s':''})</span>
-            </div>
-            <select value={reassignTarget} onChange={e=>setReassignTarget(e.target.value)}
-              style={{ width:'100%',padding:'8px 10px',borderRadius:8,border:'1px solid #d1d5db',fontSize:13,marginBottom:16 }}>
-              <option value="">— Select {reassignModal==='account'?'Account':'SDR'} —</option>
-              {reassignModal==='account'
-                ? accounts.map(a=><option key={a.id} value={a.id}>{a.name}</option>)
-                : sdrs.map(s=><option key={s.id} value={s.id}>{s.full_name} ({s.role})</option>)
-              }
-            </select>
-            <div style={{ display:'flex',gap:10,justifyContent:'flex-end' }}>
-              <button onClick={()=>{setReassignModal(null);setReassignTarget('');}} style={{ padding:'6px 14px',borderRadius:8,border:'1px solid #d1d5db',background:'#fff',fontSize:13,cursor:'pointer' }}>Cancel</button>
-              <button onClick={()=>reassignContacts(reassignModal,reassignTarget)} disabled={!reassignTarget}
-                style={{ padding:'6px 14px',borderRadius:8,border:'none',background:'#2563eb',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',opacity:reassignTarget?1:0.5 }}>Apply</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Confirmations */}
       {showClearConfirm && (
@@ -282,7 +192,7 @@ async function deleteContact(id) {
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
         <input
           value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Search name, email, company…"
+          placeholder="Search name, email, company…2
           style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13, width: 240, outline: 'none' }}
         />
         <div style={{ display: 'flex', gap: 2, background: '#f0f0ee', padding: 4, borderRadius: 8, flexWrap: 'wrap' }}>
@@ -310,7 +220,7 @@ async function deleteContact(id) {
                   onChange={toggleSelectAll}
                   style={{ cursor: 'pointer' }} />
               </th>
-              {['Name', 'Company', 'Title', 'Status', 'Response', 'Pitch Type', 'Persona', 'Actions'].map(h => (
+              {['Name', 'Company', 'Email', 'Title', 'Status', 'Response', 'Next Follow-up', 'Actions'].map(h => (
                 <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, color: '#999', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4 }}>{h}</th>
               ))}
             </tr>
@@ -334,8 +244,7 @@ async function deleteContact(id) {
                   onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent'; }}>
                   <td style={{ padding: '10px 14px' }}>
                     <input type="checkbox" checked={isSel} onChange={() => toggleSelect(c.id)} style={{ cursor: 'pointer' }} />
-                  
-                    {c.response_state && <span style={{display:'block',marginTop:3,fontSize:10,fontWeight:700,padding:'1px 6px',borderRadius:6,background:c.response_state==='Lead'?'#d1fae5':c.response_state==='Warm'?'#fef9c3':c.response_state==='Prospecting'?'#fef3c7':c.response_state==='Bounce'?'#fee2e2':'#f3f4f6',color:c.response_state==='Lead'?'#065f46':c.response_state==='Warm'?'#854d0e':c.response_state==='Prospecting'?'#92400e':c.response_state==='Bounce'?'#991b1b':'#374151'}}>{c.response_state}</span>}</td>
+                  </td>
                   <td style={{ padding: '10px 14px' }}>
                     <button onClick={() => navigate(`/contacts/${c.id}`)}
                       style={{ fontWeight: 600, color: '#1d4ed8', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, padding: 0, textAlign: 'left' }}>
@@ -344,6 +253,7 @@ async function deleteContact(id) {
                     {isBounced && <span style={{ marginLeft: 6, fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 10 }}>BOUNCED</span>}
                   </td>
                   <td style={{ padding: '10px 14px', color: '#444' }}>{c.company || '—'}</td>
+                  <td style={{ padding: '10px 14px', color: '#666' }}>{c.email || '—'}</td>
                   <td style={{ padding: '10px 14px', color: '#666' }}>{c.title || '—'}</td>
                   <td style={{ padding: '10px 14px' }}>
                     <span style={{ padding: '3px 9px', borderRadius: 20, fontSize: 11, background: ss.bg, color: ss.color, fontWeight: 600, whiteSpace: 'nowrap' }}>
@@ -369,22 +279,10 @@ async function deleteContact(id) {
                       </select>
                     )}
                   </td>
-
-                  <td style={{ padding: '8px 6px' }}>
-<select value={c.pitch_type || ''} onChange={e => updatePitchType(c.id, e.target.value)}
-  style={{ fontSize: 11, padding: '3px 5px', borderRadius: 6, border: '1px solid #e0e0e0', cursor: 'pointer', background: c.pitch_type ? '#eff6ff' : '#fff', color: c.pitch_type ? '#1d4ed8' : '#999', width: '100%', maxWidth: 120 }}>
-  <option value={''}>Pitch type…</option>
-  {PITCH_TYPES.map(p => <option key={p} value={p}>{p}</option>)}
-</select>
-</td>
-<td style={{ padding: '8px 6px' }}>
-<select value={c.persona || ''} onChange={e => updatePersona(c.id, e.target.value)}
-  style={{ fontSize: 11, padding: '3px 5px', borderRadius: 6, border: '1px solid #e0e0e0', cursor: 'pointer', background: c.persona ? '#f0fdf4' : '#fff', color: c.persona ? '#15803d' : '#999', width: '100%', maxWidth: 120 }}>
-  <option value={''}>Persona…</option>
-  {PERSONA_LIST.map(p => <option key={p} value={p}>{p}</option>)}
-</select>
-</td>
-<td style={{ padding: '10px 14px' }}>
+                  <td style={{ padding: '10px 14px', color: '#888', fontSize: 12 }}>
+                    {c.next_followup ? new Date(c.next_followup).toLocaleDateString() : '—'}
+                  </td>
+                  <td style={{ padding: '10px 14px' }}>
                     <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
                       <select value={c.status} onChange={e => updateStatus(c.id, e.target.value)}
                         style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '1px solid #e0e0e0', cursor: 'pointer', background: '#fff' }}>
@@ -402,19 +300,6 @@ async function deleteContact(id) {
             })}
           </tbody>
         </table>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', marginTop: 4, borderTop: '1px solid #f3f3f3' }}>
-          <span style={{ fontSize: 12, color: '#888' }}>Page {page + 1} &mdash; showing {contacts.length} of {contacts.length < 50 ? (page * 50 + contacts.length) : 'many'} contacts</span>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-              style={{ padding: '4px 14px', borderRadius: 6, border: '1px solid #e0e0e0', background: page === 0 ? '#f5f5f5' : '#fff', color: page === 0 ? '#bbb' : '#333', cursor: page === 0 ? 'default' : 'pointer', fontSize: 13 }}>
-              {String.fromCharCode(8592)} Prev
-            </button>
-            <button onClick={() => setPage(p => p + 1)} disabled={contacts.length < 50}
-              style={{ padding: '4px 14px', borderRadius: 6, border: '1px solid #e0e0e0', background: contacts.length < 50 ? '#f5f5f5' : '#fff', color: contacts.length < 50 ? '#bbb' : '#333', cursor: contacts.length < 50 ? 'default' : 'pointer', fontSize: 13 }}>
-              Next {String.fromCharCode(8594)}
-            </button>
-          </div>
-        </div>
       </div>
 
       {filtered.length > 0 && (
@@ -473,29 +358,12 @@ function UploadCSV({ userId, onDone }) {
             linkedin_url:obj.linkedin || obj.linkedin_url || obj.linkedin_profile || '',
             status:      'Fresh',
             notes:       obj.notes || obj.note || '',
-          pitch_type: obj.pitch_type || obj.pitchtype || '',
-          persona: obj.persona || '',
           };
         }).filter(r => r.first_name || r.last_name || r.email);
 
         if (rows.length === 0) { setMsg('No valid rows found'); setUploading(false); return; }
 
-        
-        // Auto-create/link accounts for each unique company
-        const uniqueCompanies = [...new Set(rows.map(r => r.company).filter(Boolean))];
-        const companyToAccountId = {};
-        for (const companyName of uniqueCompanies) {
-          const { data: existingAcct } = await supabase.from('accounts').select('id').eq('owner_id', userId).ilike('name', companyName).maybeSingle();
-          if (existingAcct) {
-            companyToAccountId[companyName] = existingAcct.id;
-          } else {
-            const { data: newAcct } = await supabase.from('accounts').insert({ name: companyName, owner_id: userId }).select('id').single();
-            if (newAcct) companyToAccountId[companyName] = newAcct.id;
-          }
-        }
-        rows.forEach(r => { if (r.company && companyToAccountId[r.company]) r.account_id = companyToAccountId[r.company]; });
-
-const BATCH = 50;
+        const BATCH = 50;
         let total = 0;
         for (let i = 0; i < rows.length; i += BATCH) {
           const { error } = await supabase.from('contacts').insert(rows.slice(i, i + BATCH));
