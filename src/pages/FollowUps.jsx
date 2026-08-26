@@ -252,6 +252,13 @@ export default function FollowUps() {
     try {
       const { data: notesData } = await supabase.from('contact_notes').select('note').eq('contact_id', contact.id).order('created_at', { ascending: false }).limit(5);
       const contactNotes = (notesData || []).map(n => n.note).filter(Boolean).join('\n');
+      const { data: engagementData } = await supabase.from('contacts').select('title, response').eq('account_id', contact.account_id).neq('id', contact.id).not('response', 'is', null).neq('response', '').limit(1);
+      const accountEngagement = engagementData && engagementData.length > 0
+        ? { hasOtherContactResponded: true, respondedContactTitle: engagementData[0].title || '' }
+        : { hasOtherContactResponded: false };
+      const now = new Date();
+      const currentMonth = now.getMonth() + 1;
+      const currentQuarter = Math.ceil(currentMonth / 3);
       const res = await supabase.functions.invoke('generate-email', {
         body: {
           contact: {
@@ -260,6 +267,9 @@ export default function FollowUps() {
             response: contact.response_type, pitch: contact.pitch,
                 persona: contact.persona,
                 contactNotes: contactNotes || null,
+                accountEngagement,
+                currentMonth,
+                currentQuarter,
             industry: account.industry,
           },
           stage: emailStage,
