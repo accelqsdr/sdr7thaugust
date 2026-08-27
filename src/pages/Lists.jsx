@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
@@ -28,6 +28,31 @@ const STAGE_META = {
   F5:    { bg: '#f1f5f9', color: '#475569' },
 };
 
+// Simple CSV parser (handles quoted fields)
+function parseCSV(text) {
+  const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim());
+  if (lines.length < 2) return { headers: [], rows: [] };
+  function splitLine(line) {
+    const cols = [];
+    let inQ = false, cur = '';
+    for (const ch of line) {
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+      else { cur += ch; }
+    }
+    cols.push(cur.trim());
+    return cols;
+  }
+  const headers = splitLine(lines[0]).map(h => h.replace(/^"|"$/g, ''));
+  const rows = lines.slice(1).map(line => {
+    const cols = splitLine(line);
+    const row = {};
+    headers.forEach((h, i) => { row[h] = (cols[i] || '').replace(/^"|"$/g, ''); });
+    return row;
+  });
+  return { headers, rows };
+}
+
 export default function Lists() {
   const { user, profile } = useAuth();
   const canViewAll = ['director', 'manager'].includes(profile?.role);
@@ -46,6 +71,32 @@ export default function Lists() {
   const [renaming, setRenaming] = useState(null);
   const [renameVal, setRenameVal] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  // Apollo import state
+  const [apolloTarget, setApolloTarget] = useState(null);
+  const [apolloLists, setApolloLists] = useState([]);
+  const [apolloLoading, setApolloLoading] = useState(false);
+  const [apolloSelected, setApolloSelected] = useState('');
+  const [apolloImporting, setApolloImporting] = useState(false);
+  const [apolloResult, setApolloResult] = useState(null);
+  const [apolloError, setApolloError] = useState('');
+
+  // Add from platform state
+  const [platformTarget, setPlatformTarget] = useState(null);
+  const [platformAll, setPlatformAll] = useState([]);
+  const [platformLoading, setPlatformLoading] = useState(false);
+  const [platformSearch, setPlatformSearch] = useState('');
+  const [platformSelected, setPlatformSelected] = useState(new Set());
+  const [platformAdding, setPlatformAdding] = useState(false);
+
+  // CSV upload state
+  const [csvTarget, setCsvTarget] = useState(null);
+  const [csvHeaders, setCsvHeaders] = useState([]);
+  const [csvParsed, setCsvParsed] = useState([]);
+  const [csvMapping, setCsvMapping] = useState({});
+  const [csvImporting, setCsvImporting] = useState(false);
+  const [csvResult, setCsvResult] = useState(null);
+  const csvInputRef = useRef(null);
 
   useEffect(() => { fetchLists(); }, [viewAll]);
 
@@ -114,6 +165,203 @@ export default function Lists() {
       .eq('id', cl.id);
     fetchListContacts(listId);
   }
+
+  // ── Apollo import ─────────────────────────────────────────────────────────
+
+  async function openApolloModal(list) {
+    setApolloTarget(list);
+    setApolloLists([]);
+    setApolloSelected('');
+    setApolloResult(null);
+    setApolloError('');
+    setApolloLoading(true);
+    const { data, error } = await supabase.functions.invoke('apollo-proxy', {
+      body: { action: 'list_lists' },
+    });
+    setApolloLoading(false);
+    if (error || data?.error) {
+      setApolloError(error?.message || data?.error || 'Failed to load Apollo lists');
+      return;
+    }
+    setApolloLists(data?.labels || []);
+  }
+
+  async function importFromApollo() {
+    if (!apolloSelected || !apolloTarget) return;
+    setApolloImporting(true);
+    setApolloError('');
+
+    const allContacts = [];
+    let page = 1;
+    let totalPages = 1;
+    do {
+      const { data, error } = await supabase.functions.invoke('apollo-proxy', {
+        body: { action: 'list_contacts', list_id: apolloSelected, page, per_page: 25 },
+      });
+      if (error || data?.error) { setApolloError(error?.message || data?.error || 'Import failed'); setApolloImporting(false); return; }
+      allContacts.push(...(data?.contacts || []));
+      totalPages = data?.pagination?.total_pages || 1;
+      page++;
+    } while (page <= totalPages && page <= 20);
+
+    const withEmail = allContacts.filter(c => c.email);
+
+    if (withEmail.length > 0) {
+      await supabase.from('contacts').upsert(
+        withEmail.map(c => ({
+          first_name: c.first_name || '',
+          last_name: c.last_name || '',
+          email: c.email,
+          company: c.organization_name || c.account?.name || '',
+          title: c.title || '',
+          linkedin_url: c.linkedin_url || null,
+          status: 'Fresh',
+        })),
+        { onConflict: 'email', ignoreDuplicates: false }
+      );
+
+      const emails = withEmail.map(c => c.email);
+      const { data: found } = await supabase.from('contacts').select('id').in('email', emails);
+
+      if (found?.length) {
+        await supabase.from('contact_lists').upsert(
+          found.map(c => ({ contact_id: c.id, list_id: apolloTarget.id, added_date: new Date().toISOString() })),
+          { onConflict: 'contact_id,list_id' }
+        );
+      }
+
+      setApolloResult({ imported: withEmail.length, added: found?.length || 0, total: allContacts.length });
+    } else {
+      setApolloResult({ imported: 0, added: 0, total: allContacts.length });
+    }
+
+    setApolloImporting(false);
+    fetchListContacts(apolloTarget.id);
+  }
+
+  function closeApollo() {
+    if (apolloResult) fetchListContacts(apolloTarget?.id);
+    setApolloTarget(null);
+    setApolloResult(null);
+    setApolloError('');
+    setApolloSelected('');
+  }
+
+  // ── Add from platform ─────────────────────────────────────────────────────
+
+  async function openPlatformModal(list) {
+    setPlatformTarget(list);
+    setPlatformSelected(new Set());
+    setPlatformSearch('');
+    setPlatformLoading(true);
+    const { data } = await supabase
+      .from('contacts')
+      .select('id, first_name, last_name, email, company, title, status')
+      .order('first_name')
+      .limit(500);
+    setPlatformAll(data || []);
+    setPlatformLoading(false);
+  }
+
+  function togglePlatformSelect(id) {
+    setPlatformSelected(prev => {
+      const s = new Set(prev);
+      if (s.has(id)) s.delete(id); else s.add(id);
+      return s;
+    });
+  }
+
+  async function addFromPlatform() {
+    if (!platformSelected.size || !platformTarget) return;
+    setPlatformAdding(true);
+    await supabase.from('contact_lists').upsert(
+      [...platformSelected].map(id => ({ contact_id: id, list_id: platformTarget.id, added_date: new Date().toISOString() })),
+      { onConflict: 'contact_id,list_id' }
+    );
+    setPlatformAdding(false);
+    fetchListContacts(platformTarget.id);
+    setPlatformTarget(null);
+  }
+
+  const platformFiltered = platformAll.filter(c => {
+    if (!platformSearch.trim()) return true;
+    const q = platformSearch.toLowerCase();
+    return (
+      (c.first_name || '').toLowerCase().includes(q) ||
+      (c.last_name || '').toLowerCase().includes(q) ||
+      (c.email || '').toLowerCase().includes(q) ||
+      (c.company || '').toLowerCase().includes(q)
+    );
+  });
+
+  // ── CSV upload ────────────────────────────────────────────────────────────
+
+  function openCsvModal(list) {
+    setCsvTarget(list);
+    setCsvHeaders([]);
+    setCsvParsed([]);
+    setCsvMapping({});
+    setCsvResult(null);
+  }
+
+  function handleCsvFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const { headers, rows } = parseCSV(e.target.result);
+      setCsvHeaders(headers);
+      setCsvParsed(rows);
+      const findCol = (...names) => headers.find(h => names.some(n => h.toLowerCase().replace(/[\s_-]/g, '').includes(n.toLowerCase().replace(/[\s_-]/g, '')))) || '';
+      setCsvMapping({
+        first_name: findCol('firstname', 'first name', 'first_name'),
+        last_name: findCol('lastname', 'last name', 'last_name'),
+        email: findCol('email', 'e-mail'),
+        company: findCol('company', 'organization', 'account', 'employer'),
+        title: findCol('title', 'jobtitle', 'position', 'role'),
+      });
+    };
+    reader.readAsText(file);
+  }
+
+  async function importFromCsv() {
+    if (!csvParsed.length || !csvTarget) return;
+    setCsvImporting(true);
+
+    const contacts = csvParsed.map(row => ({
+      first_name: (csvMapping.first_name ? row[csvMapping.first_name] : '') || '',
+      last_name: (csvMapping.last_name ? row[csvMapping.last_name] : '') || '',
+      email: (csvMapping.email ? row[csvMapping.email] : '') || '',
+      company: (csvMapping.company ? row[csvMapping.company] : '') || '',
+      title: (csvMapping.title ? row[csvMapping.title] : '') || '',
+      status: 'Fresh',
+    })).filter(c => c.email);
+
+    let added = 0;
+    if (contacts.length > 0) {
+      await supabase.from('contacts').upsert(contacts, { onConflict: 'email', ignoreDuplicates: false });
+      const emails = contacts.map(c => c.email);
+      const { data: found } = await supabase.from('contacts').select('id').in('email', emails);
+      if (found?.length) {
+        await supabase.from('contact_lists').upsert(
+          found.map(c => ({ contact_id: c.id, list_id: csvTarget.id, added_date: new Date().toISOString() })),
+          { onConflict: 'contact_id,list_id' }
+        );
+        added = found.length;
+      }
+    }
+
+    setCsvResult({ total: csvParsed.length, withEmail: contacts.length, added });
+    setCsvImporting(false);
+    fetchListContacts(csvTarget.id);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const btnStyle = (color = '#2563eb') => ({
+    padding: '6px 12px', borderRadius: 7, border: `1px solid ${color}20`,
+    background: color + '12', color, fontSize: 12, fontWeight: 600,
+    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+  });
 
   return (
     <div style={{ padding: '24px 28px', maxWidth: 1100, margin: '0 auto' }}>
@@ -200,6 +448,207 @@ export default function Lists() {
         </div>
       )}
 
+      {/* Apollo Import Modal */}
+      {apolloTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: 14, padding: 28, width: 480, boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 4 }}>🚀 Import from Apollo</div>
+            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 20 }}>Adding to: <strong>{apolloTarget.name}</strong></div>
+
+            {apolloResult ? (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <div style={{ fontSize: 36, marginBottom: 10 }}>✅</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#111', marginBottom: 6 }}>Import complete</div>
+                <div style={{ fontSize: 13, color: '#6b7280' }}>
+                  {apolloResult.total} contacts in list · {apolloResult.imported} had emails · {apolloResult.added} added to "{apolloTarget.name}"
+                </div>
+                <button onClick={closeApollo}
+                  style={{ marginTop: 20, padding: '9px 24px', borderRadius: 8, border: 'none', background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                  Done
+                </button>
+              </div>
+            ) : apolloLoading ? (
+              <div style={{ textAlign: 'center', padding: '30px 0', color: '#6b7280', fontSize: 13 }}>Loading your Apollo lists...</div>
+            ) : apolloError ? (
+              <div>
+                <div style={{ padding: '12px 16px', background: '#fef2f2', borderRadius: 8, color: '#dc2626', fontSize: 13, marginBottom: 16 }}>{apolloError}</div>
+                <button onClick={closeApollo} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', fontSize: 13, cursor: 'pointer' }}>Close</button>
+              </div>
+            ) : (
+              <>
+                {apolloLists.length === 0 ? (
+                  <div style={{ fontSize: 13, color: '#9ca3af', marginBottom: 16 }}>No saved lists found in Apollo.</div>
+                ) : (
+                  <div style={{ marginBottom: 20 }}>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 8 }}>
+                      Select an Apollo list ({apolloLists.length} available)
+                    </label>
+                    <div style={{ maxHeight: 260, overflowY: 'auto', border: '1.5px solid #e5e7eb', borderRadius: 8 }}>
+                      {apolloLists.map(l => (
+                        <div key={l.id} onClick={() => setApolloSelected(l.id)}
+                          style={{ padding: '10px 14px', borderBottom: '1px solid #f3f4f6', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
+                            background: apolloSelected === l.id ? '#eff6ff' : '#fff' }}>
+                          <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${apolloSelected === l.id ? '#2563eb' : '#d1d5db'}`,
+                            background: apolloSelected === l.id ? '#2563eb' : '#fff', flexShrink: 0 }} />
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>{l.name}</div>
+                            {l.contacts_count !== undefined && (
+                              <div style={{ fontSize: 11, color: '#9ca3af' }}>{l.contacts_count} contacts</div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                  <button onClick={closeApollo} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+                  <button onClick={importFromApollo} disabled={!apolloSelected || apolloImporting}
+                    style={{ padding: '8px 20px', borderRadius: 8, border: 'none',
+                      background: apolloSelected ? '#2563eb' : '#9ca3af',
+                      color: '#fff', fontSize: 13, fontWeight: 600, cursor: apolloSelected ? 'pointer' : 'not-allowed' }}>
+                    {apolloImporting ? 'Importing...' : 'Import contacts'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Add from Platform Modal */}
+      {platformTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: 14, padding: 28, width: 520, maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 4 }}>👥 Add from Platform</div>
+            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 14 }}>Adding to: <strong>{platformTarget.name}</strong></div>
+
+            <input value={platformSearch} onChange={e => setPlatformSearch(e.target.value)}
+              placeholder="Search by name, email, or company…"
+              style={{ padding: '8px 12px', borderRadius: 8, border: '1.5px solid #d1d5db', fontSize: 13, outline: 'none', marginBottom: 10 }} />
+
+            {platformLoading ? (
+              <div style={{ textAlign: 'center', padding: '30px 0', color: '#9ca3af', fontSize: 13 }}>Loading contacts...</div>
+            ) : (
+              <div style={{ flex: 1, overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: 8, marginBottom: 14 }}>
+                {platformFiltered.length === 0 ? (
+                  <div style={{ padding: '20px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>No contacts found</div>
+                ) : platformFiltered.map(c => {
+                  const name = [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email || '—';
+                  const sel = platformSelected.has(c.id);
+                  return (
+                    <div key={c.id} onClick={() => togglePlatformSelect(c.id)}
+                      style={{ padding: '9px 14px', borderBottom: '1px solid #f3f4f6', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
+                        background: sel ? '#eff6ff' : '#fff' }}>
+                      <input type="checkbox" readOnly checked={sel} style={{ width: 15, height: 15, cursor: 'pointer' }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>{name}</div>
+                        <div style={{ fontSize: 11, color: '#9ca3af' }}>{c.title || ''}{c.title && c.company ? ' · ' : ''}{c.company || ''}</div>
+                      </div>
+                      {c.status && (
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
+                          background: (STAGE_META[c.status] || STACE_META.F5).bg,
+                          color: (STAGE_META[c.status] || STAGE_META.F5).color }}>
+                          {c.status}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 12, color: '#6b7280' }}>
+                {platformSelected.size} selected
+              </span>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => setPlatformTarget(null)} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+                <button onClick={addFromPlatform} disabled={!platformSelected.size || platformAdding}
+                  style={{ padding: '8px 20px', borderRadius: 8, border: 'none',
+                    background: platformSelected.size ? '#2563eb' : '#9ca3af',
+                    color: '#fff', fontSize: 13, fontWeight: 600, cursor: platformSelected.size ? 'pointer' : 'not-allowed' }}>
+                  {platformAdding ? 'Adding...' : `Add ${platformSelected.size || ''} contacts`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CSV Upload Modal */}
+      {csvTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: 14, padding: 28, width: 500, boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 4 }}>📎 Upload CSV</div>
+            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 18 }}>Adding to: <strong>{csvTarget.name}</strong></div>
+
+            {csvResult ? (
+              <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                <div style={{ fontSize: 36, marginBottom: 10 }}>✅</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#111', marginBottom: 6 }}>Import complete</div>
+                <div style={{ fontSize: 13, color: '#6b7280' }}>
+                  {csvResult.total} rows · {csvResult.withEmail} had emails · {csvResult.added} added to list
+                </div>
+                <button onClick={() => setCsvTarget(null)}
+                  style={{ marginTop: 20, padding: '9px 24px', borderRadius: 8, border: 'none', background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                  Done
+                </button>
+              </div>
+            ) : csvParsed.length > 0 ? (
+              <>
+                <div style={{ fontSize: 13, color: '#374151', marginBottom: 14 }}>
+                  <strong>{csvParsed.length}</strong> rows detected. Map your columns:
+                </div>
+                {['first_name', 'last_name', 'email', 'company', 'title'].map(field => (
+                  <div key={field} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                    <div style={{ width: 100, fontSize: 12, fontWeight: 600, color: '#374151', textTransform: 'capitalize' }}>
+                      {field.replace('_', ' ')}{field === 'email' ? ' *' : ''}
+                    </div>
+                    <select value={csvMapping[field] || ''}
+                      onChange={e => setCsvMapping(m => ({ ...m, [field]: e.target.value }))}
+                      style={{ flex: 1, padding: '6px 10px', borderRadius: 7, border: '1.5px solid #d1d5db', fontSize: 12, outline: 'none' }}>
+                      <option value="">— skip —</option>
+                      {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                  </div>
+                ))}
+                <div style={{ marginTop: 6, marginBottom: 16, fontSize: 11, color: '#9ca3af' }}>
+                  Preview: {csvParsed[0]?.[csvMapping.first_name] || '—'} {csvParsed[0]?.[csvMapping.last_name] || ''} · {csvParsed[0]?.[csvMapping.email] || '—'} · {csvParsed[0]?.[csvMapping.company] || '—'}
+                </div>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                  <button onClick={() => { setCsvParsed([]); setCsvHeaders([]); }} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', fontSize: 13, cursor: 'pointer' }}>Back</button>
+                  <button onClick={importFromCsv} disabled={!csvMapping.email || csvImporting}
+                    style={{ padding: '8px 20px', borderRadius: 8, border: 'none',
+                      background: csvMapping.email ? '#2563eb' : '#9ca3af',
+                      color: '#fff', fontSize: 13, fontWeight: 600, cursor: csvMapping.email ? 'pointer' : 'not-allowed' }}>
+                    {csvImporting ? 'Importing...' : 'Import'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div
+                  onClick={() => csvInputRef.current?.click()}
+                  style={{ border: '2px dashed #d1d5db', borderRadius: 10, padding: '32px 20px', textAlign: 'center', cursor: 'pointer', marginBottom: 20,
+                    background: '#fafafa' }}
+                  onDragOver={e => { e.preventDefault(); }}
+                  onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleCsvFile(f); }}>
+                  <div style={{ fontSize: 28, marginBottom: 8 }}>📎</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Click or drag a CSV file here</div>
+                  <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>Expected columns: first name, last name, email, company, title</div>
+                </div>
+                <input ref={csvInputRef} type="file" accept=".csv" style={{ display: 'none' }}
+                  onChange={e => { const f = e.target.files[0]; if (f) handleCsvFile(f); }} />
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button onClick={() => setCsvTarget(null)} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Lists */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: '60px 0', color: '#aaa' }}>Loading lists...</div>
@@ -254,10 +703,10 @@ export default function Lists() {
                     {activeCampaigns > 0 && (
                       <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
                         background: '#d1fae5', color: '#065f46', border: '1px solid #6ee7b7' }}>
-                         🟢 active
+                        🟢 {activeCampaigns} active
                       </span>
                     )}
-                    <div style={{ fontSize: 11, color: '9ca3af' }}>Created {formatDate(list.created_at)}</div>
+                    <div style={{ fontSize: 11, color: '#9ca3af' }}>Created {formatDate(list.created_at)}</div>
                   </div>
 
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
@@ -277,9 +726,27 @@ export default function Lists() {
                 {/* Expanded contacts */}
                 {isExpanded && (
                   <div style={{ borderTop: '1px solid #f3f4f6' }}>
+
+                    {/* Add contacts toolbar */}
+                    <div style={{ padding: '10px 16px', display: 'flex', gap: 8, alignItems: 'center', background: '#fafafa', borderBottom: '1px solid #f3f4f6' }}>
+                      <span style={{ fontSize: 12, color: '#6b7280', marginRight: 4 }}>
+                        {contacts.length} contact{contacts.length !== 1 ? 's' : ''}
+                      </span>
+                      <div style={{ flex: 1 }} />
+                      <button onClick={e => { e.stopPropagation(); openApolloModal(list); }} style={btnStyle('#7c3aed')}>
+                        🚀 Import from Apollo
+                      </button>
+                      <button onClick={e => { e.stopPropagation(); openPlatformModal(list); }} style={btnStyle('#2563eb')}>
+                        👥 Add from platform
+                      </button>
+                      <button onClick={e => { e.stopPropagation(); openCsvModal(list); }} style={btnStyle('#059669')}>
+                        📎 Upload CSV
+                      </button>
+                    </div>
+
                     {contacts.length === 0 ? (
-                      <div style={{ padding: '24px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
-                        No contacts in this list yet. Import a CSV and assign it to this list.
+                      <div style={{ padding: '28px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
+                        No contacts yet — use the buttons above to add some.
                       </div>
                     ) : (
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
