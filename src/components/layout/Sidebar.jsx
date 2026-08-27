@@ -7,6 +7,7 @@ const navByRole = {
     { to: '/', icon: '⊞', label: 'Dashboard', end: true },
     { to: '/contacts', icon: '👥', label: 'My contacts' },
     { to: '/accounts', icon: '🏢', label: 'Accounts' },
+    { to: '/prospect-discovery', icon: '🔍', label: 'Account Discovery' },
     { to: '/followups', icon: '🕐', label: 'Follow-ups' },
     { to: '/lists', icon: '📋', label: 'Lists' },
     { to: '/pipeline', icon: '📊', label: 'Pipeline' },
