@@ -4,44 +4,44 @@ import { signOut } from '../../lib/auth';
 
 const navByRole = {
   sdr: [
-    { to: '/', icon: 'â', label: 'Dashboard', end: true },
-    { to: '/contacts', icon: 'ð¥', label: 'My contacts' },
-    { to: '/accounts', icon: 'ð¢', label: 'Accounts' },
-    { to: '/followups', icon: 'ð', label: 'Follow-ups' },
-    { to: '/lists', icon: 'ð', label: 'Lists' },
-    { to: '/pipeline', icon: 'ð', label: 'Pipeline' },
-    { to: '/sequences', icon: 'ð', label: 'Sequences' },
+    { to: '/', icon: '⊞', label: 'Dashboard', end: true },
+    { to: '/contacts', icon: '👥', label: 'My contacts' },
+    { to: '/accounts', icon: '🏢', label: 'Accounts' },
+    { to: '/followups', icon: '🕐', label: 'Follow-ups' },
+    { to: '/lists', icon: '📋', label: 'Lists' },
+    { to: '/pipeline', icon: '📊', label: 'Pipeline' },
+    { to: '/sequences', icon: '🔁', label: 'Sequences' },
   ],
   poc: [
-    { to: '/', icon: 'â', label: 'Dashboard', end: true },
-    { to: '/users-admin', icon: '👥', label: 'People' },
-    { to: '/teams', icon: 'ð¥', label: 'My team' },
-    { to: '/contacts', icon: 'ð', label: 'Contacts' },
-    { to: '/accounts', icon: 'ð¢', label: 'Accounts' },
-    { to: '/followups', icon: 'ð', label: 'Follow-ups' },
-    { to: '/lists', icon: 'ð', label: 'Lists' },
-    { to: '/activity', icon: 'ð¡', label: 'Activity feed' },
-    { to: '/reports', icon: 'ð', label: 'Reports' },
+    { to: '/', icon: '⊞', label: 'Dashboard', end: true },
+    { to: '/teams', icon: '👥', label: 'My team' },
+    { to: '/contacts', icon: '📋', label: 'Contacts' },
+    { to: '/accounts', icon: '🏢', label: 'Accounts' },
+    { to: '/followups', icon: '🕐', label: 'Follow-ups' },
+    { to: '/lists', icon: '📋', label: 'Lists' },
+    { to: '/activity', icon: '📡', label: 'Activity feed' },
+    { to: '/reports', icon: '📈', label: 'Reports' },
   ],
   manager: [
-    { to: '/', icon: 'â', label: 'Dashboard', end: true },
-    { to: '/teams', icon: 'ð¥', label: 'All teams' },
-    { to: '/accounts', icon: 'ð¢', label: 'Accounts' },
-    { to: '/lists', icon: 'ð', label: 'Lists' },
-    { to: '/pipeline', icon: 'ð', label: 'Pipeline' },
-    { to: '/analytics', icon: 'ð', label: 'Analytics' },
-    { to: '/activity', icon: 'ð¡', label: 'Activity' },
-    { to: '/reports', icon: 'ð', label: 'Reports' },
+    { to: '/', icon: '⊞', label: 'Dashboard', end: true },
+    { to: '/teams', icon: '👥', label: 'All teams' },
+    { to: '/accounts', icon: '🏢', label: 'Accounts' },
+    { to: '/lists', icon: '📋', label: 'Lists' },
+    { to: '/pipeline', icon: '📊', label: 'Pipeline' },
+    { to: '/analytics', icon: '📈', label: 'Analytics' },
+    { to: '/activity', icon: '📡', label: 'Activity' },
+    { to: '/reports', icon: '📄', label: 'Reports' },
   ],
   director: [
-    { to: '/', icon: 'â', label: 'Overview', end: true },
-    { to: '/teams', icon: 'ð¢', label: 'Org structure' },
-    { to: '/accounts', icon: 'ð¢', label: 'Accounts' },
-    { to: '/analytics', icon: 'ð', label: 'Analytics' },
-    { to: '/lists', icon: 'ð', label: 'Lists' },
-    { to: '/pipeline', icon: 'ð', label: 'Pipeline' },
-    { to: '/leaderboard', icon: 'ð', label: 'Leaderboard' },
-    { to: '/settings', icon: 'âï¸', label: 'Settings' },
+    { to: '/', icon: '⊞', label: 'Overview', end: true },
+    { to: '/users-admin', icon: '👤', label: 'People' },
+    { to: '/teams', icon: '🏢', label: 'Org structure' },
+    { to: '/accounts', icon: '🏢', label: 'Accounts' },
+    { to: '/analytics', icon: '📈', label: 'Analytics' },
+    { to: '/lists', icon: '📋', label: 'Lists' },
+    { to: '/pipeline', icon: '📊', label: 'Pipeline' },
+    { to: '/leaderboard', icon: '🏆', label: 'Leaderboard' },
+    { to: '/settings', icon: '⚙️', label: 'Settings' },
   ],
 };
 
@@ -81,7 +81,7 @@ export default function Sidebar() {
       {/* Role badge */}
       <div style={{ padding: '10px 16px', borderBottom: '0.5px solid #e8e8e4' }}>
         <div style={{ fontSize: 11, color: '#999', marginBottom: 4 }}>Signed in as</div>
-        <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{profile?.full_name || 'â'}</div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{profile?.full_name || '—'}</div>
         <span style={{ display: 'inline-block', marginTop: 4, fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: color + '20', color }}>
           {roleLabels[role]}
         </span>
@@ -104,7 +104,7 @@ export default function Sidebar() {
           onClick={signOut}
           style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, border: 'none', background: 'transparent', color: '#888', fontSize: 13, cursor: 'pointer' }}
         >
-          <span>â©</span> Sign out
+          <span>↩</span> Sign out
         </button>
       </div>
     </div>
