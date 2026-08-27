@@ -459,6 +459,7 @@ setSaving(false);
   async function updateContactPersona(cId, ps) {
     const val = ps === '' ? null : ps;
     await supabase.from('contacts').update({ persona: val }).eq('id', cId);
+    setContacts(prev => prev.map(c => c.id === cId ? {...c, persona: val} : c));
     onUpdate();
   }
   async function startContact(c) {
