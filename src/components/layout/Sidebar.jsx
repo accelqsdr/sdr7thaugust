@@ -35,6 +35,7 @@ const navByRole = {
   director: [
     { to: '/', icon: '⊞', label: 'Overview', end: true },
     { to: '/users-admin', icon: '👤', label: 'People' },
+    { to: '/prospect-discovery', icon: '🔍', label: 'Account Discovery' },
     { to: '/teams', icon: '🏢', label: 'Org structure' },
     { to: '/accounts', icon: '🏢', label: 'Accounts' },
     { to: '/analytics', icon: '📈', label: 'Analytics' },
