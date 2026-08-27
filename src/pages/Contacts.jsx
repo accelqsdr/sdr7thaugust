@@ -43,8 +43,11 @@ export default function Contacts() {
   const [selected, setSelected] = useState(new Set());
   const [batchStarting, setBatchStarting] = useState(false);
   const [batchMsg, setBatchMsg] = useState('');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 50;
 
   useEffect(() => { fetchContacts(); }, [filter]);
+  useEffect(() => { setPage(1); }, [filter, search]);
 
   async function fetchContacts() {
     setLoading(true);
@@ -120,6 +123,9 @@ export default function Contacts() {
     return c?.status === 'Fresh';
   });
 
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   function toggleSelect(id) {
     setSelected(prev => {
       const next = new Set(prev);
@@ -129,11 +135,14 @@ export default function Contacts() {
   }
 
   function toggleSelectAll() {
-    if (selected.size === filtered.length) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(filtered.map(c => c.id)));
-    }
+    const pageIds = paginated.map(c => c.id);
+    const allSelected = pageIds.every(id => selected.has(id));
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (allSelected) { pageIds.forEach(id => next.delete(id)); }
+      else { pageIds.forEach(id => next.add(id)); }
+      return next;
+    });
   }
 
   return (
@@ -216,7 +225,7 @@ export default function Contacts() {
             <tr style={{ background: '#fafafa', borderBottom: '1px solid #eee' }}>
               <th style={{ padding: '10px 14px', width: 36 }}>
                 <input type="checkbox"
-                  checked={filtered.length > 0 && selected.size === filtered.length}
+                  checked={paginated.length > 0 && paginated.every(c => selected.has(c.id))}
                   onChange={toggleSelectAll}
                   style={{ cursor: 'pointer' }} />
               </th>
@@ -232,7 +241,7 @@ export default function Contacts() {
               <tr><td colSpan={9} style={{ padding: 40, textAlign: 'center', color: '#aaa' }}>
                 {contacts.length === 0 ? 'No contacts yet — import a CSV to get started' : 'No contacts match your filter'}
               </td></tr>
-            ) : filtered.map(c => {
+            ) : paginated.map(c => {
               const ss = STATUS_STYLE[c.status] || { bg: '#f1f5f9', color: '#475569' };
               const rs = c.response_type ? RESPONSE_STYLE[c.response_type] : null;
               const isSel = selected.has(c.id);
@@ -303,7 +312,36 @@ export default function Contacts() {
       </div>
 
       {filtered.length > 0 && (
-        <p style={{ fontSize: 12, color: '#bbb', marginTop: 10, textAlign: 'right' }}>{filtered.length} contacts</p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
+          <span style={{ fontSize: 12, color: '#bbb' }}>
+            {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} contacts
+          </span>
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <button onClick={() => setPage(1)} disabled={page === 1}
+              style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #e0e0e0', background: '#fff', fontSize: 12, cursor: page === 1 ? 'not-allowed' : 'pointer', color: page === 1 ? '#ccc' : '#555' }}>«</button>
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+              style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #e0e0e0', background: '#fff', fontSize: 12, cursor: page === 1 ? 'not-allowed' : 'pointer', color: page === 1 ? '#ccc' : '#555' }}>‹</button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+              .reduce((acc, p, i, arr) => {
+                if (i > 0 && p - arr[i - 1] > 1) acc.push('…');
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((p, i) => p === '…' ? (
+                <span key={'ellipsis-' + i} style={{ padding: '5px 4px', fontSize: 12, color: '#bbb' }}>…</span>
+              ) : (
+                <button key={p} onClick={() => setPage(p)}
+                  style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid ' + (p === page ? '#2563eb' : '#e0e0e0'), background: p === page ? '#2563eb' : '#fff', color: p === page ? '#fff' : '#555', fontSize: 12, fontWeight: p === page ? 600 : 400, cursor: 'pointer' }}>
+                  {p}
+                </button>
+              ))}
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+              style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #e0e0e0', background: '#fff', fontSize: 12, cursor: page === totalPages ? 'not-allowed' : 'pointer', color: page === totalPages ? '#ccc' : '#555' }}>›</button>
+            <button onClick={() => setPage(totalPages)} disabled={page === totalPages}
+              style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #e0e0e0', background: '#fff', fontSize: 12, cursor: page === totalPages ? 'not-allowed' : 'pointer', color: page === totalPages ? '#ccc' : '#555' }}>»</button>
+          </div>
+        </div>
       )}
     </div>
   );
