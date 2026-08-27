@@ -545,7 +545,13 @@ setSaving(false);
       if (Array.isArray(r.signals) && r.signals.length > 0)                newResearch.ai_signals        = r.signals;
       if (Array.isArray(r.important_to_know) && r.important_to_know.length > 0) newResearch.important_to_know = r.important_to_know;
 
-      updates.research = newResearch;
+      // Company Details auto-fill (only if currently empty)
+if (r.detectedIndustry && !data.industry) updates.industry = r.detectedIndustry;
+if (r.hq_country && !data.country) updates.country = r.hq_country;
+if (r.website && !data.website) updates.website = r.website;
+if (r.employee_count_range && !data.employee_count) updates.employee_count = r.employee_count_range;
+
+updates.research = newResearch;
 
       // Testing tools — merge
       if (Array.isArray(r.tools) && r.tools.length > 0) {
