@@ -17,12 +17,14 @@ import ContactDetail from './pages/ContactDetail';
 import Accounts from './pages/Accounts';
 import AccountDetail from './pages/AccountDetail';
 import Lists from './pages/Lists';
+import UsersAdmin from './pages/UsersAdmin';
+import ProspectDiscovery from './pages/ProspectDiscovery';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#aaa', fontSize: 14 }}>
-      Loading…
+      Loadingâ¦
     </div>
   );
   if (!user) return <Navigate to="/login" replace />;
@@ -58,6 +60,8 @@ export default function App() {
             <Route path="sequences" element={<Sequences />} />
             <Route path="reports" element={<Reports />} />
             <Route path="lists" element={<Lists />} />
+            <Route path="users-admin" element={<UsersAdmin />} />
+            <Route path="prospect-discovery" element={<ProspectDiscovery />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
