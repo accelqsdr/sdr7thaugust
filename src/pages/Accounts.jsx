@@ -452,6 +452,7 @@ setSaving(false);
   async function updateContactPitchType(cId, pt) {
     const val = pt === '' ? null : pt;
     await supabase.from('contacts').update({ pitch_type: val }).eq('id', cId);
+    setContacts(prev => prev.map(c => c.id === cId ? {...c, pitch_type: pt} : c));
     onUpdate();
   }
 
