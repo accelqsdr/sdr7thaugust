@@ -80,7 +80,7 @@ export default function Sidebar() {
       {/* Role badge */}
       <div style={{ padding: '10px 16px', borderBottom: '0.5px solid #e8e8e4' }}>
         <div style={{ fontSize: 11, color: '#999', marginBottom: 4 }}>Signed in as</div>
-        <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{profile?.full_name || '—'}|/div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{profile?.full_name || '—'}</div>
         <span style={{ display: 'inline-block', marginTop: 4, fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: color + '20', color }}>
           {roleLabels[role]}
         </span>
@@ -88,7 +88,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: '10px 8px', overflowY: 'auto' }}>
-        <div style={{ fontSize: 10, color: '#bbb', padding: '6px 8px 4px', letterSpacing: '0.5px' }}>MENU0�/div>
+        <div style={{ fontSize: 10, color: '#bbb', padding: '6px 8px 4px', letterSpacing: '0.5px' }}>MENU</div>
         {nav.map(item => (
           <NavLink key={item.to} to={item.to} end={item.end} style={({ isActive }) => linkStyle(isActive)}>
             <span style={{ fontSize: 14 }}>{item.icon}</span>
@@ -103,7 +103,7 @@ export default function Sidebar() {
           onClick={signOut}
           style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, border: 'none', background: 'transparent', color: '#888', fontSize: 13, cursor: 'pointer' }}
         >
-          <span>↹</span> Sign out
+          <span>↩</span> Sign out
         </button>
       </div>
     </div>
