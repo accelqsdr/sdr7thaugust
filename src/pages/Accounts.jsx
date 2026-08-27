@@ -130,7 +130,7 @@ export default function Accounts() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     let aQ = supabase.from('accounts').select('*');
-    let cQ = supabase.from('contacts').select('id, account_id, first_name, last_name, title, status, response_type, email, notes, next_followup');
+    let cQ = supabase.from('contacts').select('id, account_id, first_name, last_name, title, status, response_type, email, notes, next_followup, pitch_type, persona');
     if (!viewAll || !canViewAll) { aQ = aQ.eq('owner_id', user.id); cQ = cQ.eq('owner_id', user.id); }
     const [{ data: accs }, { data: cts }] = await Promise.all([aQ, cQ]);
     const byAcct = {};
