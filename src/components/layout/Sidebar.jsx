@@ -88,7 +88,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: '10px 8px', overflowY: 'auto' }}>
-        <div style={{ fontSize: 10, color: '#bbb', padding: '6px 8px 4px', letterSpacing: '0.5px' }}>MENU</div>
+        <div style={{ fontSize: 10, color: '#bbb', padding: '6px 8px 4px', letterSpacing: '0.5px' }}>MENU0�/div>
         {nav.map(item => (
           <NavLink key={item.to} to={item.to} end={item.end} style={({ isActive }) => linkStyle(isActive)}>
             <span style={{ fontSize: 14 }}>{item.icon}</span>
@@ -103,7 +103,7 @@ export default function Sidebar() {
           onClick={signOut}
           style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, border: 'none', background: 'transparent', color: '#888', fontSize: 13, cursor: 'pointer' }}
         >
-          <span>↩</span> Sign out
+          <span>↹</span> Sign out
         </button>
       </div>
     </div>
