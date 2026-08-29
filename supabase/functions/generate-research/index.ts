@@ -61,7 +61,10 @@ Return ONLY a valid JSON object (no markdown, no explanation) with exactly these
   "cicd": false,
   "enterpriseApps": ["list", "of", "enterprise", "apps", "they", "use"],
   "detectedIndustry": "one of: Insurance|Banking|Healthcare|Retail|Manufacturing|Telecom|Technology|Other",
-  "saasApps": ["list", "of", "industry-specific", "saas", "apps"]
+  "saasApps": ["list", "of", "industry-specific", "saas", "apps"],
+  "about": "3-4 sentence overview of what this company does, who it serves, and its market position",
+  "businessModel": "2-3 sentences on how this company generates revenue and its primary business model",
+  "strategicPriorities": [{"title": "Priority 1 short name", "description": "2 sentence explanation"}, {"title": "Priority 2 short name", "description": "2 sentence explanation"}, {"title": "Priority 3 short name", "description": "2 sentence explanation"}]
 }
 
 Rules for tools array: ONLY include dedicated QA/test automation tools (e.g. Selenium, Cypress, Playwright, UFT, Tosca, JUnit, TestNG, Postman, k6, Appium, Robot Framework, Katalon, LoadRunner, JMeter, NUnit, PyTest). Do NOT include: programming languages (Java, Python, JavaScript, C#), build tools (Maven, Gradle, npm), CI/CD platforms (Jenkins, GitLab CI, GitHub Actions, CircleCI), infrastructure tools (Docker, Kubernetes, Terraform), or cloud providers (AWS, Azure, GCP).
