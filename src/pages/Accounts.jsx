@@ -597,7 +597,6 @@ updates.research = newResearch;
     { key: 'overview',  label: 'Overview'  },
     { key: 'contacts',  label: `Contacts${contacts.length > 0 ? ` (${contacts.length})` : ''}` },
     { key: 'techstack', label: 'Tech Stack' },
-    { key: 'intel',     label: '💡 Intel'   },
     { key: 'notes',     label: 'Notes'     },
   ];
 
@@ -1027,8 +1026,8 @@ updates.research = newResearch;
           </div>
         )}
 
-        {/* INTEL TAB */}
-        {activeTab === 'intel' && (
+        {/* INTEL — shown in Overview tab */}
+        {activeTab === 'overview' && (
           <div style={{ maxWidth: 860 }}>
 
             {/* Important to Know */}
