@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
-// ââ Data âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Data ─────────────────────────────────────────────────────────────────────
 const US_STATES = [
   'Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut',
   'Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa',
@@ -20,14 +20,14 @@ const COUNTRY_STATES = {
   'Australia': ['New South Wales','Victoria','Queensland','South Australia','Western Australia','Tasmania','ACT','Northern Territory'],
   'Canada': ['Ontario','Quebec','British Columbia','Alberta','Manitoba','Saskatchewan','Nova Scotia','New Brunswick','Prince Edward Island','Newfoundland and Labrador'],
   'Germany': ['Bavaria','Baden-Württemberg','Berlin','Brandenburg','Bremen','Hamburg','Hesse','Lower Saxony','Mecklenburg-Vorpommern','North Rhine-Westphalia','Rhineland-Palatinate','Saarland','Saxony','Saxony-Anhalt','Schleswig-Holstein','Thuringia'],
-  'Brazil': ['São Paulo','Rio de Janeiro','Minas Gerais','Bahia','Paraná','Rio Grande do Sul','Pernambuco','Ceará','Amazonas','Goiás','Pará','Santa Catarina'],
+  'Brazil': ['Sao Paulo','Rio de Janeiro','Minas Gerais','Bahia','Parana','Rio Grande do Sul','Pernambuco','Ceara','Amazonas','Goias','Para','Santa Catarina'],
   'United Kingdom': ['England','Scotland','Wales','Northern Ireland'],
-  'France': ['Île-de-France','Auvergne-Rhône-Alpes','Hauts-de-France','Nouvelle-Aquitaine','Occitanie','Grand Est','Provence-Alpes-Côte d\'Azur','Pays de la Loire','Normandy','Brittany','Bourgogne-Franche-Comté','Centre-Val de Loire'],
-  'Mexico': ['Mexico City','Jalisco','Nuevo León','Puebla','Guanajuato','Veracruz','Estado de México','Querétaro','Yucatán','Sonora','Chihuahua'],
+  'France': ['Ile-de-France','Auvergne-Rhone-Alpes','Hauts-de-France','Nouvelle-Aquitaine','Occitanie','Grand Est','Provence-Alpes-Cote d Azur','Pays de la Loire','Normandy','Brittany','Bourgogne-Franche-Comte','Centre-Val de Loire'],
+  'Mexico': ['Mexico City','Jalisco','Nuevo Leon','Puebla','Guanajuato','Veracruz','Estado de Mexico','Queretaro','Yucatan','Sonora','Chihuahua'],
   'Japan': ['Tokyo','Osaka','Kanagawa','Aichi','Saitama','Chiba','Hyogo','Hokkaido','Fukuoka','Kyoto','Shizuoka'],
   'South Korea': ['Seoul','Busan','Gyeonggi','Incheon','Daegu','Daejeon','Gwangju','Ulsan'],
   'Netherlands': ['North Holland','South Holland','Utrecht','North Brabant','Gelderland','Overijssel'],
-  'Sweden': ['Stockholm','Västra Götaland','Skåne','Uppsala','Östergötland'],
+  'Sweden': ['Stockholm','Vastra Gotaland','Skane','Uppsala','Ostergotland'],
   'Switzerland': ['Zurich','Bern','Vaud','Geneva','Aargau','Basel-Stadt','St. Gallen'],
 };
 const COUNTRIES = [
@@ -50,20 +50,20 @@ const TECH_TOOLS = [
 ];
 const COMPANY_SIZES = [
   { value: 'all', label: 'All sizes' },
-  { value: 'smb', label: 'SMB â 50 to 500 employees' },
-  { value: 'mid', label: 'Mid-market â 500 to 5,000' },
-  { value: 'enterprise', label: 'Enterprise â 5,000 to 20,000' },
-  { value: 'large', label: 'Large Enterprise â 20,000+' },
+  { value: 'smb', label: 'SMB — 50 to 500 employees' },
+  { value: 'mid', label: 'Mid-market — 500 to 5,000' },
+  { value: 'enterprise', label: 'Enterprise — 5,000 to 20,000' },
+  { value: 'large', label: 'Large Enterprise — 20,000+' },
 ];
 
-// ââ Shared styles âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Shared styles ─────────────────────────────────────────────────────────────
 const S = {
   label: { fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase',
     letterSpacing: '0.07em', marginBottom: 6, display: 'block' },
   divider: { borderTop: '1px solid #f1f5f9', margin: '14px 0' },
 };
 
-// ââ Multi-select dropdown âââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Multi-select dropdown ─────────────────────────────────────────────────────
 function MultiSelect({ label, icon, options, selected, onChange, placeholder }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -103,7 +103,7 @@ function MultiSelect({ label, icon, options, selected, onChange, placeholder }) 
             <span style={{ background: '#3b82f6', color: '#fff', borderRadius: 10, padding: '1px 7px',
               fontSize: 10, fontWeight: 700 }}>{selected.length}</span>
           )}
-          <span style={{ color: '#94a3b8', fontSize: 9 }}>{open ? 'â²' : 'â¼'}</span>
+          <span style={{ color: '#94a3b8', fontSize: 9 }}>{open ? '▲' : '▼'}</span>
         </div>
       </div>
 
@@ -115,7 +115,7 @@ function MultiSelect({ label, icon, options, selected, onChange, placeholder }) 
         }}>
           <div style={{ padding: '8px 8px 4px' }}>
             <input autoFocus value={search} onChange={e => setSearch(e.target.value)}
-              placeholder={`Search ${label.toLowerCase()}â¦`}
+              placeholder={`Search ${label.toLowerCase()}…`}
               style={{ width: '100%', border: '1.5px solid #e2e8f0', borderRadius: 7,
                 padding: '6px 10px', fontSize: 12, outline: 'none', boxSizing: 'border-box',
                 background: '#f8fafc', color: '#0f172a' }} />
@@ -164,7 +164,7 @@ function MultiSelect({ label, icon, options, selected, onChange, placeholder }) 
   );
 }
 
-// ââ Status badge ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Status badge ──────────────────────────────────────────────────────────────
 function StatusBadge({ status }) {
   const cfg = {
     suggested: { bg: '#dbeafe', color: '#1e40af', label: 'New' },
@@ -178,7 +178,7 @@ function StatusBadge({ status }) {
   );
 }
 
-// ââ Result card âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Result card ───────────────────────────────────────────────────────────────
 function AccountCard({ r, onAdd, onSkip, working }) {
   const borderColor = r.status === 'added' ? '#22c55e' : r.status === 'skipped' ? '#e2e8f0' : '#3b82f6';
   return (
@@ -210,7 +210,7 @@ function AccountCard({ r, onAdd, onSkip, working }) {
         {r.size_estimate && (
           <span style={{ fontSize: 11, background: '#f0fdf4', color: '#15803d', padding: '3px 9px',
             borderRadius: 20, border: '1px solid #bbf7d0', fontWeight: 500 }}>
-            ð¥ {r.size_estimate}
+            👥 {r.size_estimate}
           </span>
         )}
       </div>
@@ -234,7 +234,7 @@ function AccountCard({ r, onAdd, onSkip, working }) {
           }}
           onMouseEnter={e => { if (!working) e.target.style.background = '#1d4ed8'; }}
           onMouseLeave={e => { if (!working) e.target.style.background = '#2563eb'; }}>
-            {working === 'adding' ? 'â³ Addingâ¦' : 'â Add to Accounts'}
+            {working === 'adding' ? '⏳ Adding…' : '➕ Add to Accounts'}
           </button>
           <button onClick={() => onSkip(r)} disabled={!!working} style={{
             padding: '8px 16px', borderRadius: 7, border: '1.5px solid #e2e8f0',
@@ -249,14 +249,14 @@ function AccountCard({ r, onAdd, onSkip, working }) {
       )}
       {r.status === 'added' && (
         <div style={{ fontSize: 12, color: '#15803d', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
-          <span style={{ fontSize: 14 }}>â</span> Added â AI research running
+          <span style={{ fontSize: 14 }}>✓</span> Added — AI research running
         </div>
       )}
     </div>
   );
 }
 
-// ââ Main ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Main ──────────────────────────────────────────────────────────────────────
 export default function ProspectDiscovery() {
   const { user } = useAuth();
 
@@ -358,9 +358,9 @@ export default function ProspectDiscovery() {
       } catch (_) {}
       setResults(prev => prev.map(x => x.id === r.id ? { ...x, status: 'added' } : x));
       await fetchHistory();
-      showToast(`â ${r.company_name} added to Accounts`);
+      showToast(`✅ ${r.company_name} added to Accounts`);
     } catch (e) {
-      showToast(`â ${e.message}`, 'error');
+      showToast(`❌ ${e.message}`, 'error');
     } finally {
       setActionWorking(w => ({ ...w, [r.id]: null }));
     }
@@ -414,10 +414,10 @@ export default function ProspectDiscovery() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.3px' }}>
-              ð Account Discovery
+              🔍 Account Discovery
             </h1>
             <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
-              AI generates fresh ACCELQ target accounts based on your territory â never repeats past suggestions
+              AI generates fresh ACCELQ target accounts based on your territory — never repeats past suggestions
             </p>
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -437,7 +437,7 @@ export default function ProspectDiscovery() {
               color: '#374151', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 7,
               boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
             }}>
-              ð View History
+              📋 View History
             </button>
           </div>
         </div>
@@ -445,7 +445,7 @@ export default function ProspectDiscovery() {
 
       <div style={{ maxWidth: 1140, margin: '0 auto', display: 'grid', gridTemplateColumns: '296px 1fr', gap: 20 }}>
 
-        {/* ââ Territory Panel ââ */}
+        {/* ── Territory Panel ── */}
         <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14,
           boxShadow: '0 1px 4px rgba(0,0,0,0.04)', overflow: 'hidden', height: 'fit-content' }}>
           {/* Panel header */}
@@ -461,7 +461,7 @@ export default function ProspectDiscovery() {
           <div style={{ padding: '14px 14px 0' }}>
             {/* Geography */}
             <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase',
-              letterSpacing: '0.08em', marginBottom: 10 }}>ð Geography</div>
+              letterSpacing: '0.08em', marginBottom: 10 }}>🌍 Geography</div>
 
             {availableStates.length > 0 && (<MultiSelect label="States / Provinces" icon="" options={availableStates}
               selected={selectedStates} onChange={setSelectedStates} placeholder="Any US state" />)}
@@ -473,7 +473,7 @@ export default function ProspectDiscovery() {
 
             {/* Target */}
             <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase',
-              letterSpacing: '0.08em', marginBottom: 10 }}>ð­ Target Profile</div>
+              letterSpacing: '0.08em', marginBottom: 10 }}>🏭 Target Profile</div>
 
             <MultiSelect label="Industries" icon="" options={INDUSTRIES}
               selected={selectedIndustries} onChange={setSelectedIndustries} placeholder="Any industry" />
@@ -499,9 +499,9 @@ export default function ProspectDiscovery() {
               <label style={S.label}>IT Services & Consulting</label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5 }}>
                 {[
-                  { val: 'all',     label: 'All types',  emoji: 'ð' },
-                  { val: 'include', label: 'Include',     emoji: 'â' },
-                  { val: 'exclude', label: 'Exclude',     emoji: 'ð«' },
+                  { val: 'all',     label: 'All types',  emoji: '🔀' },
+                  { val: 'include', label: 'Include',     emoji: '✅' },
+                  { val: 'exclude', label: 'Exclude',     emoji: '🚫' },
                 ].map(opt => (
                   <button key={opt.val} onClick={() => setItMode(opt.val)} style={{
                     padding: '8px 4px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 600,
@@ -524,7 +524,7 @@ export default function ProspectDiscovery() {
               </div>
               <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 5, minHeight: 16 }}>
                 {itMode === 'include' && 'Includes IT services, consulting & SI firms'}
-                {itMode === 'exclude' && 'End-user accounts only â no IT/SI firms'}
+                {itMode === 'exclude' && 'End-user accounts only — no IT/SI firms'}
                 {itMode === 'all' && 'No filter on company type'}
               </div>
             </div>
@@ -540,28 +540,28 @@ export default function ProspectDiscovery() {
               transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}>
               {loading
-                ? <><span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>â³</span> Discoveringâ¦</>
-                : 'ð Discover Accounts'}
+                ? <><span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⏳</span> Discovering…</>
+                : '🚀 Discover Accounts'}
             </button>
           </div>
         </div>
 
-        {/* ââ Results area ââ */}
+        {/* ── Results area ── */}
         <div>
           {error && (
             <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b',
               borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: 13,
               display: 'flex', alignItems: 'center', gap: 8 }}>
-              â ï¸ {error}
+              ⚠️ {error}
             </div>
           )}
 
           {loading && (
             <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14,
               padding: '80px 24px', textAlign: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>ð¤</div>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
               <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 6 }}>
-                Finding your next accountsâ¦
+                Finding your next accounts…
               </div>
               <div style={{ fontSize: 13, color: '#64748b' }}>
                 AI is analyzing your territory and generating target companies
@@ -578,12 +578,12 @@ export default function ProspectDiscovery() {
           {!loading && results.length === 0 && !error && (
             <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14,
               padding: '80px 24px', textAlign: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-              <div style={{ fontSize: 52, marginBottom: 16 }}>ð¯</div>
+              <div style={{ fontSize: 52, marginBottom: 16 }}>🎯</div>
               <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>
                 Ready to discover accounts
               </div>
               <div style={{ fontSize: 13, color: '#64748b', maxWidth: 340, margin: '0 auto', lineHeight: 1.6 }}>
-                Configure your territory on the left â geography, industry, tech stack â and hit{' '}
+                Configure your territory on the left — geography, industry, tech stack — and hit{' '}
                 <strong style={{ color: '#2563eb' }}>Discover Accounts</strong>.
                 AI will generate fresh target companies that fit ACCELQ's ICP.
               </div>
@@ -594,10 +594,10 @@ export default function ProspectDiscovery() {
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                 <div style={{ fontSize: 13, color: '#64748b' }}>
-                  <strong style={{ color: '#0f172a' }}>{results.length} accounts</strong> found â add the ones worth pursuing
+                  <strong style={{ color: '#0f172a' }}>{results.length} accounts</strong> found — add the ones worth pursuing
                 </div>
                 <div style={{ fontSize: 12, color: '#94a3b8' }}>
-                  {results.filter(r => r.status === 'suggested').length} pending Â·{' '}
+                  {results.filter(r => r.status === 'suggested').length} pending ·{' '}
                   {results.filter(r => r.status === 'added').length} added
                 </div>
               </div>
@@ -613,7 +613,7 @@ export default function ProspectDiscovery() {
         </div>
       </div>
 
-      {/* ââ History Modal ââ */}
+      {/* ── History Modal ── */}
       {historyOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', zIndex: 1000,
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
@@ -626,19 +626,19 @@ export default function ProspectDiscovery() {
               <div>
                 <div style={{ fontWeight: 800, fontSize: 17, color: '#0f172a' }}>Account Discovery History</div>
                 <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>
-                  {history.length} total Â· {addedCount} added Â· {suggestedCount} pending
+                  {history.length} total · {addedCount} added · {suggestedCount} pending
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={downloadCSV} style={{ padding: '7px 14px', borderRadius: 8,
                   border: '1.5px solid #e2e8f0', background: '#f8fafc', fontSize: 12,
                   cursor: 'pointer', fontWeight: 500, color: '#374151' }}>
-                  â¬ Export CSV
+                  ⬇ Export CSV
                 </button>
                 <button onClick={() => setHistoryOpen(false)} style={{ padding: '7px 14px', borderRadius: 8,
                   border: '1.5px solid #e2e8f0', background: '#f8fafc', fontSize: 12,
                   cursor: 'pointer', fontWeight: 500, color: '#374151' }}>
-                  â Close
+                  ✕ Close
                 </button>
               </div>
             </div>
@@ -683,8 +683,8 @@ export default function ProspectDiscovery() {
                       <tr key={h.id} style={{ borderBottom: '1px solid #f1f5f9',
                         background: i % 2 === 0 ? '#fff' : '#fafbfc' }}>
                         <td style={{ padding: '10px 16px', fontWeight: 600, color: '#0f172a' }}>{h.company_name}</td>
-                        <td style={{ padding: '10px 16px', color: '#64748b' }}>{h.industry || 'â'}</td>
-                        <td style={{ padding: '10px 16px', color: '#64748b', whiteSpace: 'nowrap' }}>{h.size_estimate || 'â'}</td>
+                        <td style={{ padding: '10px 16px', color: '#64748b' }}>{h.industry || '—'}</td>
+                        <td style={{ padding: '10px 16px', color: '#64748b', whiteSpace: 'nowrap' }}>{h.size_estimate || '—'}</td>
                         <td style={{ padding: '10px 16px' }}><StatusBadge status={h.status} /></td>
                         <td style={{ padding: '10px 16px', color: '#94a3b8', whiteSpace: 'nowrap', fontSize: 12 }}>
                           {new Date(h.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
