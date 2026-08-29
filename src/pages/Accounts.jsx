@@ -828,16 +828,42 @@ updates.research = newResearch;
               </div>
             </div>
 
-            {/* Quick notes */}
-            <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '16px 18px' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 10 }}>📝 Notes</div>
-              <textarea value={notesValue} onChange={e => handleNotesChange(e.target.value)}
-                placeholder="Add intel: tech stack, deal status, pain points, next steps…" rows={5}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid #e5e7eb', fontSize: 13, lineHeight: 1.7, resize: 'vertical', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', color: '#374151', background: '#f9fafb' }} />
+            {/* ── Company Profile ── */}
+            {(research.about || research.businessModel || (research.strategicPriorities && research.strategicPriorities.length > 0)) && (
+            <div style={{ marginTop: 24 }}>
+
+              {research.about && (
+              <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '20px 24px', marginBottom: 16 }}>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8, color: '#111827' }}>About</div>
+                <div style={{ fontSize: 14, color: '#374151', lineHeight: '1.65' }}>{research.about}</div>
+              </div>
+              )}
+
+              {research.businessModel && (
+              <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '20px 24px', marginBottom: 16 }}>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8, color: '#111827' }}>How {data.name} makes money</div>
+                <div style={{ fontSize: 14, color: '#374151', lineHeight: '1.65' }}>{research.businessModel}</div>
+              </div>
+              )}
+
+              {research.strategicPriorities && research.strategicPriorities.length > 0 && (
+              <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '20px 24px', marginBottom: 16 }}>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16, color: '#111827' }}>Strategic priorities</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+                  {research.strategicPriorities.map((p, i) => (
+                  <div key={i} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '14px 16px' }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>{p.title}</div>
+                    <div style={{ fontSize: 13, color: '#6b7280', lineHeight: '1.5' }}>{p.description}</div>
+                  </div>
+                  ))}
+                </div>
+              </div>
+              )}
+
             </div>
+            )}
 
-
-            {/* ── Intel ── */}
+                {/* ── Intel ── */}
             <div style={{ maxWidth: 860 }}>
 
             {/* Important to Know */}
