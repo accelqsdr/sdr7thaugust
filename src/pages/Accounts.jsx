@@ -697,7 +697,27 @@ updates.research = newResearch;
               ))}
             </div>
 
-            {/* ── Company Profile ── */}
+            
+
+            {/* Stage pipeline */}
+            {contacts.length > 0 && (
+              <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '16px 18px', marginBottom: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 12 }}>Stage Pipeline</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {['Fresh','F1','F2','F3','F4','F5','won','lost','bounced','unsubscribed'].map(s => {
+                    const cnt = contacts.filter(c => c.status === s).length;
+                    if (!cnt) return null;
+                    const sc2 = STAGE_COLORS[s] || { bg: '#f1f5f9', color: '#475569' };
+                    return (
+                      <div key={s} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: sc2.color }}>{cnt}</div>
+                        <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 10px', borderRadius: 10, background: sc2.bg, color: sc2.color }}>{s}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}{/* ── Company Profile ── */}
             {(research.about || research.businessModel || (research.strategicPriorities && research.strategicPriorities.length > 0)) && (
             <div style={{ marginTop: 24 }}>
 
@@ -920,26 +940,6 @@ updates.research = newResearch;
                 </div>
               )}
             </div>
-
-            {/* Stage pipeline */}
-            {contacts.length > 0 && (
-              <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '16px 18px', marginBottom: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 12 }}>Stage Pipeline</div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {['Fresh','F1','F2','F3','F4','F5','won','lost','bounced','unsubscribed'].map(s => {
-                    const cnt = contacts.filter(c => c.status === s).length;
-                    if (!cnt) return null;
-                    const sc2 = STAGE_COLORS[s] || { bg: '#f1f5f9', color: '#475569' };
-                    return (
-                      <div key={s} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-                        <div style={{ fontSize: 16, fontWeight: 700, color: sc2.color }}>{cnt}</div>
-                        <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 10px', borderRadius: 10, background: sc2.bg, color: sc2.color }}>{s}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
             {/* Intent Signals */}
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '16px 18px', marginBottom: 16 }}>
