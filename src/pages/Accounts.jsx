@@ -55,6 +55,39 @@ const SIGNAL_TYPE_COLORS = {
   'Hiring Surge':      { bg: '#ede9fe', color: '#7c3aed' },
 };
 
+// ─── FUZZY ACCOUNT MATCH ────────────────────────────────────
+function normalizeName(n) {
+  return (n||'').toLowerCase()
+    .replace(/\b(pvt|ltd|inc|corp|llc|limited|private|public|co|company|group|holdings|international|global)\b\.?/g,'')
+    .replace(/[^a-z0-9]/g,' ').replace(/\s+/g,' ').trim();
+}
+function fuzzyAccountMatch(a,b) {
+  const na=normalizeName(a), nb=normalizeName(b);
+  if(!na||!nb) return false;
+  if(na===nb) return true;
+  if(na.includes(nb)||nb.includes(na)) return true;
+  const lo=na.length>nb.length?na:nb, sh=na.length>nb.length?nb:na;
+  if(sh.length<3) return false;
+  let m=0; for(let i=0;i<sh.length-1;i++) if(lo.includes(sh.substring(i,i+2))) m++;
+  return m/(sh.length-1)>0.7;
+}
+// ─── CSV PARSER ─────────────────────────────────────────────
+function parseCSVLine(line) {
+  const r=[]; let cur=''; let inQ=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(ch==='"'){inQ=!inQ;}
+    else if(ch===','&&!inQ){r.push(cur.trim());cur='';}
+    else{cur+=ch;}
+  }
+  r.push(cur.trim()); return r;
+}
+function parseCSV(text) {
+  const lines=text.trim().split('\n').filter(l=>l.trim());
+  if(!lines.length) return {headers:[],rows:[]};
+  return {headers:parseCSVLine(lines[0]), rows:lines.slice(1).map(l=>parseCSVLine(l))};
+}
+
 function avatarColor(name) {
   let h = 0;
   for (let i = 0; i < (name||'').length; i++) h = (name.charCodeAt(i) + ((h << 5) - h)) | 0;
@@ -126,6 +159,7 @@ export default function Accounts() {
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [newAcct, setNewAcct] = useState({ name: '', industry: '', country: '', linkedin_url: '', revenue_millions: '' });
   const [adding, setAdding] = useState(false);
+  const [acctDupCandidates, setAcctDupCandidates] = useState([]);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -147,8 +181,12 @@ export default function Accounts() {
     if (location.state?.selectId) { setSelectedId(location.state.selectId); window.history.replaceState({}, ''); }
   }, [location.state]);
 
-  async function addAccount() {
+  async function addAccount(force=false) {
     if (!newAcct.name.trim()) return;
+    if (!force) {
+      const sim=accounts.filter(a=>fuzzyAccountMatch(a.name,newAcct.name.trim()));
+      if(sim.length>0){setAcctDupCandidates(sim);return;}
+    }
     setAdding(true);
     const { data } = await supabase.from('accounts').insert({
       name: newAcct.name.trim(), industry: newAcct.industry || null, country: newAcct.country || null,
@@ -378,6 +416,24 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
     parent_company: account.parent_company || '',
   });
   const notesTimer = useRef(null);
+  // ── Contact add / CSV import ──
+  const [showAddContact, setShowAddContact] = useState(false);
+  const [newContact, setNewContact] = useState({first_name:'',last_name:'',title:'',email:'',linkedin_url:'',pitch:'',notes:''});
+  const [addingContact, setAddingContact] = useState(false);
+  const [contactDupWarning, setContactDupWarning] = useState(null);
+  const [showCsvImport, setShowCsvImport] = useState(false);
+  const [csvStep, setCsvStep] = useState(1);
+  const [csvHeaders, setCsvHeaders] = useState([]);
+  const [csvRows, setCsvRows] = useState([]);
+  const [columnMapping, setColumnMapping] = useState({});
+  const [csvDuplicates, setCsvDuplicates] = useState([]);
+  const [csvCleanRows, setCsvCleanRows] = useState([]);
+  const [csvDupDecisions, setCsvDupDecisions] = useState({});
+  const [csvImporting, setCsvImporting] = useState(false);
+  const [csvImportResult, setCsvImportResult] = useState(null);
+  // ── LinkedIn inline edit ──
+  const [editLI4Contact, setEditLI4Contact] = useState(null);
+  const [liDraft, setLiDraft] = useState('');
 
   const score = calcScore(data, contacts);
   const sc = scoreColor(score);
@@ -594,6 +650,81 @@ updates.research = newResearch;
       await patch(updates);
     } catch(e) { console.error('runFullAIResearch error:', e); }
     setAiResearching(false);
+  }
+
+
+  // ── Add contact manually ──
+  async function saveNewContact(forceOverwrite=false) {
+    if(!newContact.first_name.trim()) return;
+    setAddingContact(true);
+    if(newContact.email && !forceOverwrite) {
+      const dup=contacts.find(ct=>ct.email&&ct.email.toLowerCase()===newContact.email.toLowerCase());
+      if(dup){setContactDupWarning(dup);setAddingContact(false);return;}
+    }
+    const payload={first_name:newContact.first_name.trim(),last_name:newContact.last_name.trim()||null,
+      title:newContact.title.trim()||null,email:newContact.email.trim()||null,
+      linkedin_url:newContact.linkedin_url.trim()||null,pitch:newContact.pitch.trim()||null,
+      notes:newContact.notes.trim()||null,account_id:data.id,owner_id:user.id,status:'Fresh'};
+    if(forceOverwrite&&newContact.email){
+      const dup=contacts.find(ct=>ct.email&&ct.email.toLowerCase()===newContact.email.toLowerCase());
+      if(dup) await supabase.from('contacts').update(payload).eq('id',dup.id);
+      else await supabase.from('contacts').insert(payload);
+    } else { await supabase.from('contacts').insert(payload); }
+    setAddingContact(false);setShowAddContact(false);setContactDupWarning(null);
+    setNewContact({first_name:'',last_name:'',title:'',email:'',linkedin_url:'',pitch:'',notes:''});
+    onUpdate();
+  }
+  // ── CSV helpers ──
+  function handleCsvFile(file) {
+    const reader=new FileReader();
+    reader.onload=(e)=>{
+      const {headers,rows}=parseCSV(e.target.result);
+      setCsvHeaders(headers);setCsvRows(rows);
+      const auto={};
+      const aliases={first_name:['first name','firstname','first','fname'],last_name:['last name','lastname','last','lname','surname'],
+        title:['title','job title','position','role'],email:['email','email address','e-mail'],
+        linkedin_url:['linkedin','linkedin url','linkedin profile'],phone:['phone','mobile'],
+        pitch:['pitch','pitch type'],notes:['notes','note','comments']};
+      headers.forEach((h,i)=>{const n=h.toLowerCase().trim();for(const[f,al]of Object.entries(aliases)){if(al.includes(n)){auto[i]=f;break;}}});
+      setColumnMapping(auto);setCsvStep(2);
+    };
+    reader.readAsText(file);
+  }
+  async function runCsvImport() {
+    setCsvImporting(true);
+    const FIELDS=['first_name','last_name','title','email','linkedin_url','phone','pitch','notes'];
+    const mapped=csvRows.map(row=>{
+      const obj={};
+      Object.entries(columnMapping).forEach(([ci,f])=>{if(f&&FIELDS.includes(f))obj[f]=(row[parseInt(ci)]||'').trim();});
+      return obj;
+    }).filter(r=>r.first_name);
+    const exEmails=contacts.reduce((m,ct)=>{if(ct.email)m[ct.email.toLowerCase()]=ct;return m;},{});
+    const dups=[],clean=[];
+    mapped.forEach((r,idx)=>{
+      if(r.email&&exEmails[r.email.toLowerCase()]) dups.push({idx,row:r,existing:exEmails[r.email.toLowerCase()]});
+      else clean.push(r);
+    });
+    if(dups.length>0){setCsvDuplicates(dups);setCsvCleanRows(clean);setCsvDupDecisions({});setCsvImporting(false);setCsvStep(3);return;}
+    await doImport(clean,{});
+  }
+  async function doImport(clean,decisions) {
+    setCsvImporting(true);
+    const ins=clean.map(r=>({first_name:r.first_name,last_name:r.last_name||null,title:r.title||null,
+      email:r.email||null,linkedin_url:r.linkedin_url||null,pitch:r.pitch||null,notes:r.notes||null,
+      account_id:data.id,owner_id:user.id,status:'Fresh'}));
+    for(const{idx,row,existing}of csvDuplicates){
+      if((decisions[idx]||'keep')==='overwrite')
+        await supabase.from('contacts').update({first_name:row.first_name,last_name:row.last_name||null,
+          title:row.title||null,linkedin_url:row.linkedin_url||null,pitch:row.pitch||null,notes:row.notes||null}).eq('id',existing.id);
+    }
+    if(ins.length>0) await supabase.from('contacts').insert(ins);
+    setCsvImporting(false);
+    setCsvImportResult({added:ins.length,overwritten:Object.values(decisions).filter(d=>d==='overwrite').length});
+    setCsvStep(4);onUpdate();
+  }
+  async function saveContactLinkedIn(contactId) {
+    await supabase.from('contacts').update({linkedin_url:liDraft.trim()||null}).eq('id',contactId);
+    setEditLI4Contact(null);setLiDraft('');onUpdate();
   }
 
   const TABS = [
@@ -971,6 +1102,10 @@ updates.research = newResearch;
         {/* CONTACTS TAB */}
         {activeTab === 'contacts' && (
           <div style={{ maxWidth: 860 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16 }}>
+              <button onClick={() => setShowCsvImport(true)} style={{ padding: '7px 14px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#374151' }}>⬆️ Import CSV</button>
+              <button onClick={() => setShowAddContact(true)} style={{ padding: '7px 14px', background: '#2563eb', color: '#fff', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none' }}>+ Add Contact</button>
+            </div>
             {contacts.length === 0 ? (
               <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 48, textAlign: 'center' }}>
                 <div style={{ fontSize: 36, marginBottom: 12 }}>👤</div>
