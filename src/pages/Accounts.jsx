@@ -1147,8 +1147,7 @@ updates.research = newResearch;
                           ð Find Email
                         </button>
                       )}
-                      {c.status === 'Fresh' && !c.next_followup && (
-                        {editLI4Contact === c.id ? (
+                      {editLI4Contact === c.id ? (
                       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                         <input value={liDraft} onChange={e => setLiDraft(e.target.value)} placeholder="Paste LinkedIn URL"
                           style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #2563eb', fontSize: 11, width: 160, outline: 'none' }} />
@@ -1171,7 +1170,8 @@ updates.research = newResearch;
                       <button onClick={() => { setEditLI4Contact(c.id); setLiDraft(c.linkedin_url || ''); }}
                         style={{ fontSize: 11, padding: '4px 7px', background: '#f9fafb', borderRadius: 6, border: '1px solid #e5e7eb', cursor: 'pointer', color: '#6b7280', flexShrink: 0 }}>&#x270F;</button>
                     )}
-                    <button onClick={() => startContact(c)} disabled={qualifying === c.id} style={{
+                    {c.status === 'Fresh' && !c.next_followup && (
+                        <button onClick={() => startContact(c)} disabled={qualifying === c.id} style={{
                           fontSize: 12, padding: '6px 14px', borderRadius: 8, border: 'none',
                           background: qualifying === c.id ? '#d1fae5' : 'linear-gradient(135deg, #2563eb, #7c3aed)',
                           color: '#fff', cursor: qualifying === c.id ? 'wait' : 'pointer', fontWeight: 600, flexShrink: 0,
@@ -1341,7 +1341,7 @@ updates.research = newResearch;
             {contactDupWarning && (
               <div style={{ background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: 10, padding: 14, marginBottom: 16 }}>
                 <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600, color: '#92400e' }}>Duplicate Email Found</p>
-                <p style={{ margin: '0 0 12px', fontSize: 12, color: '#78350f' }}>A contact with this email already exists: <strong>{contactDupWarning.first_name} {contactDupWarning.last_name}</strong></p>
+                <p style={{ margin: '0 0 12px', fontSize: 12, color: '#78350f' }}>Contact with this email exists: <strong>{contactDupWarning.first_name} {contactDupWarning.last_name}</strong></p>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={() => saveNewContact(true)} style={{ padding: '6px 14px', background: '#d97706', color: '#fff', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none' }}>Overwrite</button>
                   <button onClick={() => setContactDupWarning(null)} style={{ padding: '6px 14px', background: '#f3f4f6', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none' }}>Keep Both</button>
@@ -1384,7 +1384,7 @@ updates.research = newResearch;
             </div>
             {csvStep === 1 && (
               <div style={{ textAlign: 'center', padding: '30px 0' }}>
-                <p style={{ fontSize: 14, color: '#6b7280', marginBottom: 20 }}>Upload a CSV. First Name is required per row.</p>
+                <p style={{ fontSize: 14, color: '#6b7280', marginBottom: 20 }}>Upload a CSV. First Name required per row.</p>
                 <label style={{ padding: '10px 24px', background: '#2563eb', color: '#fff', borderRadius: 9, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
                   Choose File
                   <input type="file" accept=".csv" style={{ display: 'none' }} onChange={e => e.target.files[0] && handleCsvFile(e.target.files[0])} />
@@ -1393,7 +1393,7 @@ updates.research = newResearch;
             )}
             {csvStep === 2 && (
               <div>
-                <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>Match CSV columns to contact fields. Rows without First Name are skipped.</p>
+                <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>Match CSV columns to fields. Rows without First Name skipped.</p>
                 <div style={{ background: '#f9fafb', borderRadius: 10, padding: 14, marginBottom: 16, maxHeight: 340, overflowY: 'auto' }}>
                   {csvHeaders.map((h, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
@@ -1420,11 +1420,11 @@ updates.research = newResearch;
             )}
             {csvStep === 3 && (
               <div>
-                <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>These contacts already exist. Choose what to do for each:</p>
+                <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>These contacts already exist. Choose what to do:</p>
                 <div style={{ maxHeight: 320, overflowY: 'auto', marginBottom: 16 }}>
                   {csvDuplicates.map(({idx, row, existing}) => (
                     <div key={idx} style={{ background: '#fef3c7', borderRadius: 10, padding: 12, marginBottom: 10, border: '1px solid #f59e0b' }}>
-                      <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 600 }}>{row.first_name} {row.last_name} - {row.email}</p>
+                      <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 600 }}>{row.first_name} {row.last_name}</p>
                       <p style={{ margin: '0 0 8px', fontSize: 12, color: '#6b7280' }}>Existing: {existing.first_name} {existing.last_name}</p>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button onClick={() => setCsvDupDecisions(p => ({...p,[idx]:'keep'}))}
