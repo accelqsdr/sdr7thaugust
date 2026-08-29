@@ -1152,7 +1152,7 @@ updates.research = newResearch;
                         <input value={liDraft} onChange={e => setLiDraft(e.target.value)} placeholder="Paste LinkedIn URL"
                           style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #2563eb', fontSize: 11, width: 160, outline: 'none' }} />
                         <button onClick={() => saveContactLinkedIn(c.id)} style={{ fontSize: 11, padding: '4px 8px', background: '#2563eb', color: '#fff', borderRadius: 6, border: 'none', cursor: 'pointer' }}>Save</button>
-                        <button onClick={() => setEditLI4Contact(null)} style={{ fontSize: 11, padding: '4px 6px', background: '#f0f0f0', borderRadius: 6, border: 'none', cursor: 'pointer' }}>&#x2715;</button>
+                        <button onClick={() => setEditLI4Contact(null)} style={{ fontSize: 11, padding: '4px 6px', background: '#f0f0f0', borderRadius: 6, border: 'none', cursor: 'pointer' }}>✕</button>
                       </div>
                     ) : c.linkedin_url ? (
                       <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer"
@@ -1168,7 +1168,7 @@ updates.research = newResearch;
                     )}
                     {editLI4Contact !== c.id && (
                       <button onClick={() => { setEditLI4Contact(c.id); setLiDraft(c.linkedin_url || ''); }}
-                        style={{ fontSize: 11, padding: '4px 7px', background: '#f9fafb', borderRadius: 6, border: '1px solid #e5e7eb', cursor: 'pointer', color: '#6b7280', flexShrink: 0 }}>&#x270F;</button>
+                        style={{ fontSize: 11, padding: '4px 7px', background: '#f9fafb', borderRadius: 6, border: '1px solid #e5e7eb', cursor: 'pointer', color: '#6b7280', flexShrink: 0 }}>✏</button>
                     )}
                     {c.status === 'Fresh' && !c.next_followup && (
                         <button onClick={() => startContact(c)} disabled={qualifying === c.id} style={{
@@ -1336,7 +1336,7 @@ updates.research = newResearch;
           <div style={{ background: '#fff', borderRadius: 16, padding: 28, width: 480, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>Add Contact</h3>
-              <button onClick={() => { setShowAddContact(false); setContactDupWarning(null); }} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#6b7280' }}>&#x2715;</button>
+              <button onClick={() => { setShowAddContact(false); setContactDupWarning(null); }} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#6b7280' }}>✕</button>
             </div>
             {contactDupWarning && (
               <div style={{ background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: 10, padding: 14, marginBottom: 16 }}>
@@ -1380,7 +1380,7 @@ updates.research = newResearch;
                 {csvStep === 1 ? 'Import Contacts - Upload CSV' : csvStep === 2 ? 'Map Columns' : csvStep === 3 ? 'Resolve Duplicates' : 'Import Complete'}
               </h3>
               <button onClick={() => { setShowCsvImport(false); setCsvStep(1); setCsvDuplicates([]); setCsvImportResult(null); }}
-                style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#6b7280' }}>&#x2715;</button>
+                style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#6b7280' }}>✕</button>
             </div>
             {csvStep === 1 && (
               <div style={{ textAlign: 'center', padding: '30px 0' }}>
