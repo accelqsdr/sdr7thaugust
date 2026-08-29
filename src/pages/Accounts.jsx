@@ -552,6 +552,9 @@ if (r.detectedIndustry && !data.industry) updates.industry = r.detectedIndustry;
 if (r.hq_country && !data.country) updates.country = r.hq_country;
 if (r.website && !data.website) updates.website = r.website;
 if (r.employee_count_range && !data.employee_count) updates.employee_count = r.employee_count_range;
+      if (r.about)                newResearch.about                = r.about;
+      if (r.businessModel)         newResearch.businessModel        = r.businessModel;
+      if (r.strategicPriorities)   newResearch.strategicPriorities  = r.strategicPriorities;
 
 updates.research = newResearch;
 
