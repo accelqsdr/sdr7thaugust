@@ -1142,36 +1142,36 @@ updates.research = newResearch;
               {c.email ? (
                         <span style={{ fontSize: 12, color: '#374151', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }} title={c.email}>âï¸ {c.email}</span>
                       ) : (
-                        {editLI4Contact === c.id ? (
-                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                      <input value={liDraft} onChange={e => setLiDraft(e.target.value)} placeholder="Paste LinkedIn URL"
-                        style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #2563eb', fontSize: 11, width: 160, outline: 'none' }} />
-                      <button onClick={() => saveContactLinkedIn(c.id)} style={{ fontSize: 11, padding: '4px 8px', background: '#2563eb', color: '#fff', borderRadius: 6, border: 'none', cursor: 'pointer' }}>Save</button>
-                      <button onClick={() => setEditLI4Contact(null)} style={{ fontSize: 11, padding: '4px 6px', background: '#f0f0f0', borderRadius: 6, border: 'none', cursor: 'pointer' }}>&#x2715;</button>
-                    </div>
-                  ) : c.linkedin_url ? (
-                    <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer"
-                      style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 7, background: '#e0f2fe', color: '#0369a1', fontSize: 12, fontWeight: 600, textDecoration: 'none', flexShrink: 0 }}>
-                      LinkedIn
-                    </a>
-                  ) : (
-                    <a href={`https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(((c.first_name||'') + ' ' + (c.last_name||'')).trim() + ' ' + data.name)}`}
-                      target="_blank" rel="noopener noreferrer"
-                      style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 7, border: '1px dashed #0369a1', color: '#0369a1', fontSize: 12, textDecoration: 'none', flexShrink: 0 }}>
-                      Search LinkedIn
-                    </a>
-                  )}
-                  {editLI4Contact !== c.id && (
-                    <button onClick={() => { setEditLI4Contact(c.id); setLiDraft(c.linkedin_url || ''); }}
-                      style={{ fontSize: 11, padding: '4px 7px', background: '#f9fafb', borderRadius: 6, border: '1px solid #e5e7eb', cursor: 'pointer', color: '#6b7280', flexShrink: 0 }}>&#x270F;</button>
-                  )}
-                  <button onClick={() => window.open(`https://app.apollo.io/#/people?name=${encodeURIComponent((c.first_name + ' ' + (c.last_name || '')).trim())}&organization_name=${encodeURIComponent(data.name)}`, '_blank')}
+                        <button onClick={() => window.open(`https://app.apollo.io/#/people?name=${encodeURIComponent((c.first_name + ' ' + (c.last_name || '')).trim())}&organization_name=${encodeURIComponent(data.name)}`, '_blank')}
                           style={{ fontSize: 11, padding: '4px 10px', borderRadius: 7, border: '1px dashed #d97706', background: 'none', color: '#d97706', cursor: 'pointer', flexShrink: 0 }}>
                           ð Find Email
                         </button>
                       )}
                       {c.status === 'Fresh' && !c.next_followup && (
-                        <button onClick={() => startContact(c)} disabled={qualifying === c.id} style={{
+                        {editLI4Contact === c.id ? (
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                        <input value={liDraft} onChange={e => setLiDraft(e.target.value)} placeholder="Paste LinkedIn URL"
+                          style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #2563eb', fontSize: 11, width: 160, outline: 'none' }} />
+                        <button onClick={() => saveContactLinkedIn(c.id)} style={{ fontSize: 11, padding: '4px 8px', background: '#2563eb', color: '#fff', borderRadius: 6, border: 'none', cursor: 'pointer' }}>Save</button>
+                        <button onClick={() => setEditLI4Contact(null)} style={{ fontSize: 11, padding: '4px 6px', background: '#f0f0f0', borderRadius: 6, border: 'none', cursor: 'pointer' }}>&#x2715;</button>
+                      </div>
+                    ) : c.linkedin_url ? (
+                      <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer"
+                        style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 7, background: '#e0f2fe', color: '#0369a1', fontSize: 12, fontWeight: 600, textDecoration: 'none', flexShrink: 0 }}>
+                        LinkedIn
+                      </a>
+                    ) : (
+                      <a href={`https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(((c.first_name||'') + ' ' + (c.last_name||'')).trim() + ' ' + data.name)}`}
+                        target="_blank" rel="noopener noreferrer"
+                        style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 7, border: '1px dashed #0369a1', color: '#0369a1', fontSize: 12, textDecoration: 'none', flexShrink: 0 }}>
+                        Search LinkedIn
+                      </a>
+                    )}
+                    {editLI4Contact !== c.id && (
+                      <button onClick={() => { setEditLI4Contact(c.id); setLiDraft(c.linkedin_url || ''); }}
+                        style={{ fontSize: 11, padding: '4px 7px', background: '#f9fafb', borderRadius: 6, border: '1px solid #e5e7eb', cursor: 'pointer', color: '#6b7280', flexShrink: 0 }}>&#x270F;</button>
+                    )}
+                    <button onClick={() => startContact(c)} disabled={qualifying === c.id} style={{
                           fontSize: 12, padding: '6px 14px', borderRadius: 8, border: 'none',
                           background: qualifying === c.id ? '#d1fae5' : 'linear-gradient(135deg, #2563eb, #7c3aed)',
                           color: '#fff', cursor: qualifying === c.id ? 'wait' : 'pointer', fontWeight: 600, flexShrink: 0,
@@ -1384,8 +1384,7 @@ updates.research = newResearch;
             </div>
             {csvStep === 1 && (
               <div style={{ textAlign: 'center', padding: '30px 0' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>CSV</div>
-                <p style={{ fontSize: 14, color: '#6b7280', marginBottom: 20 }}>Upload a CSV file. First Name is required per row.</p>
+                <p style={{ fontSize: 14, color: '#6b7280', marginBottom: 20 }}>Upload a CSV. First Name is required per row.</p>
                 <label style={{ padding: '10px 24px', background: '#2563eb', color: '#fff', borderRadius: 9, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
                   Choose File
                   <input type="file" accept=".csv" style={{ display: 'none' }} onChange={e => e.target.files[0] && handleCsvFile(e.target.files[0])} />
@@ -1394,12 +1393,11 @@ updates.research = newResearch;
             )}
             {csvStep === 2 && (
               <div>
-                <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>Match your CSV columns to contact fields. Rows without First Name will be skipped.</p>
+                <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>Match CSV columns to contact fields. Rows without First Name are skipped.</p>
                 <div style={{ background: '#f9fafb', borderRadius: 10, padding: 14, marginBottom: 16, maxHeight: 340, overflowY: 'auto' }}>
                   {csvHeaders.map((h, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
                       <span style={{ width: 160, fontSize: 13, fontWeight: 500, color: '#374151', flexShrink: 0 }}>{h}</span>
-                      <span style={{ color: '#9ca3af', fontSize: 12 }}>to</span>
                       <select value={columnMapping[i] || ''} onChange={e => setColumnMapping(p => ({...p,[i]:e.target.value}))}
                         style={{ flex: 1, padding: '6px 10px', borderRadius: 7, border: '1px solid #e5e7eb', fontSize: 13 }}>
                         <option value="">Skip</option>
@@ -1410,7 +1408,7 @@ updates.research = newResearch;
                     </div>
                   ))}
                 </div>
-                <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 16 }}>{csvRows.length} rows found in CSV</p>
+                <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 16 }}>{csvRows.length} rows found</p>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
                   <button onClick={() => setCsvStep(1)} style={{ padding: '9px 20px', borderRadius: 9, border: '1px solid #e5e7eb', fontSize: 13, cursor: 'pointer', background: '#fff' }}>Back</button>
                   <button onClick={runCsvImport} disabled={csvImporting}
@@ -1422,21 +1420,23 @@ updates.research = newResearch;
             )}
             {csvStep === 3 && (
               <div>
-                <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>These contacts already exist in this account. Choose what to do for each:</p>
+                <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>These contacts already exist. Choose what to do for each:</p>
                 <div style={{ maxHeight: 320, overflowY: 'auto', marginBottom: 16 }}>
                   {csvDuplicates.map(({idx, row, existing}) => (
                     <div key={idx} style={{ background: '#fef3c7', borderRadius: 10, padding: 12, marginBottom: 10, border: '1px solid #f59e0b' }}>
                       <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 600 }}>{row.first_name} {row.last_name} - {row.email}</p>
-                      <p style={{ margin: '0 0 8px', fontSize: 12, color: '#6b7280' }}>Existing: {existing.first_name} {existing.last_name} ({existing.title || 'No title'})</p>
+                      <p style={{ margin: '0 0 8px', fontSize: 12, color: '#6b7280' }}>Existing: {existing.first_name} {existing.last_name}</p>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button onClick={() => setCsvDupDecisions(p => ({...p,[idx]:'keep'}))}
-                          style={{ padding: '5px 12px', borderRadius: 7, border: '2px solid ' + ((csvDupDecisions[idx]||'keep')==='keep'?'#2563eb':'#e5e7eb'),
-                            background: (csvDupDecisions[idx]||'keep')==='keep'?'#eff6ff':'#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                          style={{ padding: '5px 12px', borderRadius: 7, fontWeight: 600, cursor: 'pointer', fontSize: 12,
+                            border: (csvDupDecisions[idx]||'keep') === 'keep' ? '2px solid #2563eb' : '2px solid #e5e7eb',
+                            background: (csvDupDecisions[idx]||'keep') === 'keep' ? '#eff6ff' : '#fff' }}>
                           Keep Existing
                         </button>
                         <button onClick={() => setCsvDupDecisions(p => ({...p,[idx]:'overwrite'}))}
-                          style={{ padding: '5px 12px', borderRadius: 7, border: '2px solid ' + (csvDupDecisions[idx]==='overwrite'?'#d97706':'#e5e7eb'),
-                            background: csvDupDecisions[idx]==='overwrite'?'#fffbeb':'#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                          style={{ padding: '5px 12px', borderRadius: 7, fontWeight: 600, cursor: 'pointer', fontSize: 12,
+                            border: csvDupDecisions[idx] === 'overwrite' ? '2px solid #d97706' : '2px solid #e5e7eb',
+                            background: csvDupDecisions[idx] === 'overwrite' ? '#fffbeb' : '#fff' }}>
                           Overwrite
                         </button>
                       </div>
@@ -1454,11 +1454,10 @@ updates.research = newResearch;
             )}
             {csvStep === 4 && csvImportResult && (
               <div style={{ textAlign: 'center', padding: '30px 0' }}>
-                <div style={{ fontSize: 48, marginBottom: 12 }}>Done!</div>
                 <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>Import Complete!</p>
                 <p style={{ fontSize: 14, color: '#6b7280', marginBottom: 20 }}>
-                  Added {csvImportResult.added} new contact{csvImportResult.added !== 1 ? 's' : ''}.
-                  {csvImportResult.overwritten > 0 ? ' Updated ' + csvImportResult.overwritten + ' existing.' : ''}
+                  {csvImportResult.added} contact{csvImportResult.added !== 1 ? 's' : ''} added.
+                  {csvImportResult.overwritten > 0 ? ' ' + csvImportResult.overwritten + ' updated.' : ''}
                 </p>
                 <button onClick={() => { setShowCsvImport(false); setCsvStep(1); setCsvImportResult(null); }}
                   style={{ padding: '10px 24px', background: '#2563eb', color: '#fff', borderRadius: 9, border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
