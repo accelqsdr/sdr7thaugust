@@ -835,11 +835,10 @@ updates.research = newResearch;
                 placeholder="Add intel: tech stack, deal status, pain points, next steps…" rows={5}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid #e5e7eb', fontSize: 13, lineHeight: 1.7, resize: 'vertical', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', color: '#374151', background: '#f9fafb' }} />
             </div>
-          </div>
 
 
-          {/* Intel — Important to Know & Signals */}
-          <div style={{ maxWidth: 860 }}>
+            {/* ── Intel ── */}
+            <div style={{ maxWidth: 860 }}>
 
             {/* Important to Know */}
             {importantToKnow.length > 0 && (
@@ -937,7 +936,8 @@ updates.research = newResearch;
             </div>
           </div>
 
-                )}
+                    </div>
+        )}
 
         {/* CONTACTS TAB */}
         {activeTab === 'contacts' && (
