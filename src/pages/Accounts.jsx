@@ -597,7 +597,6 @@ updates.research = newResearch;
     { key: 'overview',  label: 'Overview'  },
     { key: 'contacts',  label: `Contacts${contacts.length > 0 ? ` (${contacts.length})` : ''}` },
     { key: 'techstack', label: 'Tech Stack' },
-    { key: 'intel',     label: '💡 Intel'   },
     { key: 'notes',     label: 'Notes'     },
   ];
 
@@ -837,7 +836,108 @@ updates.research = newResearch;
                 style={{ width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid #e5e7eb', fontSize: 13, lineHeight: 1.7, resize: 'vertical', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', color: '#374151', background: '#f9fafb' }} />
             </div>
           </div>
-        )}
+
+
+          {/* Intel — Important to Know & Signals */}
+          <div style={{ maxWidth: 860 }}>
+
+            {/* Important to Know */}
+            {importantToKnow.length > 0 && (
+              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: '18px 20px', marginBottom: 20 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#92400e', marginBottom: 16 }}>💡 Important to Know</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                           {importantToKnow.map((item, i) => (
+                    <div key={i} style={{
+                      paddingBottom: i < importantToKnow.length - 1 ? 16 : 0,
+                      marginBottom: i < importantToKnow.length - 1 ? 16 : 0,
+                      borderBottom: i < importantToKnow.length - 1 ? '1px solid #fde68a' : 'none',
+                    }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#78350f', marginBottom: 6 }}>{item.title}</div>
+                      <div style={{ fontSize: 13, color: '#92400e', lineHeight: 1.7 }}>{item.body}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Signals Feed */}
+            {aiSignals.length > 0 && (
+              <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 20px', marginBottom: 20 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 14 }}>📡 Recent Signals</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {aiSignals.map((sig, i) => {
+                    const tc = SIGNAL_TYPE_COLORS[sig.type] || { bg: '#f1f5f9', color: '#475569' };
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px', borderRadius: 10, background: '#f9fafb', border: '1px solid #f0f0ee' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 8, background: tc.bg, color: tc.color, flexShrink: 0, whiteSpace: 'nowrap', marginTop: 1 }}>{sig.type}</span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.6 }}>{sig.text}</div>
+                          {sig.date && <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>{sig.date}</div>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Placeholder if no intel yet */}
+            {importantToKnow.length === 0 && aiSignals.length === 0 && (
+              <div style={{ background: 'linear-gradient(135deg, #f5f3ff, #eff6ff)', border: '1px solid #ddd6fe', borderRadius: 12, padding: '28px 24px', marginBottom: 20, textAlign: 'center' }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>🤖</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#5b21b6', marginBottom: 6 }}>No intel yet</div>
+                <div style={{ fontSize: 13, color: '#7c3aed', marginBottom: 16 }}>Run AI Research to generate "Important to Know" pitch bullets and a recent signals feed for this account.</div>
+                <button onClick={runFullAIResearch} disabled={aiResearching} style={{
+                  padding: '10px 24px', background: aiResearching ? '#e5e7eb' : 'linear-gradient(135deg, #7c3aed, #2563eb)',
+                  color: aiResearching ? '#9ca3af' : '#fff', borderRadius: 9, fontSize: 13, fontWeight: 600,
+                  border: 'none', cursor: aiResearching ? 'wait' : 'pointer',
+                }}>
+                  {aiResearching ? '⏳ Researching…' : '🤖 Run AI Research'}
+                </button>
+              </div>
+            )}
+
+            {/* Research cards */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Research Notes</div>
+              <button onClick={generateAll} style={{ padding: '7px 18px', background: 'linear-gradient(135deg, #7c3aed, #2563eb)', color: '#fff', borderRadius: 9, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
+                ✨ Generate All Missing
+              </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              {RESEARCH_DEFAULTS.map(r => (
+                <ResearchCard key={r.key} icon={r.icon} label={r.label} value={research[r.key] || ''}
+                  generating={!!researchGenerating[r.key]}
+                  onGenerate={() => generateResearch(r.key, r.label)}
+                  onSave={val => saveResearch(r.key, val)} />
+              ))}
+              {customResearch.map((s, idx) => (
+                <ResearchCard key={s.key} icon="📌" label={s.label} value={s.value || ''}
+                  generating={false} onGenerate={() => {}}
+                  onSave={val => saveCustomResearch(idx, val)}
+                  onRemove={() => removeCustomSection(idx)} />
+              ))}
+              <div style={{ border: '2px dashed #e5e7eb', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 100, cursor: showAddCustom ? 'default' : 'pointer' }}
+                onClick={() => !showAddCustom && setShowAddCustom(true)}>
+                {showAddCustom ? (
+                  <div style={{ width: '100%', display: 'flex', gap: 8 }}>
+                    <input value={newCustomSection} onChange={e => setNewCustomSection(e.target.value)}
+                      placeholder="Section name" autoFocus onKeyDown={e => e.key === 'Enter' && addCustomSection()}
+                      style={{ flex: 1, padding: '7px 10px', borderRadius: 7, border: '1px solid #2563eb', fontSize: 13, outline: 'none' }} />
+                    <button onClick={addCustomSection} style={{ padding: '7px 14px', background: '#2563eb', color: '#fff', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>Add</button>
+                    <button onClick={() => setShowAddCustom(false)} style={{ padding: '7px 10px', background: '#f0f0f0', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>✕</button>
+                  </div>
+                ) : (
+                  <>
+                    <span style={{ fontSize: 28, color: '#d1d5db' }}>+</span>
+                    <span style={{ fontSize: 13, color: '#9ca3af' }}>Add custom section</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+                )}
 
         {/* CONTACTS TAB */}
         {activeTab === 'contacts' && (
@@ -1023,107 +1123,6 @@ updates.research = newResearch;
                   <button onClick={() => setShowAddSaas(false)} style={{ padding: '7px 10px', background: '#f0f0f0', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>✕</button>
                 </div>
               )}
-            </div>
-          </div>
-        )}
-
-        {/* INTEL TAB */}
-        {activeTab === 'intel' && (
-          <div style={{ maxWidth: 860 }}>
-
-            {/* Important to Know */}
-            {importantToKnow.length > 0 && (
-              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: '18px 20px', marginBottom: 20 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#92400e', marginBottom: 16 }}>💡 Important to Know</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                           {importantToKnow.map((item, i) => (
-                    <div key={i} style={{
-                      paddingBottom: i < importantToKnow.length - 1 ? 16 : 0,
-                      marginBottom: i < importantToKnow.length - 1 ? 16 : 0,
-                      borderBottom: i < importantToKnow.length - 1 ? '1px solid #fde68a' : 'none',
-                    }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#78350f', marginBottom: 6 }}>{item.title}</div>
-                      <div style={{ fontSize: 13, color: '#92400e', lineHeight: 1.7 }}>{item.body}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Signals Feed */}
-            {aiSignals.length > 0 && (
-              <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 20px', marginBottom: 20 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 14 }}>📡 Recent Signals</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {aiSignals.map((sig, i) => {
-                    const tc = SIGNAL_TYPE_COLORS[sig.type] || { bg: '#f1f5f9', color: '#475569' };
-                    return (
-                      <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px', borderRadius: 10, background: '#f9fafb', border: '1px solid #f0f0ee' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 8, background: tc.bg, color: tc.color, flexShrink: 0, whiteSpace: 'nowrap', marginTop: 1 }}>{sig.type}</span>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.6 }}>{sig.text}</div>
-                          {sig.date && <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>{sig.date}</div>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Placeholder if no intel yet */}
-            {importantToKnow.length === 0 && aiSignals.length === 0 && (
-              <div style={{ background: 'linear-gradient(135deg, #f5f3ff, #eff6ff)', border: '1px solid #ddd6fe', borderRadius: 12, padding: '28px 24px', marginBottom: 20, textAlign: 'center' }}>
-                <div style={{ fontSize: 32, marginBottom: 12 }}>🤖</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#5b21b6', marginBottom: 6 }}>No intel yet</div>
-                <div style={{ fontSize: 13, color: '#7c3aed', marginBottom: 16 }}>Run AI Research to generate "Important to Know" pitch bullets and a recent signals feed for this account.</div>
-                <button onClick={runFullAIResearch} disabled={aiResearching} style={{
-                  padding: '10px 24px', background: aiResearching ? '#e5e7eb' : 'linear-gradient(135deg, #7c3aed, #2563eb)',
-                  color: aiResearching ? '#9ca3af' : '#fff', borderRadius: 9, fontSize: 13, fontWeight: 600,
-                  border: 'none', cursor: aiResearching ? 'wait' : 'pointer',
-                }}>
-                  {aiResearching ? '⏳ Researching…' : '🤖 Run AI Research'}
-                </button>
-              </div>
-            )}
-
-            {/* Research cards */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Research Notes</div>
-              <button onClick={generateAll} style={{ padding: '7px 18px', background: 'linear-gradient(135deg, #7c3aed, #2563eb)', color: '#fff', borderRadius: 9, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
-                ✨ Generate All Missing
-              </button>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-              {RESEARCH_DEFAULTS.map(r => (
-                <ResearchCard key={r.key} icon={r.icon} label={r.label} value={research[r.key] || ''}
-                  generating={!!researchGenerating[r.key]}
-                  onGenerate={() => generateResearch(r.key, r.label)}
-                  onSave={val => saveResearch(r.key, val)} />
-              ))}
-              {customResearch.map((s, idx) => (
-                <ResearchCard key={s.key} icon="📌" label={s.label} value={s.value || ''}
-                  generating={false} onGenerate={() => {}}
-                  onSave={val => saveCustomResearch(idx, val)}
-                  onRemove={() => removeCustomSection(idx)} />
-              ))}
-              <div style={{ border: '2px dashed #e5e7eb', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 100, cursor: showAddCustom ? 'default' : 'pointer' }}
-                onClick={() => !showAddCustom && setShowAddCustom(true)}>
-                {showAddCustom ? (
-                  <div style={{ width: '100%', display: 'flex', gap: 8 }}>
-                    <input value={newCustomSection} onChange={e => setNewCustomSection(e.target.value)}
-                      placeholder="Section name" autoFocus onKeyDown={e => e.key === 'Enter' && addCustomSection()}
-                      style={{ flex: 1, padding: '7px 10px', borderRadius: 7, border: '1px solid #2563eb', fontSize: 13, outline: 'none' }} />
-                    <button onClick={addCustomSection} style={{ padding: '7px 14px', background: '#2563eb', color: '#fff', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>Add</button>
-                    <button onClick={() => setShowAddCustom(false)} style={{ padding: '7px 10px', background: '#f0f0f0', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>✕</button>
-                  </div>
-                ) : (
-                  <>
-                    <span style={{ fontSize: 28, color: '#d1d5db' }}>+</span>
-                    <span style={{ fontSize: 13, color: '#9ca3af' }}>Add custom section</span>
-                  </>
-                )}
-              </div>
             </div>
           </div>
         )}
