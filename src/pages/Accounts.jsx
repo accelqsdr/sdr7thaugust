@@ -731,18 +731,11 @@ updates.research = newResearch;
   async function enrichContact(c) {
     setEnrichingContact(c.id);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const resp = await fetch(import.meta.env.VITE_SUPABASE_URL + '/functions/v1/enrich-contact', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contact_id: c.id, first_name: c.first_name, last_name: c.last_name, company: c.company || account?.name || '', account_id: account?.id })
+      const { data: result, error: fnErr } = await supabase.functions.invoke('enrich-contact', {
+        body: { contact_id: c.id, first_name: c.first_name, last_name: c.last_name, company: c.company || account?.name || '', account_id: account?.id }
       });
-      let result;
-      try { result = await resp.json(); } catch(e) {
-        const txt = await resp.text().catch(() => '');
-        throw new Error(txt || `Server error ${resp.status}`);
-      }
-      if (result.error) throw new Error(result.error);
+      if (fnErr) throw new Error(fnErr.message || 'Edge function error');
+      if (result?.error) throw new Error(result.error);
       if (result.found) {
         const got = [result.email && 'email', result.linkedin_url && 'LinkedIn', result.company_linkedin_url && 'company LinkedIn'].filter(Boolean);
         alert(got.length ? 'Enriched: ' + got.join(', ') : 'No new data found in Apollo');
