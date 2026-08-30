@@ -737,7 +737,11 @@ updates.research = newResearch;
         headers: { 'Authorization': 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
         body: JSON.stringify({ contact_id: c.id, first_name: c.first_name, last_name: c.last_name, company: c.company || account?.name || '', account_id: account?.id })
       });
-      const result = await resp.json();
+      let result;
+      try { result = await resp.json(); } catch(e) {
+        const txt = await resp.text().catch(() => '');
+        throw new Error(txt || `Server error ${resp.status}`);
+      }
       if (result.error) throw new Error(result.error);
       if (result.found) {
         const got = [result.email && 'email', result.linkedin_url && 'LinkedIn', result.company_linkedin_url && 'company LinkedIn'].filter(Boolean);
