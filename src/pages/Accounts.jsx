@@ -509,14 +509,12 @@ setSaving(false);
   async function updateContactPitchType(cId, pt) {
     const val = pt === '' ? null : pt;
     await supabase.from('contacts').update({ pitch_type: val }).eq('id', cId);
-    setContacts(prev => prev.map(c => c.id === cId ? {...c, pitch_type: pt} : c));
     onUpdate();
   }
 
   async function updateContactPersona(cId, ps) {
     const val = ps === '' ? null : ps;
     await supabase.from('contacts').update({ persona: val }).eq('id', cId);
-    setContacts(prev => prev.map(c => c.id === cId ? {...c, persona: val} : c));
     onUpdate();
   }
   async function startContact(c) {
