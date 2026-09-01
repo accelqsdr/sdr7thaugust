@@ -1164,29 +1164,23 @@ updates.research = newResearch;
                         </button>
                       )}
                       {editLI4Contact === c.id ? (
-                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                        <input value={liDraft} onChange={e => setLiDraft(e.target.value)} placeholder="Paste LinkedIn URL"
-                          style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #2563eb', fontSize: 11, width: 160, outline: 'none' }} />
-                        <button onClick={() => saveContactLinkedIn(c.id)} style={{ fontSize: 11, padding: '4px 8px', background: '#2563eb', color: '#fff', borderRadius: 6, border: 'none', cursor: 'pointer' }}>Save</button>
-                        <button onClick={() => setEditLI4Contact(null)} style={{ fontSize: 11, padding: '4px 6px', background: '#f0f0f0', borderRadius: 6, border: 'none', cursor: 'pointer' }}>&#x2715;</button>
-                      </div>
-                    ) : c.linkedin_url ? (
-                      <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer"
-                        style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 7, background: '#e0f2fe', color: '#0369a1', fontSize: 12, fontWeight: 600, textDecoration: 'none', flexShrink: 0 }}>
-                        LinkedIn
-                      </a>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <input autoFocus placeholder="Paste LinkedIn URL..."
+                          value={liDraft} onChange={e => setLiDraft(e.target.value)}
+                          style={{ fontSize: 12, border: '1px solid #0077b5', borderRadius: 4, padding: '2px 6px', width: 200 }}
+                          onKeyDown={e => { if (e.key === 'Enter') saveContactLinkedIn(c.id); if (e.key === 'Escape') setEditLI4Contact(null); }} />
+                        <button onClick={() => saveContactLinkedIn(c.id)}
+                          style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid #0077b5', background: '#0077b5', color: '#fff', cursor: 'pointer', fontSize: 11 }}>Save</button>
+                        <button onClick={() => setEditLI4Contact(null)}
+                          style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid #ccc', background: '#fff', cursor: 'pointer', fontSize: 11 }}>&#x2715;</button>
+                      </span>
                     ) : (
-                      <a href={`https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(((c.first_name||'') + ' ' + (c.last_name||'')).trim() + ' ' + data.name)}`}
-                        target="_blank" rel="noopener noreferrer"
-                        style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 7, border: '1px dashed #0369a1', color: '#0369a1', fontSize: 12, textDecoration: 'none', flexShrink: 0 }}>
-                        Search LinkedIn
-                      </a>
-                    )}
-                    {editLI4Contact !== c.id && (
-                      <button onClick={() => { setEditLI4Contact(c.id); setLiDraft(c.linkedin_url || ''); }}
-                        style={{ fontSize: 11, padding: '4px 7px', background: '#f9fafb', borderRadius: 6, border: '1px solid #e5e7eb', cursor: 'pointer', color: '#6b7280', flexShrink: 0 }}>&#x270F;</button>
-                    )}
-              {(!c.email || !c.linkedin_url) && (
+                      <span title={c.linkedin_url ? 'Open LinkedIn profile' : 'Add LinkedIn URL'}
+                        onClick={() => { if (c.linkedin_url) { window.open(c.linkedin_url, '_blank'); } else { setLiDraft(''); setEditLI4Contact(c.id); } }}
+                        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', color: c.linkedin_url ? '#0077b5' : '#9ca3af', flexShrink: 0 }}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                      </span>
+                    )}             {(!c.email || !c.linkedin_url) && (
                 <button onClick={() => enrichContact(c)} disabled={enrichingContact === c.id}
                   style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #7c3aed', background: enrichingContact === c.id ? '#ede9fe' : '#f5f3ff', color: '#7c3aed', cursor: 'pointer', fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap' }}>
                   {enrichingContact === c.id ? 'Enriching...' : '✨ Enrich'}
