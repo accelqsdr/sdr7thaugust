@@ -35,6 +35,18 @@ export default function LinkedInImport() {
     setImporting(true);
     const stats = { imported: 0, skipped: 0, errors: [] };
 
+    // Find or create accounts for each unique company
+    const companyAccountMap = {};
+    const uniqueCompanies = [...new Set(pendingContacts.map(c => c.company).filter(Boolean))];
+    for (const companyName of uniqueCompanies) {
+      const { data: existing } = await supabase.from('accounts').select('id').eq('name', companyName).eq('owner_id', profile?.id).maybeSingle();
+      if (existing) {
+        companyAccountMap[companyName] = existing.id;
+      } else {
+        const { data: created } = await supabase.from('accounts').insert({ name: companyName, owner_id: profile?.id || null }).select('id').single();
+        if (created) companyAccountMap[companyName] = created.id;
+      }
+    }
     for (const c of pendingContacts) {
       try {
         let isDup = false;
@@ -53,6 +65,7 @@ export default function LinkedInImport() {
           last_name: c.lastName || '',
           title: c.designation || '',
           company: c.company || '',
+          account_id: companyAccountMap[c.company] || null,
           email: c.email || null,
           linkedin_url: c.linkedinUrl || null,
           status: 'fresh',
