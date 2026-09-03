@@ -162,9 +162,9 @@ export default function Accounts() {
   const [acctDupCandidates, setAcctDupCandidates] = useState([]);
 
   const fetchAll = useCallback(async () => {
-    const canSeeAll = ['director','manager'].includes(profile?.role);
+    setLoading(true);
     let accs = [];
-    if (canSeeAll) {
+    if (canViewAll) {
       const { data } = await supabase.from('accounts').select('*').order('created_at', { ascending: false });
       accs = data || [];
     } else {
@@ -175,12 +175,10 @@ export default function Accounts() {
         accs = data || [];
       }
     }
-      if (c.account_id) { if (!byAcct[c.account_id]) byAcct[c.account_id] = []; byAcct[c.account_id].push(c); }
-    });
-    setContactsByAccount(byAcct);
+    setContactsByAccount({});
     setAccounts(accs || []);
     setLoading(false);
-  }, [user.id, viewAll, canViewAll]);
+  }, [user.id, canViewAll]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
   useEffect(() => {
