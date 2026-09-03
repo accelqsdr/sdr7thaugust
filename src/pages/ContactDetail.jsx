@@ -21,12 +21,12 @@ const STAGE_COLORS = {
 };
 
 const RESPONSE_OPTIONS = [
-  { value: 'cold',          label: '🔵 Cold',          bg: '#e0f2fe', color: '#0369a1' },
-  { value: 'warm',          label: '🟡 Warm',          bg: '#fef9c3', color: '#854d0e' },
-  { value: 'prospect',      label: '🟢 Prospect',      bg: '#d1fae5', color: '#065f46' },
-  { value: 'negative',      label: '🔴 Negative',      bg: '#fee2e2', color: '#991b1b' },
-  { value: 'not_interested',label: '⬜ Not interested', bg: '#f1f5f9', color: '#475569' },
-  { value: 'bounce',        label: '⛔ Bounce',        bg: '#fee2e2', color: '#991b1b' },
+  { value: 'cold',          label: 'ðµ Cold',          bg: '#e0f2fe', color: '#0369a1' },
+  { value: 'warm',          label: 'ð¡ Warm',          bg: '#fef9c3', color: '#854d0e' },
+  { value: 'prospect',      label: 'ð¢ Prospect',      bg: '#d1fae5', color: '#065f46' },
+  { value: 'negative',      label: 'ð´ Negative',      bg: '#fee2e2', color: '#991b1b' },
+  { value: 'not_interested',label: 'â¬ Not interested', bg: '#f1f5f9', color: '#475569' },
+  { value: 'bounce',        label: 'â Bounce',        bg: '#fee2e2', color: '#991b1b' },
 ];
 
 const STEP_MAP = { Fresh: 0, F1: 1, F2: 2, F3: 3, F4: 4, F5: 5 };
@@ -34,8 +34,8 @@ const NEXT_STAGE = { Fresh: 'F1', F1: 'F2', F2: 'F3', F3: 'F4', F4: 'F5', F5: nu
 const DAYS_UNTIL_NEXT = { F1: 3, F2: 4, F3: 5, F4: 7, F5: 10 };
 
 const RESEARCH_FIELDS = [
-  { key: 'whyTarget', label: 'Why target this contact', placeholder: 'Why this contact fits ACCELQ ICP…' },
-  { key: 'techStack', label: 'Known tech stack used by contact', placeholder: 'SAP, Selenium, Jenkins, Jira…' },
+  { key: 'whyTarget', label: 'Why target this contact', placeholder: 'Why this contact fits ACCELQ ICPâ¦' },
+  { key: 'techStack', label: 'Known tech stack used by contact', placeholder: 'SAP, Selenium, Jenkins, Jiraâ¦' },
 ];
 
 const SIGNAL_FIELDS = [];
@@ -54,9 +54,9 @@ const ACTIVITY_LABELS = {
   followup_done:    'Follow-up done',
 };
 const ACTIVITY_ICONS = {
-  status_changed: '🔄', bounce_detected: '⛔', email_sent: '✉️',
-  reply_logged: '💬', note_added: '📝', research_updated: '🔍',
-  signals_updated: '🎯', stage_advanced: '⬆️', followup_done: '✅',
+  status_changed: 'ð', bounce_detected: 'â', email_sent: 'âï¸',
+  reply_logged: 'ð¬', note_added: 'ð', research_updated: 'ð',
+  signals_updated: 'ð¯', stage_advanced: 'â¬ï¸', followup_done: 'â',
 };
 
 export default function ContactDetail() {
@@ -68,6 +68,7 @@ export default function ContactDetail() {
   const userId = user.id;
 
   const [contact, setContact] = useState(null);
+  const contactName = contact ? [contact.first_name, contact.last_name].filter(Boolean).join(' ') || contact.email || 'Contact' : '';
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('overview');
 
@@ -248,13 +249,13 @@ export default function ContactDetail() {
     fetchNotes(contact.company);
   }
 
-  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: '#aaa', fontSize: 14 }}>Loading…</div>;
+  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: '#aaa', fontSize: 14 }}>Loadingâ¦</div>;
   if (!contact) return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 12 }}>
-      <div style={{ fontSize: 32 }}>🔍</div>
+      <div style={{ fontSize: 32 }}>ð</div>
       <p style={{ color: '#aaa', fontSize: 14 }}>Contact not found</p>
       <button onClick={() => backState?.from === 'account' ? navigate('/accounts', { state: { selectId: backState.accountId } }) : navigate('/contacts')} style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
-        {backState?.from === 'account' ? `← Back to ${backState.accountName}` : 'Back to Contacts'}
+        {backState?.from === 'account' ? `â Back to ${backState.accountName}` : 'Back to Contacts'}
       </button>
     </div>
   );
@@ -279,7 +280,7 @@ export default function ContactDetail() {
     <div style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
       <button onClick={() => backState?.from === 'account' ? navigate('/accounts', { state: { selectId: backState.accountId } }) : navigate('/contacts')}
         style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: '#666', fontSize: 13, cursor: 'pointer', marginBottom: 20, padding: 0 }}>
-        {backState?.from === 'account' ? `← Back to ${backState.accountName}` : '← Back to Contacts'}
+        {backState?.from === 'account' ? `â Back to ${backState.accountName}` : 'â Back to Contacts'}
       </button>
 
       {/* Header card */}
@@ -289,11 +290,11 @@ export default function ContactDetail() {
             <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#e8f0fe',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 20, fontWeight: 700, color: '#2563eb', flexShrink: 0 }}>
-              {(contact.full_name || contact.first_name || '')?.charAt(0)?.toUpperCase() || '?'}
+              {contactName?.charAt(0)?.toUpperCase() || '?'}
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                <h1 style={{ fontSize: 18, fontWeight: 600, color: '#111', margin: 0 }}>{contact.full_name || [contact.first_name, contact.last_name].filter(Boolean).join(' ')}</h1>
+                <h1 style={{ fontSize: 18, fontWeight: 600, color: '#111', margin: 0 }}>{contactName}</h1>
                 <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, background: sc.bg, color: sc.color, fontWeight: 700 }}>
                   {contact.status}
                 </span>
@@ -307,7 +308,7 @@ export default function ContactDetail() {
                 )}
                 {activeSignalsCount > 0 && (
                   <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, background: '#fef9c3', color: '#854d0e', fontWeight: 500 }}>
-                    🎯 {activeSignalsCount} signal{activeSignalsCount > 1 ? 's' : ''}
+                    ð¯ {activeSignalsCount} signal{activeSignalsCount > 1 ? 's' : ''}
                   </span>
                 )}
               </div>
@@ -317,10 +318,10 @@ export default function ContactDetail() {
                 {contact.company && <span style={{ fontWeight: 600, color: '#222' }}>{contact.company}</span>}
               </div>
               <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                {contact.email && <a href={`mailto:${contact.email}`} style={{ fontSize: 12, color: '#555', textDecoration: 'none' }}>✉ {contact.email}</a>}
-                {contact.phone && <span style={{ fontSize: 12, color: '#555' }}>📞 {contact.phone}</span>}
-                {contact.industry && <span style={{ fontSize: 12, color: '#777' }}>🏢 {contact.industry}</span>}
-                {contact.country && <span style={{ fontSize: 12, color: '#777' }}>📍 {contact.country}</span>}
+                {contact.email && <a href={`mailto:${contact.email}`} style={{ fontSize: 12, color: '#555', textDecoration: 'none' }}>â {contact.email}</a>}
+                {contact.phone && <span style={{ fontSize: 12, color: '#555' }}>ð {contact.phone}</span>}
+                {contact.industry && <span style={{ fontSize: 12, color: '#777' }}>ð¢ {contact.industry}</span>}
+                {contact.country && <span style={{ fontSize: 12, color: '#777' }}>ð {contact.country}</span>}
                 {contact.linkedin_url && <a href={contact.linkedin_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#0a66c2', textDecoration: 'none', fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: '#e8f0fe' }}><svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='#0a66c2'><path d='M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z'/></svg> LinkedIn</a>}
               </div>
             </div>
@@ -338,12 +339,12 @@ export default function ContactDetail() {
                   <button onClick={advanceStage} disabled={advancing}
                     style={{ fontSize: 12, padding: '7px 14px', borderRadius: 8, border: 'none',
                       background: '#2563eb', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>
-                    {advancing ? '…' : `→ ${nextStage}`}
+                    {advancing ? 'â¦' : `â ${nextStage}`}
                   </button>
                 )}
                 <button onClick={markBounced}
                   style={{ fontSize: 12, padding: '7px 12px', borderRadius: 8, border: '1px solid #fecaca', background: '#fff', color: '#dc2626', cursor: 'pointer' }}>
-                  ⛔ Bounce
+                  â Bounce
                 </button>
               </div>
               {contact.next_followup && (
@@ -355,7 +356,7 @@ export default function ContactDetail() {
           )}
         </div>
 
-        {/* Stage tracker — only show for outreach stages */}
+        {/* Stage tracker â only show for outreach stages */}
         {currentStageIdx >= 0 && (
           <div style={{ marginTop: 20, paddingTop: 16, borderTop: '0.5px solid #f0f0ee' }}>
             <div style={{ fontSize: 11, color: '#aaa', fontWeight: 600, letterSpacing: '0.4px', marginBottom: 10, textTransform: 'uppercase' }}>
@@ -377,7 +378,7 @@ export default function ContactDetail() {
                         border: active ? `2px solid ${sc2.color}` : done ? '2px solid #2563eb' : '2px solid #e8e8e4',
                         transition: 'all 0.2s',
                       }}>
-                        {done ? '✓' : s === 'Fresh' ? '0' : s.slice(1)}
+                        {done ? 'â' : s === 'Fresh' ? '0' : s.slice(1)}
                       </div>
                       <div style={{ fontSize: 10, color: active ? sc2.color : done ? '#2563eb' : '#bbb', marginTop: 4, fontWeight: active ? 700 : 400 }}>
                         {s}
@@ -412,7 +413,7 @@ export default function ContactDetail() {
               {contact.response && (
                 <button onClick={() => setResponse(null)}
                   style={{ fontSize: 11, padding: '4px 8px', borderRadius: 8, cursor: 'pointer', background: 'none', border: '1px solid #e8e8e4', color: '#bbb' }}>
-                  ✕ Clear
+                  â Clear
                 </button>
               )}
             </div>
@@ -434,11 +435,11 @@ export default function ContactDetail() {
         ))}
       </div>
 
-      {/* ── OVERVIEW ── */}
+      {/* ââ OVERVIEW ââ */}
       {tab === 'overview' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <InfoCard title="Contact info">
-            <InfoRow label="Full name" value={contact.full_name} />
+            <InfoRow label="Full name" value={contactName} />
             <InfoRow label="Title" value={contact.title} />
             <InfoRow label="Company" value={contact.company} />
             <InfoRow label="Email" value={contact.email} />
@@ -462,7 +463,7 @@ export default function ContactDetail() {
                 <textarea
                   value={pitch}
                   onChange={e => setPitch(e.target.value)}
-                  placeholder="What angle to use for this contact — this feeds directly into AI email generation…"
+                  placeholder="What angle to use for this contact â this feeds directly into AI email generationâ¦"
                   rows={4}
                   style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e0e0e0',
                     fontSize: 13, resize: 'vertical', fontFamily: 'inherit', outline: 'none',
@@ -474,7 +475,7 @@ export default function ContactDetail() {
                     style={{ padding: '7px 18px', border: 'none', borderRadius: 8, fontSize: 13,
                       fontWeight: 500, cursor: 'pointer',
                       background: pitchSaved ? '#059669' : '#2563eb', color: '#fff', transition: 'background 0.2s' }}>
-                    {savingPitch ? 'Saving…' : pitchSaved ? '✓ Saved' : 'Save Pitch'}
+                    {savingPitch ? 'Savingâ¦' : pitchSaved ? 'â Saved' : 'Save Pitch'}
                   </button>
                 </div>
               <div style={{marginTop:16}}>
@@ -482,12 +483,12 @@ export default function ContactDetail() {
                 <div style={{display:'flex',gap:8,alignItems:'center'}}>
                   <select value={persona} onChange={e => setPersona(e.target.value)}
                     style={{flex:1,padding:'8px 12px',borderRadius:8,border:'1px solid #e0e0e0',fontSize:13,color:'#333',background:'#fff',outline:'none',cursor:'pointer'}}>
-                    <option value={''}>{'\u2014 Select persona —'}</option>
+                    <option value={''}>{'\u2014 Select persona â'}</option>
                     {PERSONA_LIST.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
                   <button onClick={savePersona} disabled={savingPersona}
                     style={{padding:'7px 16px',border:'none',borderRadius:8,fontSize:12,fontWeight:500,cursor:'pointer',whiteSpace:'nowrap',background:personaSaved?'#059669':'#2563eb',color:'#fff',transition:'background 0.2s'}}>
-                    {savingPersona ? 'Saving…' : personaSaved ? '✓ Saved' : 'Save'}
+                    {savingPersona ? 'Savingâ¦' : personaSaved ? 'â Saved' : 'Save'}
                   </button>
                 </div>
               </div>
@@ -506,18 +507,18 @@ export default function ContactDetail() {
         </div>
       )}
 
-      {/* ── RESEARCH ── */}
+      {/* ââ RESEARCH ââ */}
       {tab === 'research' && (
         <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e4', padding: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
             <div>
               <h2 style={{ fontSize: 15, fontWeight: 600, color: '#111', margin: 0 }}>Contact Research</h2>
-              <p style={{ fontSize: 12, color: '#888', margin: '4px 0 0' }}>Fills into AI email generation — the more you add, the better the emails</p>
+              <p style={{ fontSize: 12, color: '#888', margin: '4px 0 0' }}>Fills into AI email generation â the more you add, the better the emails</p>
             </div>
             <button onClick={saveResearch} disabled={savingResearch}
               style={{ padding: '8px 20px', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer',
                 background: researchSaved ? '#059669' : '#2563eb', color: '#fff', transition: 'background 0.2s' }}>
-              {savingResearch ? 'Saving…' : researchSaved ? '✓ Saved' : 'Save research'}
+              {savingResearch ? 'Savingâ¦' : researchSaved ? 'â Saved' : 'Save research'}
             </button>
           </div>
           <div style={{ display: 'grid', gap: 18 }}>
@@ -535,7 +536,7 @@ export default function ContactDetail() {
         </div>
       )}
 
-      {/* ── SIGNALS ── */}
+      {/* ââ SIGNALS ââ */}
       {tab === 'signals' && (
         <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e4', padding: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
@@ -546,7 +547,7 @@ export default function ContactDetail() {
             <button onClick={saveSignals} disabled={savingSignals}
               style={{ padding: '8px 20px', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer',
                 background: signalsSaved ? '#059669' : '#2563eb', color: '#fff', transition: 'background 0.2s' }}>
-              {savingSignals ? 'Saving…' : signalsSaved ? '✓ Saved' : 'Save signals'}
+              {savingSignals ? 'Savingâ¦' : signalsSaved ? 'â Saved' : 'Save signals'}
             </button>
           </div>
           <div style={{ display: 'grid', gap: 10 }}>
@@ -565,26 +566,26 @@ export default function ContactDetail() {
         </div>
       )}
 
-      {/* ── NOTES ── */}
+      {/* ââ NOTES ââ */}
       {tab === 'notes' && (
         <div style={{ display: 'grid', gap: 16 }}>
-          <NoteSection title="Contact Notes" subtitle={`About ${contact.full_name}`}
+          <NoteSection title="Contact Notes" subtitle={`About ${contactName}`}
             notes={contactNotes} newNote={newContactNote} onChangeNote={setNewContactNote}
-            onAdd={addContactNote} saving={savingNote} placeholder="Add a note about this contact…" />
+            onAdd={addContactNote} saving={savingNote} placeholder="Add a note about this contactâ¦" />
           {contact.company && (
-            <NoteSection title={`Company Notes — ${contact.company}`} subtitle="Shared across all SDRs on this account"
+            <NoteSection title={`Company Notes â ${contact.company}`} subtitle="Shared across all SDRs on this account"
               notes={companyNotes} newNote={newCompanyNote} onChangeNote={setNewCompanyNote}
-              onAdd={addCompanyNote} saving={savingNote} placeholder={`Add a note about ${contact.company}…`} isCompany />
+              onAdd={addCompanyNote} saving={savingNote} placeholder={`Add a note about ${contact.company}â¦`} isCompany />
           )}
         </div>
       )}
 
-      {/* ── EMAILS ── */}
+      {/* ââ EMAILS ââ */}
       {tab === 'emails' && (
         <EmailHistoryPanel emails={emails} loading={emailsLoading} contact={contact} userId={userId} onSaved={() => { fetchEmails(); fetchTimeline(); }} />
       )}
 
-      {/* ── TIMELINE ── */}
+      {/* ââ TIMELINE ââ */}
       {tab === 'timeline' && (
         <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e4', padding: 24 }}>
           <h2 style={{ fontSize: 15, fontWeight: 600, color: '#111', margin: '0 0 24px' }}>Activity Timeline</h2>
@@ -599,7 +600,7 @@ export default function ContactDetail() {
   );
 }
 
-/* ── Sub-components ── */
+/* ââ Sub-components ââ */
 
 function InfoCard({ title, children }) {
   return (
@@ -616,7 +617,7 @@ function InfoRow({ label, value, isLink, danger }) {
     <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
       <span style={{ fontSize: 12, color: '#aaa', width: 120, flexShrink: 0, paddingTop: 1 }}>{label}</span>
       {isLink
-        ? <a href={value} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: '#2563eb' }}>View profile ↗</a>
+        ? <a href={value} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: '#2563eb' }}>View profile â</a>
         : <span style={{ fontSize: 13, color: danger ? '#dc2626' : '#333', lineHeight: 1.4 }}>{value}</span>}
     </div>
   );
@@ -660,7 +661,7 @@ function NoteCard({ note, isCompany }) {
 function TimelineItem({ item, isLast }) {
   const author = item.profiles?.full_name || 'System';
   const label = ACTIVITY_LABELS[item.activity_type] || item.activity_type?.replace(/_/g, ' ');
-  const icon = ACTIVITY_ICONS[item.activity_type] || '●';
+  const icon = ACTIVITY_ICONS[item.activity_type] || 'â';
   const date = item.created_at ? new Date(item.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
   return (
     <div style={{ display: 'flex', gap: 12, paddingBottom: isLast ? 0 : 20, position: 'relative' }}>
@@ -676,11 +677,11 @@ function TimelineItem({ item, isLast }) {
         <span style={{ fontSize: 12, color: '#999' }}>{author}</span>
         {item.details?.from && item.details?.to && (
           <span style={{ marginLeft: 8, fontSize: 11, background: '#e0f2fe', color: '#0369a1', padding: '1px 8px', borderRadius: 10 }}>
-            {item.details.from} → {item.details.to}
+            {item.details.from} â {item.details.to}
           </span>
         )}
         {item.details?.status && !item.details?.from && (
-          <span style={{ marginLeft: 8, fontSize: 11, background: '#e0f2fe', color: '#0369a1', padding: '1px 8px', borderRadius: 10 }}>→ {item.details.status}</span>
+          <span style={{ marginLeft: 8, fontSize: 11, background: '#e0f2fe', color: '#0369a1', padding: '1px 8px', borderRadius: 10 }}>â {item.details.status}</span>
         )}
       </div>
     </div>
@@ -688,7 +689,7 @@ function TimelineItem({ item, isLast }) {
 }
 
 
-/* ── Email History Panel ── */
+/* ââ Email History Panel ââ */
 function EmailHistoryPanel({ emails, loading, contact, userId, onSaved }) {
   const [showLog, setShowLog] = useState(false);
   const [form, setForm] = useState({ stage: 'Fresh', subject: '', body: '', format: 'Cold Email', sender_email: '', sent_at: new Date().toISOString().slice(0,10) });
@@ -726,7 +727,7 @@ function EmailHistoryPanel({ emails, loading, contact, userId, onSaved }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
           <h2 style={{ fontSize: 15, fontWeight: 600, color: '#111', margin: 0 }}>Email History</h2>
-          <p style={{ fontSize: 12, color: '#888', margin: '3px 0 0' }}>All emails sent to {contact.full_name}</p>
+          <p style={{ fontSize: 12, color: '#888', margin: '3px 0 0' }}>All emails sent to {contactName}</p>
         </div>
         <button onClick={() => setShowLog(v => !v)}
           style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
@@ -768,13 +769,13 @@ function EmailHistoryPanel({ emails, loading, contact, userId, onSaved }) {
           <div style={{ marginBottom: 10 }}>
             <label style={{ fontSize: 11, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: '0.3px', display: 'block', marginBottom: 4 }}>Subject line</label>
             <input value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))}
-              placeholder="Email subject…"
+              placeholder="Email subjectâ¦"
               style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13, boxSizing: 'border-box' }} />
           </div>
           <div style={{ marginBottom: 14 }}>
             <label style={{ fontSize: 11, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: '0.3px', display: 'block', marginBottom: 4 }}>Email body</label>
             <textarea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
-              placeholder="Paste the email you sent…" rows={6}
+              placeholder="Paste the email you sentâ¦" rows={6}
               style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e0e0e0', fontSize: 13, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.6, boxSizing: 'border-box' }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
@@ -783,7 +784,7 @@ function EmailHistoryPanel({ emails, loading, contact, userId, onSaved }) {
             <button onClick={logEmail} disabled={saving || (!form.subject && !form.body)}
               style={{ padding: '8px 20px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer',
                 opacity: (!form.subject && !form.body) ? 0.5 : 1 }}>
-              {saving ? 'Saving…' : '✓ Save email'}
+              {saving ? 'Savingâ¦' : 'â Save email'}
             </button>
           </div>
         </div>
@@ -791,10 +792,10 @@ function EmailHistoryPanel({ emails, loading, contact, userId, onSaved }) {
 
       {/* Email list */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>Loading…</div>
+        <div style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>Loadingâ¦</div>
       ) : emails.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 48, color: '#bbb' }}>
-          <div style={{ fontSize: 28, marginBottom: 10 }}>✉️</div>
+          <div style={{ fontSize: 28, marginBottom: 10 }}>âï¸</div>
           <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>No emails logged yet</div>
           <div style={{ fontSize: 13 }}>Click "+ Log email" to record a sent email</div>
         </div>
@@ -819,7 +820,7 @@ function EmailHistoryPanel({ emails, loading, contact, userId, onSaved }) {
                     {e.sender_email && <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>From: {e.sender_email}</div>}
                   </div>
                   <div style={{ fontSize: 11, color: '#aaa', flexShrink: 0 }}>{sentDate}</div>
-                  <div style={{ fontSize: 12, color: '#bbb', flexShrink: 0 }}>{isOpen ? '▲' : '▼'}</div>
+                  <div style={{ fontSize: 12, color: '#bbb', flexShrink: 0 }}>{isOpen ? 'â²' : 'â¼'}</div>
                 </div>
                 {/* Expanded body */}
                 {isOpen && e.body && (
@@ -831,7 +832,7 @@ function EmailHistoryPanel({ emails, loading, contact, userId, onSaved }) {
                     <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
                       <button onClick={() => navigator.clipboard.writeText((e.subject ? `Subject: ${e.subject}\n\n` : '') + e.body)}
                         style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, border: '1px solid #e0e0e0', background: '#fff', color: '#555', cursor: 'pointer' }}>
-                        📋 Copy
+                        ð Copy
                       </button>
                       <span style={{ fontSize: 11, color: '#bbb', padding: '4px 0' }}>{e.format}</span>
                     </div>
