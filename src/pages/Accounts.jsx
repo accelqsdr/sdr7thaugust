@@ -162,12 +162,19 @@ export default function Accounts() {
   const [acctDupCandidates, setAcctDupCandidates] = useState([]);
 
   const fetchAll = useCallback(async () => {
-    setLoading(true);
-    let aQ = supabase.from('accounts').select('*');
-    let cQ = supabase.from('contacts').select('id, account_id, first_name, last_name, title, status, response_type, email, notes, next_followup, pitch_type, persona');
-    const [{ data: accs }, { data: cts }] = await Promise.all([aQ, cQ]);
-    const byAcct = {};
-    (cts || []).forEach(c => {
+    const canSeeAll = ['director','manager'].includes(profile?.role);
+    let accs = [];
+    if (canSeeAll) {
+      const { data } = await supabase.from('accounts').select('*').order('created_at', { ascending: false });
+      accs = data || [];
+    } else {
+      const { data: myContacts } = await supabase.from('contacts').select('account_id').eq('owner_id', user.id).not('account_id', 'is', null);
+      const accountIds = [...new Set((myContacts || []).map(c => c.account_id))];
+      if (accountIds.length > 0) {
+        const { data } = await supabase.from('accounts').select('*').in('id', accountIds).order('created_at', { ascending: false });
+        accs = data || [];
+      }
+    }
       if (c.account_id) { if (!byAcct[c.account_id]) byAcct[c.account_id] = []; byAcct[c.account_id].push(c); }
     });
     setContactsByAccount(byAcct);
