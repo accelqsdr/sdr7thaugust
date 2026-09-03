@@ -114,6 +114,7 @@ export default function FollowUps() {
     });
   }
   const [drafting,      setDrafting]      = useState(null);
+  const [selectedIds,   setSelectedIds]   = useState(new Set());
   const [draftOpen,     setDraftOpen]     = useState(null);
   const [copied,        setCopied]        = useState(null);
   const [markingSent,   setMarkingSent]   = useState(null);
@@ -255,8 +256,9 @@ export default function FollowUps() {
     navigator.clipboard.writeText(`Subject: ${draft.subject}\n\n${draft.body}`);
     setCopied(id); setTimeout(()=>setCopied(c=>c===id?null:c),2000);
   }
-  function downloadCSV(){
-    const rows=[...filteredFresh,...filteredActive];
+  function downloadCSV(idsOverride){
+    const all=[...filteredFresh,...filteredActive];
+    const rows=idsOverride&&idsOverride.size>0?all.filter(c=>idsOverride.has(c.id)):all;
     const escape=v=>`"${String(v||'').replace(/"/g,'""')}"`;
     const lines=[['First Name','Email','Subject','Body'].map(escape).join(',')];
     rows.forEach(c=>{
@@ -267,6 +269,19 @@ export default function FollowUps() {
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a'); a.href=url; a.download='followup_emails.csv'; a.click();
     URL.revokeObjectURL(url);
+  }
+  function toggleSelect(id){
+    setSelectedIds(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});
+  }
+  function toggleSelectAll(){
+    const all=[...filteredFresh,...filteredActive].map(c=>c.id);
+    if(all.every(id=>selectedIds.has(id))) setSelectedIds(new Set());
+    else setSelectedIds(new Set(all));
+  }
+  async function bulkMarkSent(){
+    const all=[...filteredFresh,...filteredActive].filter(c=>selectedIds.has(c.id));
+    for(const c of all){ await markSent(c); }
+    setSelectedIds(new Set());
   }
 
   const freshContacts=contacts.filter(c=>c.status==='Fresh');
@@ -319,6 +334,7 @@ export default function FollowUps() {
     onMarkSent:c=>markSent(c), onSnooze:(id,days)=>snooze(id,days),
     onCopy:id=>copyDraft(id), onView:id=>navigate(`/contacts/${id}`),
     customPrompts, onCustomPromptChange:(id,val)=>setCustomPrompts(p=>({...p,[id]:val})),
+    selectedIds, onToggleSelect:toggleSelect,
   };
   const noResults=filteredFresh.length===0&&filteredActive.length===0;
 
@@ -359,7 +375,7 @@ export default function FollowUps() {
             <div style={{padding:'5px 12px',borderRadius:20,fontSize:12,fontWeight:500,color:'#6b7280',background:'#f9fafb',border:'1px solid #e5e7eb'}}>
               {totalInQueue} in queue</div>
           </div>
-          <button onClick={downloadCSV}
+          <button onClick={()=>downloadCSV()}
             style={{padding:'6px 14px',borderRadius:8,border:'1.5px solid #e5e7eb',background:'#fff',color:'#374151',fontSize:12,fontWeight:600,cursor:'pointer'}}>
             ⬇ Download CSV
           </button>
@@ -455,6 +471,26 @@ export default function FollowUps() {
         </div>
       </div>
 
+      {/* Bulk action bar */}
+      {selectedIds.size>0&&(
+        <div style={{background:'#1e293b',color:'#fff',padding:'9px 24px',display:'flex',alignItems:'center',gap:12,flexShrink:0}}>
+          <input type="checkbox" checked onChange={toggleSelectAll} style={{cursor:'pointer',accentColor:'#3b82f6'}}/>
+          <span style={{fontSize:12,fontWeight:600}}>{selectedIds.size} selected</span>
+          <div style={{flex:1}}/>
+          <button onClick={()=>downloadCSV(selectedIds)}
+            style={{padding:'5px 14px',borderRadius:7,fontSize:12,fontWeight:600,border:'none',background:'#3b82f6',color:'#fff',cursor:'pointer'}}>
+            ⬇ Download CSV
+          </button>
+          <button onClick={bulkMarkSent}
+            style={{padding:'5px 14px',borderRadius:7,fontSize:12,fontWeight:600,border:'none',background:'#059669',color:'#fff',cursor:'pointer'}}>
+            ✓ Move to Next Stage
+          </button>
+          <button onClick={()=>setSelectedIds(new Set())}
+            style={{padding:'5px 10px',borderRadius:7,fontSize:12,fontWeight:500,border:'1px solid #475569',background:'transparent',color:'#cbd5e1',cursor:'pointer'}}>
+            Clear
+          </button>
+        </div>
+      )}
       {/* Content */}
       <div style={{flex:1,overflowY:'auto',padding:'20px 24px'}}>
         {loading?(
@@ -540,7 +576,7 @@ function TimingGroup({group,...props}){
 function ContactRow({contact:c,accounts,drafts,drafting,draftOpen,copied,markingSent,
   contactListMap,lists,
   onGenerate,onToggleDraft,onRegenerate,onMarkSent,onSnooze,onCopy,onView,isFresh,
-  customPrompts,onCustomPromptChange}){
+  customPrompts,onCustomPromptChange,selectedIds,onToggleSelect}){
   const customPrompt=customPrompts?.[c.id]||'';
   const sm=STAGE_META[c.status]||{bg:'#f1f5f9',color:'#475569',label:c.status};
   const rm=c.response_type?RESPONSE_META[c.response_type]:null;
@@ -550,6 +586,7 @@ function ContactRow({contact:c,accounts,drafts,drafting,draftOpen,copied,marking
   const isDrafting=drafting===c.id; const isDraftOpen=draftOpen===c.id;
   const isMarking=markingSent===c.id; const isCopied=copied===c.id;
   const ac=avatarColor(((c.first_name||'')+' '+(c.last_name||'')).trim());
+  const isSelected=selectedIds?.has(c.id)||false;
   const contactLists=contactListMap?.[c.id]||[];
   const hasActiveCampaign=contactLists.some(cl=>cl.is_active_campaign);
   const listNames=contactLists.map(cl=>(lists||[]).find(l=>l.id===cl.list_id)?.name).filter(Boolean);
@@ -564,7 +601,10 @@ function ContactRow({contact:c,accounts,drafts,drafting,draftOpen,copied,marking
       boxShadow:'0 1px 3px rgba(0,0,0,0.04)'}}>
       {/* Main row */}
       <div style={{display:'flex',alignItems:'center',gap:10,padding:'11px 14px'}}>
-        <div onClick={()=>onView(c.id)} style={{width:36,height:36,borderRadius:'50%',background:ac,color:'#fff',
+        <input type="checkbox" checked={isSelected} onChange={()=>onToggleSelect&&onToggleSelect(c.id)}
+          onClick={e=>e.stopPropagation()}
+          style={{cursor:'pointer',flexShrink:0,width:15,height:15,accentColor:'#2563eb'}}/>
+        <div onClick={()=>onView(c.id)} style={{width:36,height:36,borderRadius:'50%',background:isSelected?'#2563eb':ac,color:'#fff',
           display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700,flexShrink:0,cursor:'pointer',userSelect:'none'}}>
           {getInitials(((c.first_name||'')+' '+(c.last_name||'')).trim())}
         </div>
