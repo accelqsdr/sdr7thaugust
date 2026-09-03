@@ -255,6 +255,19 @@ export default function FollowUps() {
     navigator.clipboard.writeText(`Subject: ${draft.subject}\n\n${draft.body}`);
     setCopied(id); setTimeout(()=>setCopied(c=>c===id?null:c),2000);
   }
+  function downloadCSV(){
+    const rows=[...filteredFresh,...filteredActive];
+    const escape=v=>`"${String(v||'').replace(/"/g,'""')}"`;
+    const lines=[['First Name','Email','Subject','Body'].map(escape).join(',')];
+    rows.forEach(c=>{
+      const d=drafts[c.id]||{};
+      lines.push([c.first_name,c.email,d.subject||'',d.body||''].map(escape).join(','));
+    });
+    const blob=new Blob([lines.join('\n')],{type:'text/csv'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download='followup_emails.csv'; a.click();
+    URL.revokeObjectURL(url);
+  }
 
   const freshContacts=contacts.filter(c=>c.status==='Fresh');
   const activeContacts=contacts.filter(c=>c.status!=='Fresh');
@@ -346,6 +359,10 @@ export default function FollowUps() {
             <div style={{padding:'5px 12px',borderRadius:20,fontSize:12,fontWeight:500,color:'#6b7280',background:'#f9fafb',border:'1px solid #e5e7eb'}}>
               {totalInQueue} in queue</div>
           </div>
+          <button onClick={downloadCSV}
+            style={{padding:'6px 14px',borderRadius:8,border:'1.5px solid #e5e7eb',background:'#fff',color:'#374151',fontSize:12,fontWeight:600,cursor:'pointer'}}>
+            ⬇ Download CSV
+          </button>
           <button onClick={()=>setSettingsOpen(s=>!s)}
             style={{padding:'6px 14px',borderRadius:8,border:`1.5px solid ${settingsOpen?'#2563eb':'#e5e7eb'}`,
               background:settingsOpen?'#dbeafe':'#fff',color:settingsOpen?'#1d4ed8':'#374151',fontSize:12,fontWeight:600,cursor:'pointer'}}>
