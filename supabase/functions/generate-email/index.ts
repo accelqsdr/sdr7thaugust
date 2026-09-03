@@ -8,33 +8,33 @@ const corsHeaders = {
 const STAGE_CONTEXT: Record<string, { label: string; intent: string; tone: string }> = {
   Fresh: {
     label: 'Initial cold email (Fresh)',
-    intent: 'Very first outreach to this prospect. Establish relevance with one sharp, researched hook. One pain point, one proof, one low-friction CTA.',
-    tone: 'Confident and concise. Lead with something specific about their world — never with "I" or "My name is".',
+    intent: 'Very first outreach. Open with a hyper-specific observation about their company, role, or industry that proves you have done your homework. Name a pain point they almost certainly feel given their context. One proof point. One low-friction CTA.',
+    tone: 'Sharp, direct, confident. Every sentence earns its place.',
   },
   F1: {
     label: 'Initial outreach (F1)',
-    intent: 'First cold email — establish relevance, hook with a specific insight, low-friction CTA.',
+    intent: 'First cold email. Open with something specific about them - a trigger event, a known pain for their role, or a sharp industry insight. Never be generic.',
     tone: 'Confident but not pushy. Lead with their world, not yours.',
   },
   F2: {
     label: 'First follow-up (F2)',
-    intent: 'No reply to F1. Add NEW value — a completely different angle, insight, or proof point. NEVER say "just following up" or "circling back".',
-    tone: 'Warmer, a bit more direct. Try a new hook — industry stat, trigger event, or different pain point.',
+    intent: 'No reply to F1. Open with a completely different angle - a new insight, a different pain point, or something about their industry right now. NEVER say "just following up" or "circling back". Add genuine new value.',
+    tone: 'Warmer, a bit more direct. One fresh hook, one proof point, one CTA.',
   },
   F3: {
     label: 'Second follow-up (F3)',
-    intent: 'Still no reply. Use social proof — a mini case study or result from their industry. Make the benefit concrete and tangible.',
-    tone: 'Concise. One proof point. One simple question.',
+    intent: 'Still no reply. Lead with a specific result from a similar company in their industry. Make it concrete - name the outcome, the timeframe, the before/after. One simple question to close.',
+    tone: 'Concise. Let the proof point do the talking.',
   },
   F4: {
     label: 'Third follow-up (F4)',
-    intent: 'Fourth touch. Try a completely different angle — a different pain point, or a question about their current approach. Be direct.',
-    tone: 'Short and punchy. 3-4 sentences max. No filler.',
+    intent: 'Fourth touch. Ask a direct, genuine question about how they currently handle the problem ACCELQ solves. No pitch yet - just curiosity.',
+    tone: 'Short and human. 3-4 sentences max. Feels like a real person wrote it.',
   },
   F5: {
     label: 'Break-up email (F5)',
-    intent: 'Final touch. Politely close the loop. Give them an out but leave the door open. This often gets replies.',
-    tone: 'Human, gracious, brief. No hard sell. Leave on a positive note.',
+    intent: 'Final touch. Acknowledge you have reached out a few times. Leave them with one useful insight specific to their world. Close the loop gracefully and leave the door open.',
+    tone: 'Human, gracious, brief. No hard sell.',
   },
 }
 
@@ -57,52 +57,62 @@ serve(async (req) => {
     const research = accountResearch || {}
 
     const priorEmails = Array.isArray(priorEmailBodies) && priorEmailBodies.length > 0
-      ? `\nPRIOR EMAILS ALREADY SENT (use a COMPLETELY DIFFERENT angle — never repeat the same hook, angle, or proof point):\n${priorEmailBodies.map((b: string, i: number) => `--- Email ${i + 1} ---\n${b}`).join('\n\n')}\n`
+      ? `\nPRIOR EMAILS SENT (use a COMPLETELY DIFFERENT angle - different hook, different pain point, different proof):\n${priorEmailBodies.map((b: string, i: number) => `--- Email ${i + 1} ---\n${b}`).join('\n\n')}\n`
       : ''
 
     const customInstructions = customPrompt?.trim()
-      ? `\nSDR CUSTOM INSTRUCTIONS (follow these exactly — they override defaults):\n${customPrompt.trim()}\n`
+      ? `\nSDR CUSTOM INSTRUCTIONS (follow these exactly, they override everything else):\n${customPrompt.trim()}\n`
       : ''
 
-    const prompt = `You are an expert SDR at ACCELQ, an AI-powered test automation platform helping QA teams move from manual/legacy testing to intelligent automation.
+    const prompt = `You are an elite SDR at ACCELQ, an AI-powered test automation platform. ACCELQ helps QA teams eliminate manual testing and fragile scripts with self-healing, codeless automation. Real results: teams cut test maintenance by 60-90% and shrink release cycles from weeks to days.
 
-Write a cold outreach email for stage: ${ctx.label}
+Write a cold email for stage: ${ctx.label}
 
-PROSPECT:
+ABOUT THIS PROSPECT:
 - Name: ${contact.full_name}
 - Title: ${contact.title || 'unknown'}
 - Company: ${contact.company}
-- Email: ${contact.email || 'unknown'}
-- Response so far: ${contact.response || 'no response yet'}
-- SDR pitch notes: ${contact.pitch || 'none'}
-
-ACCOUNT INTELLIGENCE:
 - Industry: ${contact.industry || research.detectedIndustry || 'unknown'}
-- Why target: ${research.whyTarget || 'strong fit for ACCELQ'}
-- Pain points: ${research.painPoints || 'manual testing overhead, slow release cycles, legacy tools'}
-- Tech stack: ${research.techStack || 'enterprise stack'}
-- Recent news / triggers: ${research.recentNews || 'digital transformation'}
-- Testing tools in use: ${(research.testingTools || []).join(', ') || 'unknown'}${priorEmails}${customInstructions}
-STAGE INSTRUCTIONS:
-Intent: ${ctx.intent}
-Tone: ${ctx.tone}
+- Response so far: ${contact.response || 'no response yet'}
+- SDR notes / pitch angle: ${contact.pitch || 'none'}
+
+ACCOUNT INTELLIGENCE (use this to personalize):
+- Why we target them: ${research.whyTarget || 'strong fit for ACCELQ'}
+- Their likely pain points: ${research.painPoints || 'manual testing overhead, slow release cycles, legacy scripts'}
+- Tech / testing tools they use: ${(research.testingTools || []).join(', ') || research.techStack || 'unknown'}
+- Recent news or trigger: ${research.recentNews || 'none'}${priorEmails}${customInstructions}
+
+STAGE GOAL:
+${ctx.intent}
+
+TONE:
+${ctx.tone}
 
 SENDER: ${senderName || 'Your SDR'}
 
-RULES (non-negotiable):
-- Subject: under 50 chars, specific, no spam words, no ALL CAPS
-- Body: under 150 words total
-- NEVER use: "I hope this finds you well", "just following up", "circling back", "touching base", "reaching out because", "I'm writing to"
-- Open with THEM — a specific insight about their company, industry, or role — never with "I" or "My name is"
-- ONE pain point · ONE proof point or insight · ONE CTA
-- CTA = a low-friction question (e.g. "Worth a quick 15-min chat?") — never "book a demo on my Calendly"
-- Plain text only — no bullets, no bold, no markdown in the body
-- NEVER use em dashes (—) or en dashes (–) — use a comma or plain hyphen instead
-- If prior emails exist above, use a completely fresh angle not used before
-- If SDR CUSTOM INSTRUCTIONS are provided above, prioritise them over these defaults
+OPENING LINE RULES (most important):
+- The first sentence must be about THEM specifically - their company, their industry challenge, their role, a recent trigger event, or something they would recognise as true about their world
+- Never open with "I", "My name is", "I hope", "We at ACCELQ", or any version of introducing yourself
+- Never open with a generic statement that could apply to any company
+- Good example: "Scaling a QA function in fintech while keeping up with weekly releases is one of the hardest operational problems in the space."
+- Good example: "Most enterprise QA teams I speak with at [company-size] companies are spending 40-60% of their sprint time just maintaining test scripts rather than writing new ones."
+- Bad example: "I came across your profile and thought ACCELQ could be a great fit."
 
-Return ONLY a valid JSON object with exactly two fields:
-{"subject": "the subject line", "body": "full email body including greeting and sign-off"}`
+BODY RULES:
+- One specific pain point tied to their context (industry, tools, company size, or role)
+- One concrete proof point - name a result, a number, a timeframe (e.g. "one retail bank cut regression time from 3 weeks to 4 days")
+- One CTA: a low-friction question like "Worth a quick 15-min call?" - never a Calendly link
+- 80-120 words total for the body
+- Plain text only - no bullets, no bold, no formatting
+
+ABSOLUTE RULES:
+- Never use em dashes or en dashes - use commas or plain hyphens
+- Never say: "I hope this finds you well", "just following up", "circling back", "touching base", "reaching out because", "I wanted to"
+- Never use vague claims - every statement must be specific
+- Subject line: under 50 characters, specific, no spam words, no ALL CAPS
+
+Return ONLY a valid JSON object:
+{"subject": "subject line here", "body": "full email body with greeting and sign-off"}`
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -113,7 +123,7 @@ Return ONLY a valid JSON object with exactly two fields:
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 600,
+        max_tokens: 700,
         messages: [{ role: 'user', content: prompt }]
       })
     })
@@ -132,11 +142,10 @@ Return ONLY a valid JSON object with exactly two fields:
     }
 
     const clean = (s: string) => (s || '')
-      .replace(/—/g, ' - ')   // em dash
-      .replace(/–/g, ' - ')   // en dash
-      .replace(/â/g, ' - ')  // â€" (UTF-8 mojibake)
-      .replace(/â€"/g, ' - ')
-      .replace(/â€"/g, ' - ')
+      .replace(/[—–]/g, '')
+      .replace(/  +/g, ' ')
+      .trim()
+
     return new Response(JSON.stringify({ subject: clean(parsed.subject), body: clean(parsed.body) }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
