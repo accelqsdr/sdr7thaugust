@@ -611,8 +611,27 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
       if (r.about)                newResearch.about                = r.about;
       if (r.businessModel)         newResearch.businessModel        = r.businessModel;
       if (r.strategicPriorities)   newResearch.strategicPriorities  = r.strategicPriorities;
+      // Build important_to_know bullets for Intel panel
+      const itk = [];
+      if (r.why) itk.push({ title: 'Why Target', body: r.why });
+      if (r.tech) itk.push({ title: 'Tech Stack', body: r.tech });
+      if (r.qaHiring) itk.push({ title: 'QA Hiring', body: r.qaHiring });
+      if (r.news) itk.push({ title: 'Recent News', body: r.news });
+      if (r.pain) itk.push({ title: 'Pain Points', body: r.pain });
+      if (itk.length > 0) newResearch.important_to_know = itk;
+      // Build ai_signals
+      const today = new Date().toISOString().slice(0, 10);
+      const sigs = [];
+      if (r.funding) sigs.push({ type: 'Funding', text: 'Company recently raised funding or had IPO activity.', date: today });
+      if (r.hiringQA) sigs.push({ type: 'Hiring Surge', text: 'Actively hiring QA and automation engineers.', date: today });
+      if (r.launch) sigs.push({ type: 'Product Launch', text: 'Recently launched a major product or feature.', date: today });
+      if (r.leadership) sigs.push({ type: 'C-suite Addition', text: 'Recent leadership change in engineering or technology.', date: today });
+      if (r.cicd) sigs.push({ type: 'Digital Transformation', text: 'Active CI/CD pipeline culture and digital transformation.', date: today });
+      if (sigs.length > 0) newResearch.ai_signals = sigs;
+      // Map detectedIndustry to industry field for Company Details
+      if (r.detectedIndustry && !data.industry) updates.industry = r.detectedIndustry;
 
-updates.research = newResearch;
+      updates.research = newResearch;
 
       // Testing tools — merge
       if (Array.isArray(r.tools) && r.tools.length > 0) {
