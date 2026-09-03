@@ -97,6 +97,7 @@ RULES (non-negotiable):
 - ONE pain point · ONE proof point or insight · ONE CTA
 - CTA = a low-friction question (e.g. "Worth a quick 15-min chat?") — never "book a demo on my Calendly"
 - Plain text only — no bullets, no bold, no markdown in the body
+- NEVER use em dashes (—) or en dashes (–) — use a comma or plain hyphen instead
 - If prior emails exist above, use a completely fresh angle not used before
 - If SDR CUSTOM INSTRUCTIONS are provided above, prioritise them over these defaults
 
@@ -130,7 +131,13 @@ Return ONLY a valid JSON object with exactly two fields:
       })
     }
 
-    return new Response(JSON.stringify({ subject: parsed.subject || '', body: parsed.body || '' }), {
+    const clean = (s: string) => (s || '')
+      .replace(/—/g, ' - ')   // em dash
+      .replace(/–/g, ' - ')   // en dash
+      .replace(/â/g, ' - ')  // â€" (UTF-8 mojibake)
+      .replace(/â€"/g, ' - ')
+      .replace(/â€"/g, ' - ')
+    return new Response(JSON.stringify({ subject: clean(parsed.subject), body: clean(parsed.body) }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
 
