@@ -175,7 +175,15 @@ export default function Accounts() {
         accs = data || [];
       }
     }
-    setContactsByAccount({});
+    // Fetch contacts and group by account_id (scoped same as accounts)
+    let contactQuery = supabase.from('contacts').select('*');
+    if (!canViewAll) contactQuery = contactQuery.eq('owner_id', user.id);
+    const { data: allContacts } = await contactQuery;
+    const byAcct = {};
+    (allContacts || []).forEach(c => {
+      if (c.account_id) { if (!byAcct[c.account_id]) byAcct[c.account_id] = []; byAcct[c.account_id].push(c); }
+    });
+    setContactsByAccount(byAcct);
     setAccounts(accs || []);
     setLoading(false);
   }, [user.id, canViewAll]);
