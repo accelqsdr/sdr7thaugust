@@ -14,19 +14,19 @@ const TOOL_STATUS_COLORS = {
   Active:       { bg: '#dcfce7', color: '#16a34a' },
 };
 const SIGNAL_DEFS = [
-  { key: 'funding',          icon: 'ð°', label: 'Recent Funding / IPO',      color: '#059669', bg: '#d1fae5' },
-  { key: 'hiringQA',         icon: 'ð¥', label: 'Hiring QA / SDET',          color: '#7c3aed', bg: '#ede9fe' },
-  { key: 'recentLaunch',     icon: 'ð', label: 'Recent Product Launch',     color: '#0891b2', bg: '#e0f2fe' },
-  { key: 'leadershipChange', icon: 'ð¤', label: 'Leadership Change',         color: '#d97706', bg: '#fef3c7' },
-  { key: 'outage',           icon: 'â ï¸',  label: 'Outage / Quality Incident', color: '#dc2626', bg: '#fee2e2' },
-  { key: 'cicd',             icon: 'âï¸',  label: 'Active CI/CD Pipeline',    color: '#475569', bg: '#f1f5f9' },
+  { key: 'funding',          icon: '💰', label: 'Recent Funding / IPO',      color: '#059669', bg: '#d1fae5' },
+  { key: 'hiringQA',         icon: '👥', label: 'Hiring QA / SDET',          color: '#7c3aed', bg: '#ede9fe' },
+  { key: 'recentLaunch',     icon: '🚀', label: 'Recent Product Launch',     color: '#0891b2', bg: '#e0f2fe' },
+  { key: 'leadershipChange', icon: '👤', label: 'Leadership Change',         color: '#d97706', bg: '#fef3c7' },
+  { key: 'outage',           icon: '⚠️',  label: 'Outage / Quality Incident', color: '#dc2626', bg: '#fee2e2' },
+  { key: 'cicd',             icon: '⚙️',  label: 'Active CI/CD Pipeline',    color: '#475569', bg: '#f1f5f9' },
 ];
 const RESEARCH_DEFAULTS = [
-  { key: 'whyTarget',  label: 'Why Target',        icon: 'ð¯', hint: 'why this company is a good fit for ACCELQ test automation' },
-  { key: 'techStack',  label: 'Tech Stack',        icon: 'ð§', hint: 'known languages, frameworks, CI/CD, cloud, testing tools' },
-  { key: 'qaHiring',   label: 'QA Hiring Signals', icon: 'ð¥', hint: 'likelihood of hiring QA/automation engineers: Low/Med/High with reason' },
-  { key: 'recentNews', label: 'Recent News',       icon: 'ð°', hint: 'one relevant news item, funding, or digital transformation initiative' },
-  { key: 'painPoints', label: 'Pain Points',       icon: 'ð¥', hint: 'top 2 QA/testing pain points ACCELQ solves for this company' },
+  { key: 'whyTarget',  label: 'Why Target',        icon: '🎯', hint: 'why this company is a good fit for ACCELQ test automation' },
+  { key: 'techStack',  label: 'Tech Stack',        icon: '🔧', hint: 'known languages, frameworks, CI/CD, cloud, testing tools' },
+  { key: 'qaHiring',   label: 'QA Hiring Signals', icon: '👥', hint: 'likelihood of hiring QA/automation engineers: Low/Med/High with reason' },
+  { key: 'recentNews', label: 'Recent News',       icon: '📰', hint: 'one relevant news item, funding, or digital transformation initiative' },
+  { key: 'painPoints', label: 'Pain Points',       icon: '🔥', hint: 'top 2 QA/testing pain points ACCELQ solves for this company' },
 ];
 const COMMON_ENTERPRISE_APPS = ['SAP','Oracle','Workday','ServiceNow','Salesforce','Microsoft Dynamics','SAP S/4HANA','Oracle EBS','PeopleSoft','Guidewire','Siebel','Veeva'];
 const PITCH_TYPES = ['Autopilot (AI)','Automate Web','Automate Mobile','Automate API','ACCELQ Unified','Salesforce','ServiceNow','SAP','Workday','Oracle','MS Dynamics','Pega','nCino','Coupa','Financial Services','Healthcare','Telecom','Insurance','Retail','IT Services'];
@@ -55,7 +55,7 @@ const SIGNAL_TYPE_COLORS = {
   'Hiring Surge':      { bg: '#ede9fe', color: '#7c3aed' },
 };
 
-// âââ FUZZY ACCOUNT MATCH ââââââââââââââââââââââââââââââââââââ
+// ─── FUZZY ACCOUNT MATCH ────────────────────────────────────
 function normalizeName(n) {
   return (n||'').toLowerCase()
     .replace(/\b(pvt|ltd|inc|corp|llc|limited|private|public|co|company|group|holdings|international|global)\b\.?/g,'')
@@ -71,7 +71,7 @@ function fuzzyAccountMatch(a,b) {
   let m=0; for(let i=0;i<sh.length-1;i++) if(lo.includes(sh.substring(i,i+2))) m++;
   return m/(sh.length-1)>0.7;
 }
-// âââ CSV PARSER âââââââââââââââââââââââââââââââââââââââââââââ
+// ─── CSV PARSER ─────────────────────────────────────────────
 function parseCSVLine(line) {
   const r=[]; let cur=''; let inQ=false;
   for(let i=0;i<line.length;i++){
@@ -125,11 +125,11 @@ function getSignalBadges(account) {
   const sig = account.signals || {};
   const tools = account.testing_tools || [];
   const badges = [];
-  if (tools.some(t => t.status === 'Legacy')) badges.push({ label: 'â ï¸ Legacy Tool', color: '#dc2626', bg: '#fee2e2' });
-  if (sig.hiringQA) badges.push({ label: 'ð¥ Hiring QA', color: '#7c3aed', bg: '#ede9fe' });
-  if (sig.funding) badges.push({ label: 'ð° Funded', color: '#059669', bg: '#d1fae5' });
-  if (sig.outage) badges.push({ label: 'â ï¸ Outage', color: '#dc2626', bg: '#fee2e2' });
-  if (sig.leadershipChange) badges.push({ label: 'ð¤ New Leader', color: '#d97706', bg: '#fef3c7' });
+  if (tools.some(t => t.status === 'Legacy')) badges.push({ label: '⚠️ Legacy Tool', color: '#dc2626', bg: '#fee2e2' });
+  if (sig.hiringQA) badges.push({ label: '👥 Hiring QA', color: '#7c3aed', bg: '#ede9fe' });
+  if (sig.funding) badges.push({ label: '💰 Funded', color: '#059669', bg: '#d1fae5' });
+  if (sig.outage) badges.push({ label: '⚠️ Outage', color: '#dc2626', bg: '#fee2e2' });
+  if (sig.leadershipChange) badges.push({ label: '👤 New Leader', color: '#d97706', bg: '#fef3c7' });
   return badges;
 }
 
@@ -202,11 +202,11 @@ export default function Accounts() {
 
   const FILTERS = [
     { key: 'all', label: 'All' },
-    { key: 'legacy', label: 'â ï¸ Legacy' },
-    { key: 'hiring', label: 'ð¥ Hiring QA' },
-    { key: 'funded', label: 'ð° Funded' },
-    { key: 'signals', label: 'ð¡ Signals' },
-    { key: 'notes', label: 'ð Notes' },
+    { key: 'legacy', label: '⚠️ Legacy' },
+    { key: 'hiring', label: '👥 Hiring QA' },
+    { key: 'funded', label: '💰 Funded' },
+    { key: 'signals', label: '📡 Signals' },
+    { key: 'notes', label: '📝 Notes' },
   ];
 
   const filtered = accounts.filter(a => {
@@ -258,17 +258,17 @@ export default function Accounts() {
             }}>+ Add</button>
           </div>
           <div style={{ position: 'relative', marginBottom: 10 }}>
-            <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#9ca3af', pointerEvents: 'none' }}>ð</span>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search accountsâ¦"
+            <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#9ca3af', pointerEvents: 'none' }}>🔍</span>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search accounts…"
               style={{ width: '100%', padding: '7px 10px 7px 28px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12, outline: 'none', boxSizing: 'border-box', background: '#f9fafb', color: '#111' }} />
           </div>
           <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{
             width: '100%', fontSize: 11, padding: '5px 8px', borderRadius: 7, border: '1px solid #e5e7eb',
             background: '#f9fafb', cursor: 'pointer', color: '#555', marginBottom: 10,
           }}>
-            <option value="score">â Sort by Score</option>
-            <option value="contacts">â Sort by Contacts</option>
-            <option value="name">â Sort AâZ</option>
+            <option value="score">↕ Sort by Score</option>
+            <option value="contacts">↕ Sort by Contacts</option>
+            <option value="name">↕ Sort A–Z</option>
           </select>
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
             {FILTERS.map(f => <FilterPill key={f.key} label={f.label} active={filterBy === f.key} onClick={() => setFilterBy(f.key)} />)}
@@ -276,7 +276,7 @@ export default function Accounts() {
         </div>
         <div style={{ flex: 1, overflowY: 'auto', borderTop: '1px solid #f3f4f6' }}>
           {loading ? (
-            <div style={{ padding: 32, textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>Loadingâ¦</div>
+            <div style={{ padding: 32, textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>Loading…</div>
           ) : filtered.length === 0 ? (
             <div style={{ padding: 32, textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>No accounts found</div>
           ) : filtered.map(a => {
@@ -303,8 +303,8 @@ export default function Accounts() {
                     <div style={{ fontSize: 13, fontWeight: 600, color: '#111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.name}</div>
                     <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>
                       {ctcs.length} contact{ctcs.length !== 1 ? 's' : ''}
-                      {a.industry ? ` Â· ${a.industry}` : ''}
-                      {a.country ? ` Â· ${a.country}` : ''}
+                      {a.industry ? ` · ${a.industry}` : ''}
+                      {a.country ? ` · ${a.country}` : ''}
                     </div>
                   </div>
                   <div style={{ textAlign: 'center', flexShrink: 0 }}>
@@ -336,7 +336,7 @@ export default function Accounts() {
       <div style={{ flex: 1, overflowY: 'auto', background: '#f8f9fb' }}>
         {!selected ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#9ca3af' }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>ð¢</div>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>🏢</div>
             <div style={{ fontSize: 15, fontWeight: 600, color: '#6b7280' }}>Select an account</div>
             <div style={{ fontSize: 13, marginTop: 6 }}>or click + Add to create one</div>
           </div>
@@ -356,7 +356,7 @@ export default function Accounts() {
                 { key: 'name', label: 'Company Name *', placeholder: 'e.g. Infosys' },
                 { key: 'industry', label: 'Industry', placeholder: 'e.g. Banking, Insurance' },
                 { key: 'country', label: 'Country', placeholder: 'e.g. India' },
-                { key: 'linkedin_url', label: 'LinkedIn URL', placeholder: 'https://linkedin.com/company/â¦' },
+                { key: 'linkedin_url', label: 'LinkedIn URL', placeholder: 'https://linkedin.com/company/…' },
                 { key: 'revenue_millions', label: 'Revenue (USD millions)', placeholder: 'e.g. 1500' },
               ].map(f => (
                 <div key={f.key}>
@@ -372,7 +372,7 @@ export default function Accounts() {
               <button onClick={addAccount} disabled={adding || !newAcct.name.trim()} style={{
                 flex: 1, padding: '10px 0', background: '#2563eb', color: '#fff', borderRadius: 9, fontSize: 13,
                 fontWeight: 600, cursor: 'pointer', border: 'none', opacity: adding || !newAcct.name.trim() ? 0.6 : 1,
-              }}>{adding ? 'Addingâ¦' : 'Add Account'}</button>
+              }}>{adding ? 'Adding…' : 'Add Account'}</button>
               <button onClick={() => setShowAddAccount(false)} style={{
                 padding: '10px 20px', background: '#f5f5f5', color: '#555', borderRadius: 9, fontSize: 13, cursor: 'pointer', border: 'none',
               }}>Cancel</button>
@@ -384,9 +384,9 @@ export default function Accounts() {
   );
 }
 
-/* âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ */
+/* ─────────────────────────────────────────────────────────── */
 /*  ACCOUNT DETAIL                                            */
-/* âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ */
+/* ─────────────────────────────────────────────────────────── */
 function AccountDetail({ account, contacts, onUpdate, navigate }) {
   const { user, profile } = useAuth();
   const canViewAll = ['director', 'manager'].includes(profile?.role);
@@ -416,7 +416,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
     parent_company: account.parent_company || '',
   });
   const notesTimer = useRef(null);
-  // ââ Contact add / CSV import ââ
+  // ── Contact add / CSV import ──
   const [showAddContact, setShowAddContact] = useState(false);
   const [newContact, setNewContact] = useState({first_name:'',last_name:'',title:'',email:'',linkedin_url:'',pitch:'',notes:''});
   const [addingContact, setAddingContact] = useState(false);
@@ -431,7 +431,7 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
   const [csvDupDecisions, setCsvDupDecisions] = useState({});
   const [csvImporting, setCsvImporting] = useState(false);
   const [csvImportResult, setCsvImportResult] = useState(null);
-  // ââ LinkedIn inline edit ââ
+  // ── LinkedIn inline edit ──
   const [editLI4Contact, setEditLI4Contact] = useState(null);
   const [enrichingContact, setEnrichingContact] = useState(null);
   const [liDraft, setLiDraft] = useState('');
@@ -634,7 +634,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
 
       updates.research = newResearch;
 
-      // Testing tools â merge
+      // Testing tools — merge
       if (Array.isArray(r.tools) && r.tools.length > 0) {
         const existingNames = (data.testing_tools || []).map(t => t.tool.toLowerCase());
         const newTools = r.tools
@@ -642,7 +642,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
           .map(t => ({ tool: t, status: MODERN_TOOLS.includes(t.toLowerCase()) ? 'Modern' : LEGACY_TOOLS.includes(t.toLowerCase()) ? 'Legacy' : 'Active', addedAt: new Date().toISOString().slice(0, 10), source: 'ai' }));
         if (newTools.length > 0) updates.testing_tools = [...(data.testing_tools || []), ...newTools];
       }
-      // Enterprise apps â merge
+      // Enterprise apps — merge
       if (Array.isArray(r.enterpriseApps) && r.enterpriseApps.length > 0) {
         const existingApps = (data.enterprise_apps || []).map(a => a.app.toLowerCase());
         const newApps = r.enterpriseApps
@@ -650,7 +650,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
           .map(a => ({ app: a, addedAt: new Date().toISOString().slice(0, 10), source: 'ai' }));
         if (newApps.length > 0) updates.enterprise_apps = [...(data.enterprise_apps || []), ...newApps];
       }
-      // SaaS apps â merge
+      // SaaS apps — merge
       if (Array.isArray(r.saasApps) && r.saasApps.length > 0) {
         const existingSaas = (data.saas_apps || []).map(a => a.app.toLowerCase());
         const newSaas = r.saasApps
@@ -658,7 +658,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
           .map(a => ({ app: a, addedAt: new Date().toISOString().slice(0, 10), source: 'ai' }));
         if (newSaas.length > 0) updates.saas_apps = [...(data.saas_apps || []), ...newSaas];
       }
-      // Intent signals â merge (only set true)
+      // Intent signals — merge (only set true)
       const sigMap = { funding: 'funding', hiringQA: 'hiringQA', launch: 'recentLaunch', leadership: 'leadershipChange', outage: 'outage', cicd: 'cicd' };
       const newSignals = { ...signals };
       let signalsChanged = false;
@@ -673,7 +673,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
   }
 
 
-  // ââ Add contact manually ââ
+  // ── Add contact manually ──
   async function saveNewContact(forceOverwrite=false) {
     if(!newContact.first_name.trim()) return;
     setAddingContact(true);
@@ -694,7 +694,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
     setNewContact({first_name:'',last_name:'',title:'',email:'',linkedin_url:'',pitch:'',notes:''});
     onUpdate();
   }
-  // ââ CSV helpers ââ
+  // ── CSV helpers ──
   function handleCsvFile(file) {
     const reader=new FileReader();
     reader.onload=(e)=>{
@@ -785,34 +785,34 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 20, fontWeight: 700, color: '#111', letterSpacing: '-0.3px' }}>{data.name}</div>
             <div style={{ fontSize: 12, color: '#6b7280', marginTop: 3, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {data.industry && <span>ð­ {data.industry}</span>}
-              {data.country && <span>ð {data.country}</span>}
-              {data.revenue_millions && <span>ð° ${Number(data.revenue_millions).toLocaleString()}M</span>}
-              {data.ticker && <span style={{ color: '#059669', fontWeight: 600 }}>ð {data.ticker}</span>}
-              {data.founded_year && <span>ð Est. {data.founded_year}</span>}
-              {data.parent_company && <span>ð¢ Sub. of {data.parent_company}</span>}
+              {data.industry && <span>🏭 {data.industry}</span>}
+              {data.country && <span>📍 {data.country}</span>}
+              {data.revenue_millions && <span>💰 ${Number(data.revenue_millions).toLocaleString()}M</span>}
+              {data.ticker && <span style={{ color: '#059669', fontWeight: 600 }}>📈 {data.ticker}</span>}
+              {data.founded_year && <span>📅 Est. {data.founded_year}</span>}
+              {data.parent_company && <span>🏢 Sub. of {data.parent_company}</span>}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
             <button onClick={() => setShowScoreBreakdown(true)} title="Score breakdown" style={{
               display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 8,
               background: sc.bg, color: sc.color, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 14,
-            }}>{score} <span style={{ fontSize: 10 }}>â¾</span></button>
+            }}>{score} <span style={{ fontSize: 10 }}>▾</span></button>
             {editingLinkedIn ? (
               <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
                 <input value={linkedInDraft} onChange={e => setLinkedInDraft(e.target.value)}
                   style={{ padding: '6px 9px', borderRadius: 7, border: '1px solid #2563eb', fontSize: 12, width: 200, outline: 'none' }}
-                  placeholder="https://linkedin.com/company/â¦" />
+                  placeholder="https://linkedin.com/company/…" />
                 <button onClick={saveLinkedIn} style={{ padding: '6px 11px', background: '#2563eb', color: '#fff', borderRadius: 7, fontSize: 12, border: 'none', cursor: 'pointer' }}>Save</button>
-                <button onClick={() => setEditingLinkedIn(false)} style={{ padding: '6px 9px', background: '#f0f0f0', borderRadius: 7, fontSize: 12, border: 'none', cursor: 'pointer' }}>â</button>
+                <button onClick={() => setEditingLinkedIn(false)} style={{ padding: '6px 9px', background: '#f0f0f0', borderRadius: 7, fontSize: 12, border: 'none', cursor: 'pointer' }}>✕</button>
               </div>
             ) : (
               <div style={{ display: 'flex', gap: 4 }}>
                 <a href={linkedInGuess} target="_blank" rel="noopener noreferrer" style={{ padding: '6px 13px', background: '#0a66c2', color: '#fff', borderRadius: 8, fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
-                  ð LinkedIn
+                  🔗 LinkedIn
                 </a>
                 <button onClick={() => { setLinkedInDraft(data.linkedin_url || linkedInGuess); setEditingLinkedIn(true); }}
-                  style={{ padding: '6px 9px', background: '#f5f5f5', borderRadius: 8, fontSize: 11, border: '1px solid #e5e7eb', cursor: 'pointer', color: '#555' }}>âï¸</button>
+                  style={{ padding: '6px 9px', background: '#f5f5f5', borderRadius: 8, fontSize: 11, border: '1px solid #e5e7eb', cursor: 'pointer', color: '#555' }}>✏️</button>
               </div>
             )}
             <button onClick={() => {
@@ -821,16 +821,16 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
               const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
               a.download = `${data.name.replace(/[^a-z0-9]/gi,'_')}.csv`; a.click();
             }} style={{ padding: '6px 13px', background: '#f5f5f5', borderRadius: 8, fontSize: 12, border: '1px solid #e5e7eb', cursor: 'pointer', color: '#555' }}>
-              â¬ï¸ Export
+              ⬇️ Export
             </button>
             <button onClick={runFullAIResearch} disabled={aiResearching} title="AI populates tools, apps, signals & research in one shot" style={{
               padding: '6px 14px', background: aiResearching ? '#e5e7eb' : 'linear-gradient(135deg, #7c3aed, #2563eb)',
               color: aiResearching ? '#9ca3af' : '#fff', borderRadius: 8, fontSize: 12, fontWeight: 600,
               border: 'none', cursor: aiResearching ? 'wait' : 'pointer', whiteSpace: 'nowrap',
             }}>
-              {aiResearching ? 'â³ Researchingâ¦' : 'ð¤ AI Research'}
+              {aiResearching ? '⏳ Researching…' : '🤖 AI Research'}
             </button>
-            {saving && <span style={{ fontSize: 11, color: '#9ca3af' }}>Savingâ¦</span>}
+            {saving && <span style={{ fontSize: 11, color: '#9ca3af' }}>Saving…</span>}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 0 }}>
@@ -854,10 +854,10 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
             {/* Metric cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
               {[
-                { label: 'Total Contacts', value: contacts.length, color: '#111', bg: '#fff', border: '#e5e7eb', icon: 'ð¤' },
-                { label: 'Contacted', value: contacts.filter(c => c.status !== 'Fresh').length, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', icon: 'â' },
-                { label: 'Remaining', value: contacts.filter(c => c.status === 'Fresh').length, color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: 'ð' },
-                { label: 'Warm / Prospect', value: contacts.filter(c => c.response_type === 'warm' || c.response_type === 'prospect').length, color: '#7c3aed', bg: '#fdf4ff', border: '#e9d5ff', icon: 'ð¥' },
+                { label: 'Total Contacts', value: contacts.length, color: '#111', bg: '#fff', border: '#e5e7eb', icon: '👤' },
+                { label: 'Contacted', value: contacts.filter(c => c.status !== 'Fresh').length, color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', icon: '✅' },
+                { label: 'Remaining', value: contacts.filter(c => c.status === 'Fresh').length, color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: '📋' },
+                { label: 'Warm / Prospect', value: contacts.filter(c => c.response_type === 'warm' || c.response_type === 'prospect').length, color: '#7c3aed', bg: '#fdf4ff', border: '#e9d5ff', icon: '🔥' },
               ].map(card => (
                 <div key={card.label} style={{ background: card.bg, border: `1px solid ${card.border}`, borderRadius: 12, padding: '14px 16px' }}>
                   <div style={{ fontSize: 18, marginBottom: 6 }}>{card.icon}</div>
@@ -887,7 +887,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
                   })}
                 </div>
               </div>
-            )}{/* ââ Company Profile ââ */}
+            )}{/* ── Company Profile ── */}
             {(research.about || research.businessModel || (research.strategicPriorities && research.strategicPriorities.length > 0)) && (
             <div style={{ marginTop: 24 }}>
 
@@ -922,13 +922,13 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
             </div>
             )}
 
-                {/* ââ Intel ââ */}
+                {/* ── Intel ── */}
             <div style={{ maxWidth: 860 }}>
 
             {/* Important to Know */}
             {importantToKnow.length > 0 && (
               <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: '18px 20px', marginBottom: 20 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#92400e', marginBottom: 16 }}>ð¡ Important to Know</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#92400e', marginBottom: 16 }}>💡 Important to Know</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                            {importantToKnow.map((item, i) => (
                     <div key={i} style={{
@@ -947,7 +947,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
             {/* Signals Feed */}
             {aiSignals.length > 0 && (
               <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 20px', marginBottom: 20 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 14 }}>ð¡ Recent Signals</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 14 }}>📡 Recent Signals</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {aiSignals.map((sig, i) => {
                     const tc = SIGNAL_TYPE_COLORS[sig.type] || { bg: '#f1f5f9', color: '#475569' };
@@ -968,7 +968,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
             {/* Placeholder if no intel yet */}
             {importantToKnow.length === 0 && aiSignals.length === 0 && (
               <div style={{ background: 'linear-gradient(135deg, #f5f3ff, #eff6ff)', border: '1px solid #ddd6fe', borderRadius: 12, padding: '28px 24px', marginBottom: 20, textAlign: 'center' }}>
-                <div style={{ fontSize: 32, marginBottom: 12 }}>ð¤</div>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>🤖</div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: '#5b21b6', marginBottom: 6 }}>No intel yet</div>
                 <div style={{ fontSize: 13, color: '#7c3aed', marginBottom: 16 }}>Run AI Research to generate "Important to Know" pitch bullets and a recent signals feed for this account.</div>
                 <button onClick={runFullAIResearch} disabled={aiResearching} style={{
@@ -976,7 +976,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
                   color: aiResearching ? '#9ca3af' : '#fff', borderRadius: 9, fontSize: 13, fontWeight: 600,
                   border: 'none', cursor: aiResearching ? 'wait' : 'pointer',
                 }}>
-                  {aiResearching ? 'â³ Researchingâ¦' : 'ð¤ Run AI Research'}
+                  {aiResearching ? '⏳ Researching…' : '🤖 Run AI Research'}
                 </button>
               </div>
             )}
@@ -985,7 +985,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Research Notes</div>
               <button onClick={generateAll} style={{ padding: '7px 18px', background: 'linear-gradient(135deg, #7c3aed, #2563eb)', color: '#fff', borderRadius: 9, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
-                â¨ Generate All Missing
+                ✨ Generate All Missing
               </button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -996,7 +996,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
                   onSave={val => saveResearch(r.key, val)} />
               ))}
               {customResearch.map((s, idx) => (
-                <ResearchCard key={s.key} icon="ð" label={s.label} value={s.value || ''}
+                <ResearchCard key={s.key} icon="📌" label={s.label} value={s.value || ''}
                   generating={false} onGenerate={() => {}}
                   onSave={val => saveCustomResearch(idx, val)}
                   onRemove={() => removeCustomSection(idx)} />
@@ -1009,7 +1009,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
                       placeholder="Section name" autoFocus onKeyDown={e => e.key === 'Enter' && addCustomSection()}
                       style={{ flex: 1, padding: '7px 10px', borderRadius: 7, border: '1px solid #2563eb', fontSize: 13, outline: 'none' }} />
                     <button onClick={addCustomSection} style={{ padding: '7px 14px', background: '#2563eb', color: '#fff', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>Add</button>
-                    <button onClick={() => setShowAddCustom(false)} style={{ padding: '7px 10px', background: '#f0f0f0', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>â</button>
+                    <button onClick={() => setShowAddCustom(false)} style={{ padding: '7px 10px', background: '#f0f0f0', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>✕</button>
                   </div>
                 ) : (
                   <>
@@ -1019,18 +1019,20 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
                 )}
               </div>
             </div>
-)}
+            </div>
+          </div>
+        )}
 
         {/* CONTACTS TAB */}
         {activeTab === 'contacts' && (
           <div style={{ maxWidth: 860 }}>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16 }}>
-              <button onClick={() => setShowCsvImport(true)} style={{ padding: '7px 14px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#374151' }}>â¬ï¸ Import CSV</button>
+              <button onClick={() => setShowCsvImport(true)} style={{ padding: '7px 14px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#374151' }}>⬆️ Import CSV</button>
               <button onClick={() => setShowAddContact(true)} style={{ padding: '7px 14px', background: '#2563eb', color: '#fff', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none' }}>+ Add Contact</button>
             </div>
             {contacts.length === 0 ? (
               <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 48, textAlign: 'center' }}>
-                <div style={{ fontSize: 36, marginBottom: 12 }}>ð¤</div>
+                <div style={{ fontSize: 36, marginBottom: 12 }}>👤</div>
                 <div style={{ fontSize: 14, color: '#6b7280' }}>No contacts linked to this account</div>
               </div>
             ) : (
@@ -1062,11 +1064,11 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
                 </select>
               </div>
               {c.email ? (
-                        <span style={{ fontSize: 12, color: '#374151', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }} title={c.email}>âï¸ {c.email}</span>
+                        <span style={{ fontSize: 12, color: '#374151', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }} title={c.email}>✉️ {c.email}</span>
                       ) : (
                         <button onClick={() => window.open(`https://app.apollo.io/#/people?name=${encodeURIComponent((c.first_name + ' ' + (c.last_name || '')).trim())}&organization_name=${encodeURIComponent(data.name)}`, '_blank')}
                           style={{ fontSize: 11, padding: '4px 10px', borderRadius: 7, border: '1px dashed #d97706', background: 'none', color: '#d97706', cursor: 'pointer', flexShrink: 0 }}>
-                          ð Find Email
+                          🔍 Find Email
                         </button>
                       )}
                       {editLI4Contact === c.id ? (
@@ -1089,7 +1091,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
                     )}             {(!c.email || !c.linkedin_url) && (
                 <button onClick={() => enrichContact(c)} disabled={enrichingContact === c.id}
                   style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #7c3aed', background: enrichingContact === c.id ? '#ede9fe' : '#f5f3ff', color: '#7c3aed', cursor: 'pointer', fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap' }}>
-                  {enrichingContact === c.id ? 'Enriching...' : 'â¨ Enrich'}
+                  {enrichingContact === c.id ? 'Enriching...' : '✨ Enrich'}
                 </button>
               )}
                     {c.status === 'Fresh' && !c.next_followup && (
@@ -1099,17 +1101,17 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
                           color: '#fff', cursor: qualifying === c.id ? 'wait' : 'pointer', fontWeight: 600, flexShrink: 0,
                           boxShadow: '0 1px 4px rgba(37,99,235,0.3)',
                         }}>
-                          {qualifying === c.id ? 'â³ Startingâ¦' : 'ð Start'}
+                          {qualifying === c.id ? '⏳ Starting…' : '🚀 Start'}
                         </button>
                       )}
                       {c.status === 'Fresh' && c.next_followup && (
                         <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, background: '#d1fae5', color: '#059669', fontWeight: 600, flexShrink: 0, border: '1px solid #6ee7b7' }}>
-                          ð¬ In Queue
+                          📬 In Queue
                         </span>
                       )}
                       <button onClick={() => navigate(`/contacts/${c.id}`, { state: { from: 'account', accountId: data.id, accountName: data.name } })}
                         style={{ fontSize: 12, padding: '6px 14px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#2563eb', cursor: 'pointer', fontWeight: 500, flexShrink: 0 }}>
-                        View â
+                        View →
                       </button>
                     </div>
                   );
@@ -1124,7 +1126,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
           <div style={{ maxWidth: 860 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, padding: '12px 16px', background: 'linear-gradient(135deg, #f5f3ff, #eff6ff)', borderRadius: 12, border: '1px solid #ddd6fe' }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#5b21b6' }}>ð¤ AI-Powered Tech Intelligence</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#5b21b6' }}>🤖 AI-Powered Tech Intelligence</div>
                 <div style={{ fontSize: 11, color: '#7c3aed', marginTop: 2 }}>Auto-detect testing tools, enterprise apps & SaaS platforms.</div>
               </div>
               <button onClick={runFullAIResearch} disabled={aiResearching} style={{
@@ -1132,14 +1134,14 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
                 color: aiResearching ? '#9ca3af' : '#fff', borderRadius: 9, fontSize: 13, fontWeight: 600,
                 border: 'none', cursor: aiResearching ? 'wait' : 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
               }}>
-                {aiResearching ? 'â³ Generatingâ¦' : 'â¨ Generate with AI'}
+                {aiResearching ? '⏳ Generating…' : '✨ Generate with AI'}
               </button>
             </div>
 
             {/* Testing Tools */}
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 20px', marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#111', flex: 1 }}>âï¸ Testing Tools</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#111', flex: 1 }}>⚙️ Testing Tools</span>
                 <button onClick={() => setShowAddTool(t => !t)} style={{ padding: '5px 12px', fontSize: 12, borderRadius: 7, border: '1px dashed #2563eb', color: '#2563eb', background: 'none', cursor: 'pointer' }}>+ Add Manually</button>
               </div>
               {tools.length === 0 && !showAddTool && <div style={{ fontSize: 13, color: '#9ca3af', padding: '8px 0' }}>No tools recorded yet</div>}
@@ -1148,13 +1150,13 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
                   const tc = TOOL_STATUS_COLORS[t.status] || TOOL_STATUS_COLORS.Active;
                   return (
                     <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 9, background: '#f9fafb', border: '1px solid #f0f0ee' }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, flex: 1, color: '#374151' }}>{t.status === 'Legacy' ? 'â ï¸' : 'ðµ'} {t.tool}{t.source === 'ai' && <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: '#ede9fe', color: '#7c3aed', marginLeft: 5 }}>AI</span>}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, flex: 1, color: '#374151' }}>{t.status === 'Legacy' ? '⚠️' : '🔵'} {t.tool}{t.source === 'ai' && <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: '#ede9fe', color: '#7c3aed', marginLeft: 5 }}>AI</span>}</span>
                       <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: tc.bg, color: tc.color }}>{t.status}</span>
                       <select value={t.status} onChange={e => updateToolStatus(idx, e.target.value)}
                         style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}>
                         {TOOL_STATUS_OPTIONS.map(o => <option key={o}>{o}</option>)}
                       </select>
-                      <button onClick={() => removeTool(idx)} style={{ fontSize: 13, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}>â</button>
+                      <button onClick={() => removeTool(idx)} style={{ fontSize: 13, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}>✕</button>
                     </div>
                   );
                 })}
@@ -1169,7 +1171,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
                     {TOOL_STATUS_OPTIONS.map(o => <option key={o}>{o}</option>)}
                   </select>
                   <button onClick={addTool} style={{ padding: '7px 16px', background: '#2563eb', color: '#fff', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>Add</button>
-                  <button onClick={() => setShowAddTool(false)} style={{ padding: '7px 10px', background: '#f0f0f0', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>â</button>
+                  <button onClick={() => setShowAddTool(false)} style={{ padding: '7px 10px', background: '#f0f0f0', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>✕</button>
                 </div>
               )}
             </div>
@@ -1177,7 +1179,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
             {/* Enterprise Apps */}
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 20px', marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#111', flex: 1 }}>ð¢ Enterprise Apps</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#111', flex: 1 }}>🏢 Enterprise Apps</span>
                 <button onClick={() => setShowAddEnterprise(t => !t)} style={{ padding: '5px 12px', fontSize: 12, borderRadius: 7, border: '1px dashed #0891b2', color: '#0891b2', background: 'none', cursor: 'pointer' }}>+ Add Manually</button>
               </div>
               {eApps.length === 0 && !showAddEnterprise && <div style={{ fontSize: 13, color: '#9ca3af' }}>No enterprise apps recorded</div>}
@@ -1185,7 +1187,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
                 {eApps.map((a, idx) => (
                   <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 20, background: '#e0f2fe', color: '#0369a1', fontSize: 12, fontWeight: 600 }}>
                     {a.app}{a.source === 'ai' && <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: '#dbeafe', color: '#1d4ed8', marginLeft: 4 }}>AI</span>}
-                    <button onClick={() => removeEnterpriseApp(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#0369a1', fontSize: 11, padding: 0, lineHeight: 1 }}>â</button>
+                    <button onClick={() => removeEnterpriseApp(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#0369a1', fontSize: 11, padding: 0, lineHeight: 1 }}>✕</button>
                   </span>
                 ))}
               </div>
@@ -1196,7 +1198,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
                       onKeyDown={e => e.key === 'Enter' && addEnterpriseApp(newEnterpriseApp)}
                       style={{ flex: 1, padding: '7px 10px', borderRadius: 7, border: '1px solid #e5e7eb', fontSize: 13, outline: 'none' }} />
                     <button onClick={() => addEnterpriseApp(newEnterpriseApp)} style={{ padding: '7px 16px', background: '#2563eb', color: '#fff', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>Add</button>
-                    <button onClick={() => setShowAddEnterprise(false)} style={{ padding: '7px 10px', background: '#f0f0f0', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>â</button>
+                    <button onClick={() => setShowAddEnterprise(false)} style={{ padding: '7px 10px', background: '#f0f0f0', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>✕</button>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center' }}>
                     <span style={{ fontSize: 11, color: '#9ca3af' }}>Quick add:</span>
@@ -1211,7 +1213,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
             {/* SaaS Apps */}
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#111', flex: 1 }}>ð¦ SaaS & Industry Apps</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#111', flex: 1 }}>📦 SaaS & Industry Apps</span>
                 <button onClick={() => setShowAddSaas(t => !t)} style={{ padding: '5px 12px', fontSize: 12, borderRadius: 7, border: '1px dashed #7c3aed', color: '#7c3aed', background: 'none', cursor: 'pointer' }}>+ Add Manually</button>
               </div>
               {saasApps.length === 0 && !showAddSaas && <div style={{ fontSize: 13, color: '#9ca3af' }}>No SaaS apps recorded</div>}
@@ -1219,7 +1221,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
                 {saasApps.map((a, idx) => (
                   <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 20, background: '#ede9fe', color: '#7c3aed', fontSize: 12, fontWeight: 600 }}>
                     {a.app}{a.source === 'ai' && <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: '#f3e8ff', color: '#7c3aed', marginLeft: 4 }}>AI</span>}
-                    <button onClick={() => removeSaasApp(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7c3aed', fontSize: 11, padding: 0, lineHeight: 1 }}>â</button>
+                    <button onClick={() => removeSaasApp(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7c3aed', fontSize: 11, padding: 0, lineHeight: 1 }}>✕</button>
                   </span>
                 ))}
               </div>
@@ -1229,7 +1231,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
                     onKeyDown={e => e.key === 'Enter' && addSaasApp()}
                     style={{ flex: 1, padding: '7px 10px', borderRadius: 7, border: '1px solid #e5e7eb', fontSize: 13, outline: 'none' }} />
                   <button onClick={addSaasApp} style={{ padding: '7px 16px', background: '#2563eb', color: '#fff', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>Add</button>
-                  <button onClick={() => setShowAddSaas(false)} style={{ padding: '7px 10px', background: '#f0f0f0', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>â</button>
+                  <button onClick={() => setShowAddSaas(false)} style={{ padding: '7px 10px', background: '#f0f0f0', borderRadius: 7, fontSize: 13, border: 'none', cursor: 'pointer' }}>✕</button>
                 </div>
               )}
             </div>
@@ -1240,9 +1242,9 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
         {activeTab === 'notes' && (
           <div style={{ maxWidth: 860 }}>
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 20px' }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 12 }}>ð Account Notes</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 12 }}>📝 Account Notes</div>
               <textarea value={notesValue} onChange={e => handleNotesChange(e.target.value)}
-                placeholder="Add intel: tech stack, deal status, pain points, next steps, objections, key stakeholdersâ¦"
+                placeholder="Add intel: tech stack, deal status, pain points, next steps, objections, key stakeholders…"
                 rows={18}
                 style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: 13, lineHeight: 1.8, resize: 'vertical', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', color: '#374151', background: '#f9fafb' }} />
               <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>Auto-saves as you type</div>
@@ -1398,19 +1400,19 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
             onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: 20 }}>
               <div style={{ fontSize: 16, fontWeight: 700, flex: 1, color: '#111' }}>Score Breakdown</div>
-              <button onClick={() => setShowScoreBreakdown(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#9ca3af', lineHeight: 1 }}>â</button>
+              <button onClick={() => setShowScoreBreakdown(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#9ca3af', lineHeight: 1 }}>✕</button>
             </div>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 22 }}>
               <div style={{ fontSize: 40, fontWeight: 800, color: sc.color, background: sc.bg, padding: '10px 28px', borderRadius: 14 }}>{score}</div>
             </div>
             {[
-              { label: 'ð§ Tool Fit', pts: tools.some(t => t.status === 'Legacy') ? 30 : tools.some(t => t.status === 'Evaluating') ? 20 : tools.length > 0 ? 15 : 0, max: 30,
+              { label: '🔧 Tool Fit', pts: tools.some(t => t.status === 'Legacy') ? 30 : tools.some(t => t.status === 'Evaluating') ? 20 : tools.length > 0 ? 15 : 0, max: 30,
                 detail: tools.some(t => t.status === 'Legacy') ? `Legacy: ${tools.filter(t=>t.status==='Legacy').map(t=>t.tool).join(', ')}` : tools.some(t=>t.status==='Evaluating') ? 'Evaluating tools detected' : tools.length > 0 ? 'Modern tools' : 'No tools recorded' },
-              { label: 'ð¡ Intent Signals', pts: Math.min([signals.hiringQA&&10,signals.funding&&10,signals.outage&&8,signals.recentLaunch&&6,signals.leadershipChange&&6,signals.cicd&&5].filter(Boolean).reduce((a,b)=>a+b,0),45), max: 45,
+              { label: '📡 Intent Signals', pts: Math.min([signals.hiringQA&&10,signals.funding&&10,signals.outage&&8,signals.recentLaunch&&6,signals.leadershipChange&&6,signals.cicd&&5].filter(Boolean).reduce((a,b)=>a+b,0),45), max: 45,
                 detail: SIGNAL_DEFS.filter(s=>signals[s.key]).map(s=>s.label).join(', ') || 'No signals active' },
-              { label: 'ð¬ Engagement', pts: Math.min(contacts.filter(c=>c.response_type==='warm'||c.response_type==='prospect').length*5,15), max: 15,
+              { label: '💬 Engagement', pts: Math.min(contacts.filter(c=>c.response_type==='warm'||c.response_type==='prospect').length*5,15), max: 15,
                 detail: `${contacts.filter(c=>c.response_type==='warm'||c.response_type==='prospect').length} warm/prospect contacts` },
-              { label: 'ð¬ Research', pts: Math.min(Object.values(data.research||{}).filter(v=>v&&typeof v==='string'&&v.length>10).length*2,10), max: 10,
+              { label: '🔬 Research', pts: Math.min(Object.values(data.research||{}).filter(v=>v&&typeof v==='string'&&v.length>10).length*2,10), max: 10,
                 detail: `${Object.values(data.research||{}).filter(v=>v&&typeof v==='string'&&v.length>10).length} of ${RESEARCH_DEFAULTS.length} sections filled` },
             ].map(row => (
               <div key={row.label} style={{ marginBottom: 16 }}>
@@ -1443,13 +1445,13 @@ function ResearchCard({ icon, label, value, generating, onGenerate, onSave, onRe
         <span style={{ fontSize: 15 }}>{icon}</span>
         <span style={{ fontWeight: 600, fontSize: 13, flex: 1, color: '#374151' }}>{label}</span>
         {onRemove && (
-          <button onClick={onRemove} style={{ fontSize: 12, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>â</button>
+          <button onClick={onRemove} style={{ fontSize: 12, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>✕</button>
         )}
         <button onClick={onGenerate} disabled={generating} style={{
           padding: '4px 12px', background: generating ? '#e5e7eb' : 'linear-gradient(135deg, #7c3aed, #6d28d9)',
           color: generating ? '#9ca3af' : '#fff', borderRadius: 7, fontSize: 11, fontWeight: 600, border: 'none',
           cursor: generating ? 'wait' : 'pointer',
-        }}>{generating ? 'â³ Generatingâ¦' : 'â¨ Generate'}</button>
+        }}>{generating ? '⏳ Generating…' : '✨ Generate'}</button>
       </div>
       <div style={{ padding: '12px 16px', minHeight: 70 }}>
         {editing ? (
@@ -1463,7 +1465,7 @@ function ResearchCard({ icon, label, value, generating, onGenerate, onSave, onRe
           </div>
         ) : (
           <div onClick={() => setEditing(true)} style={{ fontSize: 13, lineHeight: 1.65, color: value ? '#374151' : '#9ca3af', cursor: 'text', minHeight: 44, whiteSpace: 'pre-wrap' }}>
-            {value || 'Click to write, or click â¨ Generate'}
+            {value || 'Click to write, or click ✨ Generate'}
           </div>
         )}
       </div>
