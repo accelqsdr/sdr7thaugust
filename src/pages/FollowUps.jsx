@@ -209,7 +209,7 @@ export default function FollowUps() {
         accountResearch:account.research||{}, senderName, priorEmailBodies:priorBodies,
       }});
       if(!res.error&&res.data?.subject){
-        const cleanDash=s=>(s||'').replace(/—/g,' - ').replace(/–/g,' - ').replace(/â/g,' - ').replace(/â/g,' - ');
+        const cleanDash=s=>(s||'').replace(/[—–]/g,'').replace(/  +/g,' ').trim();
         setDrafts(d=>({...d,[contact.id]:{subject:cleanDash(res.data.subject),body:cleanDash(res.data.body)}}));
         if(!silent) setDraftOpen(contact.id);
       }
