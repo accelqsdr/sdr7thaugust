@@ -1019,7 +1019,9 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
                 )}
               </div>
             </div>
-{/* CONTACTS TAB */}
+)}
+
+        {/* CONTACTS TAB */}
         {activeTab === 'contacts' && (
           <div style={{ maxWidth: 860 }}>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16 }}>
