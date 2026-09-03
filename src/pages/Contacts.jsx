@@ -403,11 +403,40 @@ function UploadCSV({ userId, onDone }) {
 
         const BATCH = 50;
         let total = 0;
+        let insertedContacts = [];
         for (let i = 0; i < rows.length; i += BATCH) {
-          const { error } = await supabase.from('contacts').insert(rows.slice(i, i + BATCH));
+          const { data: inserted, error } = await supabase.from('contacts').insert(rows.slice(i, i + BATCH)).select('id, company');
           if (error) { setMsg('Upload failed: ' + error.message); setUploading(false); return; }
+          insertedContacts.push(...(inserted || []));
           total += Math.min(BATCH, rows.length - i);
           setMsg(`Uploading… ${total}/${rows.length}`);
+        }
+
+        // Auto-create accounts for companies in the CSV and link contacts
+        const uniqueCompanies = [...new Set(insertedContacts.map(c => c.company).filter(c => c && c.trim()))];
+        if (uniqueCompanies.length > 0) {
+          setMsg('Linking accounts…');
+          const { data: existingAccounts } = await supabase.from('accounts').select('id, name').in('name', uniqueCompanies);
+          const existingNames = new Set((existingAccounts || []).map(a => a.name));
+          const toCreate = uniqueCompanies.filter(n => !existingNames.has(n));
+
+          let allAccounts = [...(existingAccounts || [])];
+          if (toCreate.length > 0) {
+            const { data: newAccounts } = await supabase.from('accounts').insert(
+              toCreate.map(name => ({ name, owner_id: userId }))
+            ).select('id, name');
+            if (newAccounts) allAccounts.push(...newAccounts);
+          }
+
+          const accountMap = {};
+          allAccounts.forEach(a => { accountMap[a.name] = a.id; });
+
+          const toLink = insertedContacts.filter(c => c.company && accountMap[c.company]);
+          for (let i = 0; i < toLink.length; i += BATCH) {
+            await Promise.all(toLink.slice(i, i + BATCH).map(c =>
+              supabase.from('contacts').update({ account_id: accountMap[c.company] }).eq('id', c.id)
+            ));
+          }
         }
 
         setUploading(false);
