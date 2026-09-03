@@ -209,7 +209,8 @@ export default function FollowUps() {
         accountResearch:account.research||{}, senderName, priorEmailBodies:priorBodies,
       }});
       if(!res.error&&res.data?.subject){
-        setDrafts(d=>({...d,[contact.id]:{subject:res.data.subject,body:res.data.body}}));
+        const cleanDash=s=>(s||'').replace(/—/g,' - ').replace(/–/g,' - ').replace(/â/g,' - ').replace(/â/g,' - ');
+        setDrafts(d=>({...d,[contact.id]:{subject:cleanDash(res.data.subject),body:cleanDash(res.data.body)}}));
         if(!silent) setDraftOpen(contact.id);
       }
     } catch(e){console.error(e);}
