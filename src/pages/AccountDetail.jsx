@@ -78,6 +78,9 @@ export default function AccountDetail() {
     await supabase.from('accounts').update({
       name: editData.name, domain: editData.domain, industry: editData.industry,
       size: editData.size, country: editData.country, website: editData.website, status: editData.status,
+      linkedin_url: editData.linkedin_url || null,
+      employees: editData.employees || null,
+      revenue_millions: editData.revenue_millions ? parseFloat(editData.revenue_millions) : null,
     }).eq('id', id);
     setEditing(false);
     fetchAll();
@@ -112,67 +115,126 @@ export default function AccountDetail() {
         ← Back to Accounts
       </button>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', margin: 0 }}>{account.name}</h1>
-            <span style={{ padding: '3px 10px', borderRadius: 10, fontSize: 12, background: sc.bg, color: sc.color, fontWeight: 500 }}>
-              {account.status?.replace('_', ' ')}
-            </span>
-            {intents.length > 0 && (
-              <span style={{ padding: '3px 10px', borderRadius: 10, fontSize: 12, background: '#fef3c7', color: '#92400e', fontWeight: 500 }}>
-                {intents.length} intent signal{intents.length > 1 ? 's' : ''}
-              </span>
-            )}
+      {/* Company Info Card */}
+      <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e8e8e4', padding: '20px 24px', marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 18 }}>
+          {/* Logo */}
+          <div style={{ width: 60, height: 60, borderRadius: 12, overflow: 'hidden', flexShrink: 0, border: '1px solid #e8e8e4', background: '#f8f9fa', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+            {account.domain ? (
+              <img
+                src={`https://logo.clearbit.com/${account.domain}`}
+                alt={account.name}
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                onError={e => { e.currentTarget.style.display = 'none'; const fb = e.currentTarget.parentElement.querySelector('.logo-fallback'); if (fb) fb.style.display = 'flex'; }}
+              />
+            ) : null}
+            <div className="logo-fallback" style={{ display: account.domain ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', background: '#2563eb', color: '#fff', fontSize: 22, fontWeight: 700, borderRadius: 12 }}>
+              {account.name?.[0]?.toUpperCase()}
+            </div>
           </div>
-          <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>
-            {[account.industry, account.size, account.country].filter(Boolean).join(' · ')}
-            {account.domain && <span> · {account.domain}</span>}
-          </div>
-        </div>
-        <button onClick={() => setEditing(!editing)}
-          style={{ fontSize: 12, padding: '6px 14px', borderRadius: 7, border: '1px solid #e0e0e0', background: '#fff', color: '#555', cursor: 'pointer' }}>
-          {editing ? 'Cancel' : 'Edit'}
-        </button>
-      </div>
 
-      {/* Edit Form */}
-      {editing && (
-        <div style={{ background: '#f8f9fa', borderRadius: 10, padding: 18, marginBottom: 20, border: '1px solid #e0e0e0' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
-            {[
-              { key: 'name', label: 'Company Name' },
-              { key: 'domain', label: 'Domain' },
-              { key: 'industry', label: 'Industry' },
-              { key: 'size', label: 'Size' },
-              { key: 'country', label: 'Country' },
-              { key: 'website', label: 'Website' },
-            ].map(f => (
-              <div key={f.key}>
-                <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>{f.label}</label>
-                <input value={editData[f.key] || ''} onChange={e => setEditData({ ...editData, [f.key]: e.target.value })}
-                  style={{ width: '100%', padding: '7px 10px', borderRadius: 7, border: '1px solid #e0e0e0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
-              </div>
-            ))}
+          {/* Details */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+              <h1 style={{ fontSize: 20, fontWeight: 700, color: '#111', margin: 0 }}>{account.name}</h1>
+              <span style={{ padding: '3px 10px', borderRadius: 10, fontSize: 11, background: sc.bg, color: sc.color, fontWeight: 500, whiteSpace: 'nowrap' }}>
+                {account.status?.replace('_', ' ')}
+              </span>
+              {intents.length > 0 && (
+                <span style={{ padding: '3px 10px', borderRadius: 10, fontSize: 11, background: '#fef3c7', color: '#92400e', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                  🎯 {intents.length} signal{intents.length > 1 ? 's' : ''}
+                </span>
+              )}
+              {account.website && (
+                <a href={account.website.startsWith('http') ? account.website : `https://${account.website}`} target="_blank" rel="noreferrer"
+                  title="Website" style={{ color: '#6b7280', fontSize: 16, textDecoration: 'none', lineHeight: 1 }}>🌐</a>
+              )}
+              {account.linkedin_url && (
+                <a href={account.linkedin_url} target="_blank" rel="noreferrer"
+                  title="LinkedIn" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, background: '#0077b5', borderRadius: 4, color: '#fff', fontSize: 11, fontWeight: 700, textDecoration: 'none', lineHeight: 1, flexShrink: 0 }}>in</a>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap' }}>
+              {account.country && (
+                <div style={{ fontSize: 13 }}>
+                  <span style={{ color: '#9ca3af' }}>Location </span>
+                  <span style={{ color: '#111', fontWeight: 500 }}>{account.country}</span>
+                </div>
+              )}
+              {account.industry && (
+                <div style={{ fontSize: 13 }}>
+                  <span style={{ color: '#9ca3af' }}>Industry </span>
+                  <span style={{ color: '#111', fontWeight: 500 }}>{account.industry}</span>
+                </div>
+              )}
+              {account.employees && (
+                <div style={{ fontSize: 13 }}>
+                  <span style={{ color: '#9ca3af' }}>Employees </span>
+                  <span style={{ color: '#111', fontWeight: 500 }}>{account.employees}</span>
+                </div>
+              )}
+              {account.revenue_millions && (
+                <div style={{ fontSize: 13 }}>
+                  <span style={{ color: '#9ca3af' }}>Revenue </span>
+                  <span style={{ color: '#111', fontWeight: 500 }}>${Number(account.revenue_millions).toLocaleString()}M</span>
+                </div>
+              )}
+              {account.size && !account.employees && (
+                <div style={{ fontSize: 13 }}>
+                  <span style={{ color: '#9ca3af' }}>Size </span>
+                  <span style={{ color: '#111', fontWeight: 500 }}>{account.size}</span>
+                </div>
+              )}
+            </div>
           </div>
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>Status</label>
-            <select value={editData.status || 'prospecting'} onChange={e => setEditData({ ...editData, status: e.target.value })}
-              style={{ padding: '7px 10px', borderRadius: 7, border: '1px solid #e0e0e0', fontSize: 13 }}>
-              <option value="prospecting">Prospecting</option>
-              <option value="engaged">Engaged</option>
-              <option value="demo_booked">Demo Booked</option>
-              <option value="closed_won">Closed Won</option>
-              <option value="closed_lost">Closed Lost</option>
-            </select>
-          </div>
-          <button onClick={saveEdit}
-            style={{ padding: '8px 20px', background: '#2563eb', color: '#fff', borderRadius: 7, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: 'none' }}>
-            Save Changes
+
+          {/* Edit button */}
+          <button onClick={() => setEditing(!editing)}
+            style={{ fontSize: 12, padding: '6px 14px', borderRadius: 7, border: '1px solid #e0e0e0', background: '#fff', color: '#555', cursor: 'pointer', flexShrink: 0 }}>
+            {editing ? 'Cancel' : '✏️ Edit'}
           </button>
         </div>
-      )}
+
+        {/* Inline Edit Form */}
+        {editing && (
+          <div style={{ marginTop: 20, paddingTop: 18, borderTop: '1px solid #f0f0f0' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+              {[
+                { key: 'name', label: 'Company Name' },
+                { key: 'domain', label: 'Domain (for logo)' },
+                { key: 'industry', label: 'Industry' },
+                { key: 'country', label: 'Location / Country' },
+                { key: 'employees', label: 'Employees' },
+                { key: 'revenue_millions', label: 'Revenue (USD millions)' },
+                { key: 'website', label: 'Website URL' },
+                { key: 'linkedin_url', label: 'LinkedIn URL' },
+                { key: 'size', label: 'Size (e.g. 1000-5000)' },
+              ].map(f => (
+                <div key={f.key}>
+                  <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>{f.label}</label>
+                  <input value={editData[f.key] || ''} onChange={e => setEditData({ ...editData, [f.key]: e.target.value })}
+                    style={{ width: '100%', padding: '7px 10px', borderRadius: 7, border: '1px solid #e0e0e0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+              ))}
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>Status</label>
+              <select value={editData.status || 'prospecting'} onChange={e => setEditData({ ...editData, status: e.target.value })}
+                style={{ padding: '7px 10px', borderRadius: 7, border: '1px solid #e0e0e0', fontSize: 13 }}>
+                <option value="prospecting">Prospecting</option>
+                <option value="engaged">Engaged</option>
+                <option value="demo_booked">Demo Booked</option>
+                <option value="closed_won">Closed Won</option>
+                <option value="closed_lost">Closed Lost</option>
+              </select>
+            </div>
+            <button onClick={saveEdit}
+              style={{ padding: '8px 20px', background: '#2563eb', color: '#fff', borderRadius: 7, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: 'none' }}>
+              Save Changes
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #e8e8e4', marginBottom: 20 }}>
