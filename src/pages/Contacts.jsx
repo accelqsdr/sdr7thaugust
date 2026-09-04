@@ -271,10 +271,18 @@ export default function Contacts() {
                   </td>
                   <td style={{ padding: '10px 14px' }}>
                     {rs ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ padding: '3px 9px', borderRadius: 20, fontSize: 11, background: rs.bg, color: rs.color, fontWeight: 500 }}>{rs.label}</span>
-                        <button onClick={() => updateResponseType(c.id, '')}
-                          style={{ fontSize: 10, color: '#bbb', border: 'none', background: 'none', cursor: 'pointer', padding: '2px 4px' }} title="Clear">✕</button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ padding: '3px 9px', borderRadius: 20, fontSize: 11, background: rs.bg, color: rs.color, fontWeight: 500 }}>{rs.label}</span>
+                          <button onClick={() => updateResponseType(c.id, '')}
+                            style={{ fontSize: 10, color: '#bbb', border: 'none', background: 'none', cursor: 'pointer', padding: '2px 4px' }} title="Clear response">✕</button>
+                        </div>
+                        {c.response_notes && (
+                          <div style={{ fontSize: 11, color: '#888', fontStyle: 'italic', maxWidth: 180, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                            title={c.response_notes}>
+                            {c.response_notes}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <select value="" onChange={e => updateResponseType(c.id, e.target.value)}

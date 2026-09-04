@@ -37,6 +37,8 @@ export default function Responses() {
   const [search, setSearch] = useState('');
   const [responseFilter, setResponseFilter] = useState('all');
   const [viewAll, setViewAll] = useState(false);
+  const [editingNotes, setEditingNotes] = useState(null); // contact id being edited
+  const [notesDraft, setNotesDraft] = useState('');
   const canViewAll = profile?.role === 'director' || profile?.role === 'manager' || profile?.role === 'poc';
 
   useEffect(() => { load(); }, [viewAll]);
@@ -48,6 +50,17 @@ export default function Responses() {
     const { data } = await q;
     setContacts(data || []);
     setLoading(false);
+  }
+
+  async function saveNotes(id) {
+    await supabase.from('contacts').update({ response_notes: notesDraft }).eq('id', id);
+    setContacts(prev => prev.map(ct => ct.id === id ? { ...ct, response_notes: notesDraft } : ct));
+    setEditingNotes(null);
+  }
+
+  function startEditNotes(c) {
+    setNotesDraft(c.response_notes || '');
+    setEditingNotes(c.id);
   }
 
   async function clearResponse(id) {
@@ -136,7 +149,7 @@ export default function Responses() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr style={{ background: '#fafafa', borderBottom: '1px solid #eee' }}>
-                        {['Name', 'Company', 'Email', 'Title', 'Stage', 'Date Added', 'Last Reached Out', 'Actions'].map(h => (
+                        {['Name', 'Company', 'Email', 'Title', 'Stage', 'Date Added', 'Last Reached Out', 'Response Received', 'Actions'].map(h => (
                           <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 11, color: '#999', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4 }}>{h}</th>
                         ))}
                       </tr>
@@ -162,6 +175,41 @@ export default function Responses() {
                             </td>
                             <td style={{ padding: '10px 14px', color: '#888', fontSize: 12 }}>{fmt(c.created_at)}</td>
                             <td style={{ padding: '10px 14px', color: '#888', fontSize: 12 }}>{fmt(c.last_touchpoint_date)}</td>
+                            <td style={{ padding: '10px 14px', maxWidth: 220 }}>
+                              {editingNotes === c.id ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                  <textarea
+                                    value={notesDraft}
+                                    onChange={e => setNotesDraft(e.target.value)}
+                                    placeholder="What did the contact say?"
+                                    rows={3}
+                                    style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid #2563eb', fontSize: 12, resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
+                                    autoFocus
+                                  />
+                                  <div style={{ display: 'flex', gap: 5 }}>
+                                    <button onClick={() => saveNotes(c.id)}
+                                      style={{ padding: '3px 10px', borderRadius: 6, border: 'none', background: '#2563eb', color: '#fff', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>
+                                      Save
+                                    </button>
+                                    <button onClick={() => setEditingNotes(null)}
+                                      style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid #e0e0e0', background: '#fff', color: '#888', fontSize: 11, cursor: 'pointer' }}>
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div onClick={() => startEditNotes(c)}
+                                  style={{ cursor: 'pointer', minHeight: 28, padding: '4px 6px', borderRadius: 6, border: '1px solid transparent' }}
+                                  onMouseEnter={e => e.currentTarget.style.border = '1px solid #e0e0e0'}
+                                  onMouseLeave={e => e.currentTarget.style.border = '1px solid transparent'}
+                                  title="Click to add/edit response notes">
+                                  {c.response_notes
+                                    ? <span style={{ fontSize: 12, color: '#333', whiteSpace: 'pre-wrap' }}>{c.response_notes}</span>
+                                    : <span style={{ fontSize: 12, color: '#bbb', fontStyle: 'italic' }}>Click to add notes…</span>
+                                  }
+                                </div>
+                              )}
+                            </td>
                             <td style={{ padding: '10px 14px' }}>
                               <div style={{ display: 'flex', gap: 6 }}>
                                 <button onClick={() => navigate(`/contacts/${c.id}`)}
