@@ -209,7 +209,22 @@ export default function FollowUps() {
           industry:account.industry,
         },
         stage:emailStage, customPrompt:customPrompt||null,
-        accountResearch:account.research||{}, senderName, priorEmailBodies:priorBodies,
+        accountResearch:{
+          ...(account.research||{}),
+          overview: account.about || account.description || '',
+          notes: account.notes || '',
+          icpNotes: account.icp_notes || '',
+          importantToKnow: account.important_to_know || [],
+          testingTools: account.testing_tools || [],
+          enterpriseApps: account.enterprise_apps || [],
+          saasApps: account.saas_apps || [],
+          signals: account.signals || [],
+          aiSignals: account.ai_signals || [],
+          productsServices: account.products_services || [],
+          funding: account.funding_info || account.funding || '',
+          employees: account.employees || account.employee_count || '',
+          revenue: account.revenue_millions ? `$${account.revenue_millions}M` : '',
+        }, senderName, priorEmailBodies:priorBodies,
       }});
       if(!res.error&&res.data?.subject){
         const cleanDash=s=>(s||'').replace(/[—–]/g,'').replace(/  +/g,' ').trim();

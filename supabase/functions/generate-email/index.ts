@@ -64,6 +64,14 @@ serve(async (req) => {
       ? `\nSDR CUSTOM INSTRUCTIONS - follow these exactly, they override everything else:\n${customPrompt.trim()}\n`
       : ''
 
+    const fmtArr = (a: any) => Array.isArray(a) && a.length > 0 ? a.join(', ') : null;
+    const fmtObj = (a: any) => {
+      if (!a) return null;
+      if (Array.isArray(a)) return a.length > 0 ? a.map((x:any) => typeof x === 'object' ? JSON.stringify(x) : x).join(', ') : null;
+      if (typeof a === 'object') return JSON.stringify(a);
+      return String(a);
+    };
+
     const prompt = `You are an elite SDR at ACCELQ, an AI-powered test automation platform. ACCELQ helps QA teams eliminate manual testing and fragile scripts with self-healing, codeless automation. Real results: teams cut test maintenance by 60-90% and shrink release cycles from weeks to days.
 
 Write a cold email for stage: ${ctx.label}
@@ -77,17 +85,39 @@ Persona / who this person is: ${contact.persona || 'QA leader or engineering man
 These two fields are the MOST IMPORTANT inputs. The email must directly address the pitch angle and speak to the persona's specific challenges, goals, and language. Everything else below supports and personalizes these.
 
 ========================================
-SUPPORTING CONTEXT (use to personalize the pitch)
+ACCOUNT OVERVIEW (use to understand their business and personalize)
+========================================
+Company: ${contact.company}
+Industry: ${contact.industry || research.detectedIndustry || 'unknown'}
+Overview / About: ${research.overview || 'not available'}
+Products & Services: ${fmtObj(research.productsServices) || 'unknown'}
+Employees: ${research.employees || 'unknown'}
+Revenue: ${research.revenue || 'unknown'}
+Funding: ${fmtObj(research.funding) || 'unknown'}
+
+========================================
+TECH STACK (critical for personalizing the pitch)
+========================================
+Testing tools: ${fmtArr(research.testingTools) || research.techStack || 'unknown'}
+Enterprise apps: ${fmtArr(research.enterpriseApps) || 'unknown'}
+SaaS apps: ${fmtArr(research.saasApps) || 'unknown'}
+
+========================================
+SIGNALS & INTELLIGENCE
+========================================
+Recent signals / triggers: ${fmtArr(research.signals) || fmtArr(research.aiSignals) || research.recentNews || 'none'}
+ICP notes: ${research.icpNotes || 'none'}
+Important to know: ${fmtObj(research.importantToKnow) || 'none'}
+Account notes: ${research.notes || 'none'}
+
+========================================
+CONTACT CONTEXT
 ========================================
 Name: ${contact.full_name}
 Title: ${contact.title || 'unknown'}
-Company: ${contact.company}
-Industry: ${contact.industry || research.detectedIndustry || 'unknown'}
 Response so far: ${contact.response || 'no response yet'}
-Testing tools they use: ${(research.testingTools || []).join(', ') || research.techStack || 'unknown'}
-Their likely pain points: ${research.painPoints || 'manual testing overhead, slow release cycles, fragile scripts'}
-Recent trigger / news: ${research.recentNews || 'none'}
-Why we target them: ${research.whyTarget || 'strong fit for ACCELQ'}
+Pain points: ${research.painPoints || 'manual testing overhead, slow release cycles, fragile scripts'}
+Why target them: ${research.whyTarget || 'strong fit for ACCELQ'}
 ${priorEmails}${customInstructions}
 ========================================
 STAGE GOAL: ${ctx.intent}
