@@ -229,16 +229,16 @@ export default function Contacts() {
                   onChange={toggleSelectAll}
                   style={{ cursor: 'pointer' }} />
               </th>
-              {['Name', 'Company', 'Email', 'Title', 'Status', 'Response', 'Next Follow-up', 'Actions'].map(h => (
+              {['Name', 'Company', 'Email', 'Title', 'Status', 'Response', 'Date Added', 'Last Reached Out', 'Actions'].map(h => (
                 <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, color: '#999', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4 }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} style={{ padding: 40, textAlign: 'center', color: '#aaa' }}>Loading…</td></tr>
+              <tr><td colSpan={10} style={{ padding: 40, textAlign: 'center', color: '#aaa' }}>Loading…</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={9} style={{ padding: 40, textAlign: 'center', color: '#aaa' }}>
+              <tr><td colSpan={10} style={{ padding: 40, textAlign: 'center', color: '#aaa' }}>
                 {contacts.length === 0 ? 'No contacts yet — import a CSV to get started' : 'No contacts match your filter'}
               </td></tr>
             ) : paginated.map(c => {
@@ -289,7 +289,10 @@ export default function Contacts() {
                     )}
                   </td>
                   <td style={{ padding: '10px 14px', color: '#888', fontSize: 12 }}>
-                    {c.next_followup ? new Date(c.next_followup).toLocaleDateString() : '—'}
+                    {c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}
+                  </td>
+                  <td style={{ padding: '10px 14px', color: '#888', fontSize: 12 }}>
+                    {c.last_touchpoint_date ? new Date(c.last_touchpoint_date).toLocaleDateString() : '—'}
                   </td>
                   <td style={{ padding: '10px 14px' }}>
                     <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>

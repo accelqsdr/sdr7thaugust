@@ -357,7 +357,7 @@ export default function AccountDetail() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #e8e8e4' }}>
-                    {['Name', 'Title', 'Email', 'Status', 'Response', ''].map(h => (
+                    {['Name', 'Title', 'Email', 'Status', 'Response', 'Date Added', 'Last Reached Out', ''].map(h => (
                       <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, color: '#999', fontWeight: 500 }}>{h}</th>
                     ))}
                   </tr>
@@ -380,7 +380,13 @@ export default function AccountDetail() {
                           </span>
                         </td>
                         <td style={{ padding: '10px 14px', color: '#888', fontSize: 12 }}>
-                          {c.response ? c.response.replace('_', ' ') : '—'}
+                          {c.response_type ? c.response_type.replace(/_/g, ' ') : '—'}
+                        </td>
+                        <td style={{ padding: '10px 14px', color: '#888', fontSize: 12 }}>
+                          {c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}
+                        </td>
+                        <td style={{ padding: '10px 14px', color: '#888', fontSize: 12 }}>
+                          {c.last_touchpoint_date ? new Date(c.last_touchpoint_date).toLocaleDateString() : '—'}
                         </td>
                         <td style={{ padding: '10px 14px' }}>
                           {isOwner && (

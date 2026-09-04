@@ -19,6 +19,7 @@ import AccountDetail from './pages/AccountDetail';
 import Lists from './pages/Lists';
 import UsersAdmin from './pages/UsersAdmin';
 import ProspectDiscovery from './pages/ProspectDiscovery';
+import Responses from './pages/Responses';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -60,6 +61,7 @@ export default function App() {
             <Route path="sequences" element={<Sequences />} />
             <Route path="reports" element={<Reports />} />
             <Route path="lists" element={<Lists />} />
+            <Route path="responses" element={<Responses />} />
             <Route path="users-admin" element={<UsersAdmin />} />
             <Route path="prospect-discovery" element={<ProspectDiscovery />} />
           </Route>

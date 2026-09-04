@@ -143,9 +143,11 @@ export default function FollowUps() {
       let fb=supabase.from('contacts').select('*');
       if (!viewAll||!canViewAll) fb=fb.eq('owner_id',user.id);
       const fbRes=await fb.in('status',ALL_STAGES).order('last_contacted',{ascending:false,nullsFirst:false});
-      rows=(fbRes.data||[]).filter(c=>c.status!=='Fresh'||(c.status==='Fresh'&&c.next_followup));
+      rows=(fbRes.data||[]).filter(c=>(c.status!=='Fresh'||(c.status==='Fresh'&&c.next_followup))&&!c.response_type);
     }
-    setContacts(rows||[]);
+    // Exclude contacts that have received a response — they leave the queue
+    const queueRows=(rows||[]).filter(r=>!r.response_type);
+    setContacts(queueRows);
     const accMap={};
     (aRes.data||[]).forEach(a=>{accMap[a.id]=a;});
     setAccounts(accMap);
