@@ -74,8 +74,21 @@ Return ONLY a valid JSON object (no markdown, no explanation) with exactly these
   "is_public": false,
   "industries": ["primary industry", "secondary if relevant"],
   "products_services": ["core product or service 1", "core product or service 2", "core product or service 3"],
-  "signals": []
+  "signals": [],
+  "similar_companies": [
+    {"name": "Company Name", "domain": "company.com", "reason": "One sentence why similar"},
+    {"name": "Company Name", "domain": "company.com", "reason": "One sentence why similar"}
+  ]
 }
+
+Rules for similar_companies:
+- MUST be in the same country/region as the account being researched
+- MUST be in the same industry or closely adjacent
+- 5-8 real named companies with accurate domains
+- Do NOT include the company itself
+- Do NOT include subsidiaries or parent companies of the researched company
+- Order by relevance (most similar first)
+- Keep reasons to 1 sentence focused on QA/testing similarity
 
 Rules for tools array: ONLY include dedicated QA/test automation tools (e.g. Selenium, Cypress, Playwright, UFT, Tosca, JUnit, TestNG, Postman, k6, Appium, Robot Framework, Katalon, LoadRunner, JMeter, NUnit, PyTest). Do NOT include programming languages, build tools, CI/CD platforms, infrastructure tools, or cloud providers.
 

@@ -50,21 +50,25 @@ export default function AccountDetail() {
   const [addingIntent, setAddingIntent] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState({});
+  const [allAccountNames, setAllAccountNames] = useState([]);
+  const [showAllSimilar, setShowAllSimilar] = useState(false);
 
   useEffect(() => { fetchAll(); }, [id]);
 
   async function fetchAll() {
     setLoading(true);
-    const [{ data: acc }, { data: cts }, { data: ints }] = await Promise.all([
+    const [{ data: acc }, { data: cts }, { data: ints }, { data: allAccs }] = await Promise.all([
       supabase.from('accounts').select('*').eq('id', id).single(),
       supabase.from('contacts').select('*').eq('account_id', id).order('created_at', { ascending: false }),
       supabase.from('account_intents').select('*, profiles:created_by(full_name)').eq('account_id', id).order('detected_at', { ascending: false }),
+      supabase.from('accounts').select('name'),
     ]);
     setAccount(acc);
     setNotes(acc?.notes || '');
     setEditData(acc || {});
     setContacts(cts || []);
     setIntents(ints || []);
+    setAllAccountNames((allAccs || []).map(a => a.name.toLowerCase().trim()));
     setLoading(false);
   }
 
@@ -293,6 +297,47 @@ export default function AccountDetail() {
           </div>
         </div>
       )}
+
+      {/* Similar Companies */}
+      {tab === 'overview' && (() => {
+        const rawSimilar = Array.isArray(account.research?.similar_companies) ? account.research.similar_companies : [];
+        const filtered = rawSimilar.filter(c => !allAccountNames.includes((c.name || '').toLowerCase().trim()));
+        const visible = showAllSimilar ? filtered : filtered.slice(0, 3);
+        if (filtered.length === 0) return null;
+        return (
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e8e8e4', padding: 20, marginTop: 16 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: '#111', margin: '0 0 14px' }}>Similar Companies</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {visible.map((c, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 0', borderBottom: i < visible.length - 1 ? '1px solid #f5f5f5' : 'none' }}>
+                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: '#6b7280', flexShrink: 0 }}>
+                    {i + 1}
+                  </div>
+                  <div style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid #e8e8e4', background: '#f8f9fa', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {c.domain ? (
+                      <img src={`https://logo.clearbit.com/${c.domain}`} alt={c.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                        onError={e => { e.currentTarget.style.display = 'none'; }} />
+                    ) : (
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#2563eb' }}>{(c.name || '?')[0]}</span>
+                    )}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>{c.name}</div>
+                    {c.reason && <div style={{ fontSize: 12, color: '#888', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.reason}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {filtered.length > 3 && (
+              <button onClick={() => setShowAllSimilar(!showAllSimilar)}
+                style={{ marginTop: 12, background: 'none', border: 'none', color: '#2563eb', fontSize: 13, cursor: 'pointer', padding: 0, fontWeight: 500 }}>
+                {showAllSimilar ? 'Show less' : `Show more Companies (${filtered.length - 3} more)`}
+              </button>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Contacts Tab */}
       {tab === 'contacts' && (
