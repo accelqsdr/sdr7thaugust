@@ -614,6 +614,7 @@ setSaving(false);
       if (r.naics_code)             newResearch.naics_code = r.naics_code;
       if (Array.isArray(r.signals) && r.signals.length > 0)                newResearch.ai_signals        = r.signals;
       if (Array.isArray(r.important_to_know) && r.important_to_know.length > 0) newResearch.important_to_know = r.important_to_know;
+      if (Array.isArray(r.similar_companies) && r.similar_companies.length > 0) newResearch.similar_companies = r.similar_companies;
 
       // Company Details auto-fill (only if currently empty)
 if (r.detectedIndustry && !data.industry) updates.industry = r.detectedIndustry;
