@@ -624,14 +624,16 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
       if (r.about)                newResearch.about                = r.about;
       if (r.businessModel)         newResearch.businessModel        = r.businessModel;
       if (r.strategicPriorities)   newResearch.strategicPriorities  = r.strategicPriorities;
-      // Build important_to_know bullets for Intel panel
-      const itk = [];
-      if (r.why) itk.push({ title: 'Why Target', body: r.why });
-      if (r.tech) itk.push({ title: 'Tech Stack', body: r.tech });
-      if (r.qaHiring) itk.push({ title: 'QA Hiring', body: r.qaHiring });
-      if (r.news) itk.push({ title: 'Recent News', body: r.news });
-      if (r.pain) itk.push({ title: 'Pain Points', body: r.pain });
-      if (itk.length > 0) newResearch.important_to_know = itk;
+      // Build important_to_know bullets as fallback only if Sonnet did not return them
+      if (!Array.isArray(newResearch.important_to_know) || newResearch.important_to_know.length === 0) {
+        const itk = [];
+        if (r.why) itk.push({ title: 'Why Target', body: r.why });
+        if (r.tech) itk.push({ title: 'Tech Stack', body: r.tech });
+        if (r.qaHiring) itk.push({ title: 'QA Hiring', body: r.qaHiring });
+        if (r.news) itk.push({ title: 'Recent News', body: r.news });
+        if (r.pain) itk.push({ title: 'Pain Points', body: r.pain });
+        if (itk.length > 0) newResearch.important_to_know = itk;
+      }
       // Build ai_signals
       const today = new Date().toISOString().slice(0, 10);
       const sigs = [];

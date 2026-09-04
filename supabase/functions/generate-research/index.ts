@@ -16,14 +16,12 @@ serve(async (req) => {
     const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')
 
     if (!ANTHROPIC_API_KEY) {
-      return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured. Set it in Supabase → Settings → Edge Functions → Secrets.' }), {
+      return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured.' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
     // ── FULL RESEARCH MODE ──────────────────────────────────────────────────
-    // Returns one JSON object with tools, enterpriseApps, saasApps, signals,
-    // research text sections, and industry — mirrors the HTML's buildResearchPrompt
     if (mode === 'full') {
       const contactsText = (account.contacts || [])
         .slice(0, 5)
@@ -33,7 +31,8 @@ serve(async (req) => {
       const existingTools = (account.testing_tools || []).map((t: any) => t.tool).join(', ')
       const notes = account.notes || ''
 
-      const fullPrompt = `You are an expert B2B sales researcher for ACCELQ, an AI-powered test automation platform.
+      // ── PHASE 1: Fast structured data (Haiku) ──────────────────────────
+      const structuredPrompt = `You are an expert B2B sales researcher for ACCELQ, an AI-powered test automation platform.
 
 Research this company for a sales intelligence brief:
 Company: ${account.name}
@@ -64,22 +63,32 @@ Return ONLY a valid JSON object (no markdown, no explanation) with exactly these
   "saasApps": ["list", "of", "industry-specific", "saas", "apps"],
   "about": "3-4 sentence overview of what this company does, who it serves, and its market position",
   "businessModel": "2-3 sentences on how this company generates revenue and its primary business model",
-  "strategicPriorities": [{"title": "Priority 1 short name", "description": "2 sentence explanation"}, {"title": "Priority 2 short name", "description": "2 sentence explanation"}, {"title": "Priority 3 short name", "description": "2 sentence explanation"}]
+  "strategicPriorities": [{"title": "Priority 1 short name", "description": "2 sentence explanation"}, {"title": "Priority 2 short name", "description": "2 sentence explanation"}, {"title": "Priority 3 short name", "description": "2 sentence explanation"}],
+  "hq_country": "country name",
+  "website": "website URL if known",
+  "headquarters": "city, country",
+  "employee_count_range": "e.g. 1,000-5,000",
+  "founded_year": null,
+  "ticker": null,
+  "parent_company": null,
+  "is_public": false,
+  "industries": ["primary industry", "secondary if relevant"],
+  "products_services": ["core product or service 1", "core product or service 2", "core product or service 3"],
+  "signals": []
 }
 
-Rules for tools array: ONLY include dedicated QA/test automation tools (e.g. Selenium, Cypress, Playwright, UFT, Tosca, JUnit, TestNG, Postman, k6, Appium, Robot Framework, Katalon, LoadRunner, JMeter, NUnit, PyTest). Do NOT include: programming languages (Java, Python, JavaScript, C#), build tools (Maven, Gradle, npm), CI/CD platforms (Jenkins, GitLab CI, GitHub Actions, CircleCI), infrastructure tools (Docker, Kubernetes, Terraform), or cloud providers (AWS, Azure, GCP).
+Rules for tools array: ONLY include dedicated QA/test automation tools (e.g. Selenium, Cypress, Playwright, UFT, Tosca, JUnit, TestNG, Postman, k6, Appium, Robot Framework, Katalon, LoadRunner, JMeter, NUnit, PyTest). Do NOT include programming languages, build tools, CI/CD platforms, infrastructure tools, or cloud providers.
 
 Rules for boolean signals:
 - funding: true if company recently raised funding or had IPO
-- hiringQA: true if company is likely actively hiring QA/automation engineers  
+- hiringQA: true if company is likely actively hiring QA/automation engineers
 - launch: true if company recently launched a major product
 - leadership: true if company had recent leadership changes (new CTO/CIO/VP Eng)
-- outage: true if company had recent quality incidents or outages
+- outage: true if company had quality incidents or outages
 - cicd: true if company has active CI/CD pipeline culture
 
-Rules for enterpriseApps: List major enterprise apps they likely run (SAP, Oracle, Salesforce, Workday, ServiceNow, etc.)
-
-Rules for saasApps — use detected industry to pick relevant apps:
+Rules for enterpriseApps: List major enterprise apps (SAP, Oracle, Salesforce, Workday, ServiceNow, etc.)
+Rules for saasApps — use detected industry:
 - Insurance: Guidewire, Duck Creek, Majesco, Sapiens, Fineos
 - Banking/Financial Services: Temenos, Finastra, Murex, Flexcube, FIS, Fiserv
 - Healthcare: Epic, Cerner, Meditech, Allscripts, NextGen
@@ -90,41 +99,93 @@ Rules for saasApps — use detected industry to pick relevant apps:
 
 Keep all arrays to 3-6 items max. Be specific and realistic for this company's size and industry.`
 
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'x-api-key': ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 1200,
-          messages: [{ role: 'user', content: fullPrompt }]
+      const [structuredResp] = await Promise.all([
+        fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+          body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1400, messages: [{ role: 'user', content: structuredPrompt }] })
         })
+      ])
+
+      // ── PHASE 2: Deep Intel (Sonnet) — Important to Know ───────────────
+      const intelPrompt = `You are an elite sales intelligence analyst for ACCELQ, an AI-powered codeless test automation platform. ACCELQ's value: QA teams eliminate fragile manual scripts and Selenium/Cypress maintenance using self-healing, codeless automation — teams cut test maintenance by 60-90% and shrink release cycles from weeks to days.
+
+Company to research: ${account.name}
+Industry: ${account.industry || 'Unknown'}
+Country: ${account.country || 'Unknown'}
+Revenue: ${account.revenue_millions ? `$${account.revenue_millions}M` : 'Unknown'}
+Known contacts: ${contactsText || 'None'}
+SDR notes: ${notes || 'None'}
+
+Generate 3-5 "Important to Know" intelligence items. Each must follow this exact pattern:
+
+1. **Signal title** — A specific, concrete trigger or business event (NOT generic like "digital transformation")
+2. **Signal body** — 3-4 sentences structured as:
+   - What is actually happening (specific data, numbers, dates where known — e.g. layoffs count, hiring volume, product launch name, acquisition target)
+   - Why this creates an urgent testing infrastructure need (the business pressure it puts on QA/engineering)
+   - How this maps to the specific persona's pain (use language like "QA teams at ${account.industry || 'this type of'} companies face..." or reference their likely tech stack)
+   - One concrete ACCELQ capability that addresses it (self-healing automation, codeless scripts, protocol support, parallel test execution, CI/CD integration, etc.)
+
+Examples of strong signal titles:
+- "Workforce reduction forces QA efficiency over headcount"
+- "Active hiring in Finance signals major system modernisation"
+- "Legacy billing platform migration creates regression testing pressure"
+- "Recent product launch demands accelerated release cycles"
+- "Compliance mandate drives automated audit trail requirements"
+
+Rules:
+- Be specific to ${account.name} — use what you know about this actual company
+- Include real numbers, timeframes, or named initiatives where you know them
+- Never be generic — each item must be unique to this company's actual situation
+- Connect every signal back to a concrete testing/QA implication
+- 150-250 words per item body
+
+Return ONLY a valid JSON array (no markdown):
+[
+  { "title": "Signal title here", "body": "Full paragraph body here" },
+  { "title": "Signal title here", "body": "Full paragraph body here" }
+]`
+
+      const intelRespPromise = fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 2500, messages: [{ role: 'user', content: intelPrompt }] })
       })
 
-      const aiData = await response.json()
-      const rawText = aiData.content?.[0]?.text || '{}'
+      // Await both
+      const [structuredData, intelResp] = await Promise.all([structuredResp.json(), intelRespPromise])
 
-      // Parse JSON — strip any accidental markdown fences
+      const rawStructured = structuredData.content?.[0]?.text || '{}'
       let parsed: any = {}
       try {
-        const cleaned = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
+        const cleaned = rawStructured.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
         parsed = JSON.parse(cleaned)
       } catch {
-        // If parse fails return error so caller can surface it
-        return new Response(JSON.stringify({ error: 'AI returned invalid JSON', raw: rawText }), {
+        return new Response(JSON.stringify({ error: 'AI returned invalid JSON for structured data', raw: rawStructured }), {
           status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
+
+      // Parse intel
+      const intelData = await intelResp.json()
+      const rawIntel = intelData.content?.[0]?.text || '[]'
+      let importantToKnow: any[] = []
+      try {
+        const cleanedIntel = rawIntel.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
+        importantToKnow = JSON.parse(cleanedIntel)
+        if (!Array.isArray(importantToKnow)) importantToKnow = []
+      } catch {
+        importantToKnow = []
+      }
+
+      parsed.important_to_know = importantToKnow
 
       return new Response(JSON.stringify({ full: parsed }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    // ── SINGLE SECTION MODE (existing behaviour) ────────────────────────────
+    // ── SINGLE SECTION MODE ─────────────────────────────────────────────────
     const sectionPrompts: Record<string, string> = {
       whyTarget: `Why is ${account.name} a strong target for ACCELQ (AI-powered test automation)? Consider their size, industry, and likely QA maturity. Be specific and actionable in 2-3 sentences.`,
       techStack: `What is the likely tech stack, CI/CD tools, cloud platform, and testing frameworks at ${account.name} (${account.industry || 'tech company'}, ${account.country || 'unknown country'})? Be specific about technologies that indicate test automation opportunities.`,
@@ -138,16 +199,8 @@ Keep all arrays to 3-6 items max. Be specific and realistic for this company's s
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 300,
-        messages: [{ role: 'user', content: prompt }]
-      })
+      headers: { 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 300, messages: [{ role: 'user', content: prompt }] })
     })
 
     const aiData = await response.json()
