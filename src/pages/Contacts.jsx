@@ -53,6 +53,11 @@ export default function Contacts() {
   const [hasEmailFilter, setHasEmailFilter]   = useState('');
   const [lists, setLists]                     = useState([]);
   const [listContactIds, setListContactIds]   = useState(new Set());
+  const [dupeModal, setDupeModal]             = useState(false);
+  const [dupeGroups, setDupeGroups]           = useState([]);
+  const [dupeLoading, setDupeLoading]         = useState(false);
+  const [dupeKeep, setDupeKeep]               = useState({}); // { email: contactId }
+  const [dupeMerging, setDupeMerging]         = useState(false);
   const [companyFilter, setCompanyFilter]     = useState('');
   const [responseFilter, setResponseFilter]   = useState('');
   const [dateAddedFilter, setDateAddedFilter] = useState('');
@@ -78,6 +83,46 @@ export default function Contacts() {
   async function fetchLists() {
     const { data } = await supabase.from('lists').select('id, name').eq('owner_id', user.id).order('name');
     setLists(data || []);
+  }
+
+  async function findDuplicates() {
+    setDupeLoading(true);
+    setDupeModal(true);
+    setDupeGroups([]);
+    // Load all contacts with emails
+    const { data } = await supabase.from('contacts').select('*').eq('owner_id', user.id).not('email', 'is', null).order('created_at', { ascending: true });
+    const grouped = {};
+    (data || []).forEach(c => {
+      const key = (c.email || '').trim().toLowerCase();
+      if (!key) return;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(c);
+    });
+    const dups = Object.entries(grouped).filter(([, grp]) => grp.length > 1).map(([email, grp]) => ({ email, contacts: grp }));
+    // Default: keep the first (oldest) contact in each group
+    const keep = {};
+    dups.forEach(({ email, contacts }) => { keep[email] = contacts[0].id; });
+    setDupeGroups(dups);
+    setDupeKeep(keep);
+    setDupeLoading(false);
+  }
+
+  async function mergeDuplicates() {
+    setDupeMerging(true);
+    let deleted = 0;
+    for (const { email, contacts } of dupeGroups) {
+      const keepId = dupeKeep[email];
+      const toDelete = contacts.filter(c => c.id !== keepId).map(c => c.id);
+      if (toDelete.length > 0) {
+        await supabase.from('contacts').delete().in('id', toDelete);
+        deleted += toDelete.length;
+      }
+    }
+    setDupeMerging(false);
+    setDupeModal(false);
+    setDupeGroups([]);
+    fetchContacts();
+    alert(`Done — deleted ${deleted} duplicate contact${deleted !== 1 ? 's' : ''}.`);
   }
 
   async function applyListFilter(listId) {
@@ -244,6 +289,10 @@ export default function Contacts() {
               {batchStarting ? 'Starting…' : `▶ Start ${freshSelected.length} Fresh`}
             </button>
           )}
+          <button onClick={findDuplicates}
+            style={{ padding: '8px 14px', background: '#fff', color: '#7c3aed', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid #ddd8fe' }}>
+            Find Duplicates
+          </button>
           <button
             onClick={() => setShowClearConfirm(true)}
             style={{ padding: '8px 14px', background: '#fff', color: '#dc2626', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '1px solid #fecaca' }}>
@@ -528,6 +577,78 @@ export default function Contacts() {
               style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #e0e0e0', background: '#fff', fontSize: 12, cursor: page === totalPages ? 'not-allowed' : 'pointer', color: page === totalPages ? '#ccc' : '#555' }}>›</button>
             <button onClick={() => setPage(totalPages)} disabled={page === totalPages}
               style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #e0e0e0', background: '#fff', fontSize: 12, cursor: page === totalPages ? 'not-allowed' : 'pointer', color: page === totalPages ? '#ccc' : '#555' }}>»</button>
+          </div>
+        </div>
+      )}
+    </div>
+
+      {/* Duplicate review modal */}
+      {dupeModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 28, width: 700, maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div>
+                <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>Duplicate Contacts</h2>
+                {!dupeLoading && <p style={{ fontSize: 13, color: '#666', margin: '4px 0 0' }}>{dupeGroups.length} duplicate group{dupeGroups.length !== 1 ? 's' : ''} found — select which contact to keep in each group</p>}
+              </div>
+              <button onClick={() => setDupeModal(false)} style={{ fontSize: 18, background: 'none', border: 'none', cursor: 'pointer', color: '#888' }}>✕</button>
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              {dupeLoading ? (
+                <div style={{ textAlign: 'center', padding: 40, color: '#aaa' }}>Scanning for duplicates…</div>
+              ) : dupeGroups.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 40, color: '#059669', fontSize: 14, fontWeight: 500 }}>No duplicates found!</div>
+              ) : (
+                dupeGroups.map(({ email, contacts }) => (
+                  <div key={email} style={{ marginBottom: 20, padding: 16, borderRadius: 12, border: '1px solid #e5e7eb', background: '#fafafa' }}>
+                    <div style={{ fontSize: 12, color: '#888', fontWeight: 600, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      {email} · {contacts.length} duplicates
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {contacts.map(c => {
+                        const isKeep = dupeKeep[email] === c.id;
+                        const fields = [c.title, c.company, c.phone, c.linkedin_url ? 'LinkedIn' : null, c.persona, c.pitch_type].filter(Boolean).length;
+                        return (
+                          <div key={c.id} onClick={() => setDupeKeep(prev => ({ ...prev, [email]: c.id }))}
+                            style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 10, border: '2px solid ' + (isKeep ? '#2563eb' : '#e5e7eb'), background: isKeep ? '#eff6ff' : '#fff', cursor: 'pointer' }}>
+                            <input type="radio" checked={isKeep} onChange={() => setDupeKeep(prev => ({ ...prev, [email]: c.id }))} style={{ cursor: 'pointer' }} onClick={e => e.stopPropagation()} />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 600, fontSize: 13 }}>{[c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}</div>
+                              <div style={{ fontSize: 12, color: '#555', marginTop: 2, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                                {c.title && <span>{c.title}</span>}
+                                {c.company && <span>{c.company}</span>}
+                                {c.phone && <span>{c.phone}</span>}
+                                {c.persona && <span style={{ color: '#7c3aed' }}>{c.persona}</span>}
+                                {c.pitch_type && <span style={{ color: '#2563eb' }}>{c.pitch_type}</span>}
+                              </div>
+                            </div>
+                            <div style={{ textAlign: 'right', fontSize: 11, color: '#aaa', whiteSpace: 'nowrap' }}>
+                              <div>{fields} fields filled</div>
+                              <div>Added {c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}</div>
+                              <div style={{ color: c.status === 'Fresh' ? '#0369a1' : '#166534', fontWeight: 500 }}>{c.status}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {dupeGroups.length > 0 && !dupeLoading && (
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16, paddingTop: 16, borderTop: '1px solid #f0f0f0' }}>
+                <button onClick={() => setDupeModal(false)}
+                  style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #e0e0e0', background: '#fff', fontSize: 13, cursor: 'pointer', color: '#666' }}>
+                  Cancel
+                </button>
+                <button onClick={mergeDuplicates} disabled={dupeMerging}
+                  style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#7c3aed', color: '#fff', fontSize: 13, fontWeight: 600, cursor: dupeMerging ? 'not-allowed' : 'pointer', opacity: dupeMerging ? 0.7 : 1 }}>
+                  {dupeMerging ? 'Deleting…' : `Delete duplicates (keep ${dupeGroups.length} selected)`}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
