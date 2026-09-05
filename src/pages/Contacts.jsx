@@ -57,9 +57,13 @@ export default function Contacts() {
   const [responseFilter, setResponseFilter]   = useState('');
   const [dateAddedFilter, setDateAddedFilter] = useState('');
   const [lastReachedFilter, setLastReachedFilter] = useState('');
+  const [dateAddedFrom, setDateAddedFrom]     = useState('');
+  const [dateAddedTo, setDateAddedTo]         = useState('');
+  const [lastReachedFrom, setLastReachedFrom] = useState('');
+  const [lastReachedTo, setLastReachedTo]     = useState('');
 
   useEffect(() => { fetchContacts(); fetchLists(); }, [filter]);
-  useEffect(() => { setPage(1); }, [filter, search, industryFilter, pitchTypeFilter, personaFilter, listFilter, hasEmailFilter, companyFilter, responseFilter, dateAddedFilter, lastReachedFilter]);
+  useEffect(() => { setPage(1); }, [filter, search, industryFilter, pitchTypeFilter, personaFilter, listFilter, hasEmailFilter, companyFilter, responseFilter, dateAddedFilter, lastReachedFilter, dateAddedFrom, dateAddedTo, lastReachedFrom, lastReachedTo]);
 
   async function fetchContacts() {
     setLoading(true);
@@ -159,24 +163,32 @@ export default function Contacts() {
     if (dateAddedFilter) {
       const added = c.created_at ? new Date(c.created_at) : null;
       if (!added) return false;
-      if (dateAddedFilter === '7d'  && added < dayStart(7))   return false;
-      if (dateAddedFilter === '30d' && added < dayStart(30))  return false;
-      if (dateAddedFilter === '90d' && added < dayStart(90))  return false;
-      if (dateAddedFilter === 'old' && added >= dayStart(30)) return false;
+      if (dateAddedFilter === '7d'    && added < dayStart(7))   return false;
+      if (dateAddedFilter === '30d'   && added < dayStart(30))  return false;
+      if (dateAddedFilter === '90d'   && added < dayStart(90))  return false;
+      if (dateAddedFilter === 'old'   && added >= dayStart(30)) return false;
+      if (dateAddedFilter === 'custom') {
+        if (dateAddedFrom && added < new Date(dateAddedFrom)) return false;
+        if (dateAddedTo   && added > new Date(dateAddedTo + 'T23:59:59')) return false;
+      }
     }
     if (lastReachedFilter) {
       const lr = c.last_touchpoint_date ? new Date(c.last_touchpoint_date) : null;
-      if (lastReachedFilter === 'never' && lr) return false;
+      if (lastReachedFilter === 'never' && lr)  return false;
       if (lastReachedFilter === 'never' && !lr) return true;
       if (!lr) return false;
-      if (lastReachedFilter === '7d'  && lr < dayStart(7))   return false;
-      if (lastReachedFilter === '30d' && lr < dayStart(30))  return false;
-      if (lastReachedFilter === 'old' && lr >= dayStart(30)) return false;
+      if (lastReachedFilter === '7d'    && lr < dayStart(7))   return false;
+      if (lastReachedFilter === '30d'   && lr < dayStart(30))  return false;
+      if (lastReachedFilter === 'old'   && lr >= dayStart(30)) return false;
+      if (lastReachedFilter === 'custom') {
+        if (lastReachedFrom && lr < new Date(lastReachedFrom)) return false;
+        if (lastReachedTo   && lr > new Date(lastReachedTo + 'T23:59:59')) return false;
+      }
     }
     return true;
   });
 
-  const activeFilters = [industryFilter, pitchTypeFilter, personaFilter, listFilter, hasEmailFilter, companyFilter, responseFilter, dateAddedFilter, lastReachedFilter].filter(Boolean).length;
+  const activeFilters = [industryFilter, pitchTypeFilter, personaFilter, listFilter, hasEmailFilter, companyFilter, responseFilter, dateAddedFilter, lastReachedFilter, dateAddedFrom, dateAddedTo, lastReachedFrom, lastReachedTo].filter(Boolean).length;
 
   const freshCount   = contacts.filter(c => c.status === 'Fresh').length;
   const activeCount  = contacts.filter(c => !['bounced','unsubscribed','lost'].includes(c.status)).length;
@@ -334,24 +346,48 @@ export default function Contacts() {
           <option value="negative">Negative</option>
           <option value="not_interested">Not Interested</option>
         </select>
-        <select value={dateAddedFilter} onChange={e => setDateAddedFilter(e.target.value)}
-          style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid ' + (dateAddedFilter ? '#2563eb' : '#e0e0e0'), fontSize: 12, cursor: 'pointer', background: dateAddedFilter ? '#eff6ff' : '#fff', color: dateAddedFilter ? '#1d4ed8' : '#555' }}>
-          <option value="">Date Added: All</option>
-          <option value="7d">Last 7 days</option>
-          <option value="30d">Last 30 days</option>
-          <option value="90d">Last 90 days</option>
-          <option value="old">Older than 30 days</option>
-        </select>
-        <select value={lastReachedFilter} onChange={e => setLastReachedFilter(e.target.value)}
-          style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid ' + (lastReachedFilter ? '#2563eb' : '#e0e0e0'), fontSize: 12, cursor: 'pointer', background: lastReachedFilter ? '#eff6ff' : '#fff', color: lastReachedFilter ? '#1d4ed8' : '#555' }}>
-          <option value="">Last Reached: All</option>
-          <option value="7d">Last 7 days</option>
-          <option value="30d">Last 30 days</option>
-          <option value="old">Over 30 days ago</option>
-          <option value="never">Never reached</option>
-        </select>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <select value={dateAddedFilter} onChange={e => setDateAddedFilter(e.target.value)}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid ' + (dateAddedFilter ? '#2563eb' : '#e0e0e0'), fontSize: 12, cursor: 'pointer', background: dateAddedFilter ? '#eff6ff' : '#fff', color: dateAddedFilter ? '#1d4ed8' : '#555' }}>
+            <option value="">Date Added: All</option>
+            <option value="7d">Last 7 days</option>
+            <option value="30d">Last 30 days</option>
+            <option value="90d">Last 90 days</option>
+            <option value="old">Older than 30 days</option>
+            <option value="custom">Custom range…</option>
+          </select>
+          {dateAddedFilter === 'custom' && (
+            <>
+              <input type="date" value={dateAddedFrom} onChange={e => setDateAddedFrom(e.target.value)}
+                style={{ padding: '5px 8px', borderRadius: 8, border: '1px solid #2563eb', fontSize: 12, background: '#eff6ff', color: '#1d4ed8' }} />
+              <span style={{ fontSize: 12, color: '#888' }}>to</span>
+              <input type="date" value={dateAddedTo} onChange={e => setDateAddedTo(e.target.value)}
+                style={{ padding: '5px 8px', borderRadius: 8, border: '1px solid #2563eb', fontSize: 12, background: '#eff6ff', color: '#1d4ed8' }} />
+            </>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <select value={lastReachedFilter} onChange={e => setLastReachedFilter(e.target.value)}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid ' + (lastReachedFilter ? '#2563eb' : '#e0e0e0'), fontSize: 12, cursor: 'pointer', background: lastReachedFilter ? '#eff6ff' : '#fff', color: lastReachedFilter ? '#1d4ed8' : '#555' }}>
+            <option value="">Last Reached: All</option>
+            <option value="7d">Last 7 days</option>
+            <option value="30d">Last 30 days</option>
+            <option value="old">Over 30 days ago</option>
+            <option value="never">Never reached</option>
+            <option value="custom">Custom range…</option>
+          </select>
+          {lastReachedFilter === 'custom' && (
+            <>
+              <input type="date" value={lastReachedFrom} onChange={e => setLastReachedFrom(e.target.value)}
+                style={{ padding: '5px 8px', borderRadius: 8, border: '1px solid #2563eb', fontSize: 12, background: '#eff6ff', color: '#1d4ed8' }} />
+              <span style={{ fontSize: 12, color: '#888' }}>to</span>
+              <input type="date" value={lastReachedTo} onChange={e => setLastReachedTo(e.target.value)}
+                style={{ padding: '5px 8px', borderRadius: 8, border: '1px solid #2563eb', fontSize: 12, background: '#eff6ff', color: '#1d4ed8' }} />
+            </>
+          )}
+        </div>
         {activeFilters > 0 && (
-          <button onClick={() => { setIndustryFilter(''); setPitchTypeFilter(''); setPersonaFilter(''); setListFilter(''); setHasEmailFilter(''); setCompanyFilter(''); setResponseFilter(''); setDateAddedFilter(''); setLastReachedFilter(''); setListContactIds(new Set()); }}
+          <button onClick={() => { setIndustryFilter(''); setPitchTypeFilter(''); setPersonaFilter(''); setListFilter(''); setHasEmailFilter(''); setCompanyFilter(''); setResponseFilter(''); setDateAddedFilter(''); setLastReachedFilter(''); setDateAddedFrom(''); setDateAddedTo(''); setLastReachedFrom(''); setLastReachedTo(''); setListContactIds(new Set()); }}
             style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #fecaca', background: '#fff', color: '#dc2626', fontSize: 12, cursor: 'pointer', fontWeight: 500 }}>
             Clear filters ({activeFilters})
           </button>
