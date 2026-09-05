@@ -7,6 +7,9 @@ export default function LinkedInImport() {
   const [pendingContacts, setPendingContacts] = useState([]);
   const [importing, setImporting] = useState(false);
   const [results, setResults] = useState(null);
+  const [newCompanies, setNewCompanies] = useState([]);
+  const [selectedNew, setSelectedNew] = useState(new Set());
+  const [showReview, setShowReview] = useState(false);
 
   useEffect(() => {
     function handleMessage(event) {
@@ -30,23 +33,48 @@ export default function LinkedInImport() {
     setPendingContacts(prev => prev.filter((_, i) => i !== idx));
   }
 
-  async function importContacts() {
+  async function checkNewCompanies() {
     if (!pendingContacts.length) return;
+    const uniqueCompanies = [...new Set(pendingContacts.map(c => c.company).filter(Boolean))];
+    const { data: existing } = await supabase.from('accounts').select('id, name').in('name', uniqueCompanies);
+    const existingNames = new Set((existing || []).map(a => a.name));
+    const newCos = uniqueCompanies.filter(n => !existingNames.has(n)).map(name => {
+      const sample = pendingContacts.find(c => c.company === name) || {};
+      return { name, country: sample.country || '' };
+    });
+    if (newCos.length > 0) {
+      setNewCompanies(newCos);
+      setSelectedNew(new Set(newCos.map(c => c.name)));
+      setShowReview(true);
+    } else {
+      await runImport(existing || [], []);
+    }
+  }
+
+  async function confirmAndImport() {
+    setShowReview(false);
+    const uniqueNames = [...new Set(pendingContacts.map(c => c.company).filter(Boolean))];
+    const { data: existingAccounts } = await supabase.from('accounts').select('id, name').in('name', uniqueNames);
+    const toCreate = newCompanies.filter(c => selectedNew.has(c.name)).map(c => ({
+      name: c.name,
+      owner_id: profile?.id || null,
+      country: c.country || null,
+    }));
+    let createdAccounts = [];
+    if (toCreate.length > 0) {
+      const { data: created } = await supabase.from('accounts').insert(toCreate).select('id, name');
+      createdAccounts = created || [];
+    }
+    await runImport(existingAccounts || [], createdAccounts);
+  }
+
+  async function runImport(existingAccounts, createdAccounts) {
     setImporting(true);
     const stats = { imported: 0, skipped: 0, errors: [] };
 
-    // Find or create accounts for each unique company
     const companyAccountMap = {};
-    const uniqueCompanies = [...new Set(pendingContacts.map(c => c.company).filter(Boolean))];
-    for (const companyName of uniqueCompanies) {
-      const { data: existing } = await supabase.from('accounts').select('id').eq('name', companyName).eq('owner_id', profile?.id).maybeSingle();
-      if (existing) {
-        companyAccountMap[companyName] = existing.id;
-      } else {
-        const { data: created } = await supabase.from('accounts').insert({ name: companyName, owner_id: profile?.id || null }).select('id').single();
-        if (created) companyAccountMap[companyName] = created.id;
-      }
-    }
+    [...existingAccounts, ...createdAccounts].forEach(a => { companyAccountMap[a.name] = a.id; });
+
     for (const c of pendingContacts) {
       try {
         let isDup = false;
@@ -61,16 +89,16 @@ export default function LinkedInImport() {
         if (isDup) { stats.skipped++; continue; }
 
         const { error } = await supabase.from('contacts').insert({
-          first_name: c.firstName || '',
-          last_name: c.lastName || '',
-          title: c.designation || '',
-          company: c.company || '',
-          account_id: companyAccountMap[c.company] || null,
-          email: c.email || null,
+          first_name:   c.firstName || '',
+          last_name:    c.lastName || '',
+          title:        c.designation || '',
+          company:      c.company || '',
+          account_id:   companyAccountMap[c.company] || null,
+          email:        c.email || null,
           linkedin_url: c.linkedinUrl || null,
-          status: 'fresh',
-          owner_id: profile?.id || null,
-          notes: c.country ? 'Location: ' + c.country : null,
+          status:       'Fresh',
+          owner_id:     profile?.id || null,
+          notes:        c.country ? 'Location: ' + c.country : null,
         });
 
         if (error) stats.errors.push(c.firstName + ' ' + c.lastName + ': ' + error.message);
@@ -85,6 +113,14 @@ export default function LinkedInImport() {
     setImporting(false);
   }
 
+  const toggleCompany = (name) => {
+    setSelectedNew(prev => {
+      const next = new Set(prev);
+      next.has(name) ? next.delete(name) : next.add(name);
+      return next;
+    });
+  };
+
   return (
     <div style={{ padding: 24, maxWidth: 800 }}>
       <div style={{ marginBottom: 20 }}>
@@ -96,62 +132,86 @@ export default function LinkedInImport() {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, marginBottom: 20, fontSize: 13 }}>
-        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'pulse 2s infinite' }} />
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
         <span style={{ color: '#15803d', fontWeight: 500 }}>Listening for contacts from extension...</span>
       </div>
 
       {results && (
-        <div style={{ padding: '12px 16px', borderRadius: 8, marginBottom: 20, background: results.errors.length ? '#fef3c7' : '#f0fdf4', border: '1px solid ' + (results.errors.length ? '#fde68a' : '#bbf7d0'), fontSize: 13 }}>
-          <strong style={{ color: '#15803d' }}>{results.imported} imported</strong>
-          {results.skipped > 0 && <span style={{ color: '#666' }}>, {results.skipped} skipped (already exist)</span>}
-          {results.errors.length > 0 && <div style={{ marginTop: 6, color: '#b45309' }}>{results.errors.map((e, i) => <div key={i}>{e}</div>)}</div>}
+        <div style={{ padding: '12px 16px', background: results.errors.length > 0 ? '#fff7ed' : '#f0fdf4', border: '1px solid ' + (results.errors.length > 0 ? '#fed7aa' : '#bbf7d0'), borderRadius: 10, marginBottom: 16, fontSize: 13 }}>
+          <strong>{results.imported} imported</strong>, {results.skipped} skipped (duplicates)
+          {results.errors.length > 0 && <div style={{ color: '#dc2626', marginTop: 4 }}>{results.errors.join(', ')}</div>}
         </div>
       )}
 
       {pendingContacts.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 20px', border: '2px dashed #e5e7eb', borderRadius: 12, color: '#999' }}>
-          <div style={{ fontSize: 36, marginBottom: 8 }}>&#128279;</div>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>No contacts received yet</div>
-          <div style={{ fontSize: 13, maxWidth: 360, margin: '0 auto', lineHeight: 1.7 }}>
-            1. Go to LinkedIn Sales Navigator lead list<br />
-            2. Click the <strong>ACCELQ Importer</strong> extension icon in the toolbar<br />
-            3. Select contacts and click <strong>Add to ACCELQ</strong>
-          </div>
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#aaa', fontSize: 13 }}>
+          No contacts yet — use the extension on LinkedIn to add contacts here.
         </div>
       ) : (
         <>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>{pendingContacts.length} contact{pendingContacts.length !== 1 ? 's' : ''} ready to import</span>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setPendingContacts([])} style={{ padding: '7px 14px', background: '#fff', color: '#666', border: '1px solid #e5e7eb', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>Clear all</button>
-              <button onClick={importContacts} disabled={importing} style={{ padding: '7px 18px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: importing ? 'wait' : 'pointer', opacity: importing ? 0.7 : 1 }}>
-                {importing ? 'Importing...' : 'Import ' + pendingContacts.length + ' Contact' + (pendingContacts.length !== 1 ? 's' : '')}
-              </button>
-            </div>
+            <span style={{ fontSize: 13, color: '#555', fontWeight: 500 }}>{pendingContacts.length} contact{pendingContacts.length !== 1 ? 's' : ''} ready to import</span>
+            <button onClick={checkNewCompanies} disabled={importing}
+              style={{ padding: '8px 18px', background: '#2563eb', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: importing ? 'not-allowed' : 'pointer', opacity: importing ? 0.7 : 1 }}>
+              {importing ? 'Importing…' : 'Import Contacts'}
+            </button>
           </div>
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {pendingContacts.map((c, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#ede9fe', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
-                  {(c.firstName?.[0] || '?')}{(c.lastName?.[0] || '')}
+            {pendingContacts.map((c, idx) => (
+              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#fff', border: '1px solid #e8e8e4', borderRadius: 10 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{[c.firstName, c.lastName].filter(Boolean).join(' ') || '—'}</div>
+                  <div style={{ fontSize: 12, color: '#666' }}>{c.designation || ''}{c.company ? ' · ' + c.company : ''}</div>
+                  {c.email && <div style={{ fontSize: 12, color: '#888' }}>{c.email}</div>}
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: '#111' }}>{c.firstName} {c.lastName}</div>
-                  {c.designation && <div style={{ fontSize: 12, color: '#555' }}>{c.designation}</div>}
-                  {c.company && <div style={{ fontSize: 12, color: '#2563eb', fontWeight: 500 }}>{c.company}</div>}
-                  <div style={{ display: 'flex', gap: 12, marginTop: 3, flexWrap: 'wrap' }}>
-                    {c.country && <span style={{ fontSize: 11, color: '#999' }}>{c.country}</span>}
-                    {c.email && <span style={{ fontSize: 11, color: '#059669' }}>{c.email}</span>}
-                    {c.linkedinUrl && <a href={c.linkedinUrl} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: '#2563eb' }}>LinkedIn</a>}
-                  </div>
-                </div>
-                <button onClick={() => removeContact(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', fontSize: 18, padding: 4 }}>x</button>
+                <button onClick={() => removeContact(idx)}
+                  style={{ fontSize: 12, padding: '3px 8px', borderRadius: 6, border: '1px solid #fecaca', background: '#fff', color: '#dc2626', cursor: 'pointer' }}>✕</button>
               </div>
             ))}
           </div>
         </>
       )}
-      <style>{'@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }'}</style>
+
+      {/* New companies review modal */}
+      {showReview && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 28, width: 520, maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <h2 style={{ fontSize: 17, fontWeight: 700, margin: '0 0 6px' }}>New companies found</h2>
+            <p style={{ fontSize: 13, color: '#666', margin: '0 0 18px' }}>
+              {newCompanies.length} companies not in your Accounts yet. Select which ones to create automatically.
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+              <button onClick={() => setSelectedNew(new Set(newCompanies.map(c => c.name)))}
+                style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #e0e0e0', background: '#f9f9f9', cursor: 'pointer' }}>Select all</button>
+              <button onClick={() => setSelectedNew(new Set())}
+                style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #e0e0e0', background: '#f9f9f9', cursor: 'pointer' }}>Deselect all</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+              {newCompanies.map(c => (
+                <div key={c.name} onClick={() => toggleCompany(c.name)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, border: '1px solid ' + (selectedNew.has(c.name) ? '#bfdbfe' : '#e5e7eb'), background: selectedNew.has(c.name) ? '#eff6ff' : '#fafafa', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={selectedNew.has(c.name)} onChange={() => toggleCompany(c.name)} onClick={e => e.stopPropagation()} style={{ cursor: 'pointer' }} />
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 13 }}>{c.name}</div>
+                    {c.country && <div style={{ fontSize: 12, color: '#888' }}>Country: {c.country}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => { setShowReview(false); runImport([], []); }}
+                style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #e0e0e0', background: '#fff', fontSize: 13, cursor: 'pointer', color: '#666' }}>
+                Skip — import contacts only
+              </button>
+              <button onClick={confirmAndImport}
+                style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                Create {selectedNew.size} account{selectedNew.size !== 1 ? 's' : ''} & import
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

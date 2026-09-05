@@ -359,18 +359,19 @@ export default function Contacts() {
 }
 
 function UploadCSV({ userId, onDone }) {
-  const [uploading, setUploading] = useState(false);
-  const [msg, setMsg] = useState('');
+  const [step, setStep]         = useState('idle'); // idle | reviewing | importing | done
+  const [msg, setMsg]           = useState('');
+  const [parsedRows, setParsedRows]   = useState([]);
+  const [newCompanies, setNewCompanies] = useState([]); // [{name, industry, country, website, revenue_millions, employees}]
+  const [selectedNew, setSelectedNew]  = useState(new Set()); // company names to create
 
-  async function processUploadWithFile(file) {
-    setUploading(true);
-    setMsg('');
+  function parseCSV(file) {
     const reader = new FileReader();
     reader.onload = async (ev) => {
       try {
         const text = ev.target.result.trim();
         const lines = text.split('\n');
-        if (lines.length < 2) { setMsg('CSV has no data rows'); setUploading(false); return; }
+        if (lines.length < 2) { setMsg('CSV has no data rows'); return; }
 
         const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_'));
 
@@ -383,7 +384,6 @@ function UploadCSV({ userId, onDone }) {
             else { cur += line[i]; }
           }
           vals.push(cur.trim());
-
           const obj = {};
           headers.forEach((h, i) => { obj[h] = (vals[i] || '').replace(/^"|"$/g, '').trim(); });
 
@@ -396,90 +396,192 @@ function UploadCSV({ userId, onDone }) {
             lastName  = parts.slice(1).join(' ') || '';
           }
 
+          const company = obj.company || obj.company_name || obj.organization || '';
           return {
-            owner_id:    userId,
-            first_name:  firstName,
-            last_name:   lastName,
-            email:       obj.email || obj.email_address || '',
-            company:     obj.company || obj.company_name || obj.organization || '',
-            title:       obj.title || obj.job_title || obj.position || '',
-            phone:       obj.phone || obj.phone_number || obj.mobile || '',
-            linkedin_url:obj.linkedin || obj.linkedin_url || obj.linkedin_profile || '',
-            status:      'Fresh',
-            notes:       obj.notes || obj.note || '',
+            // contact fields
+            owner_id:     userId,
+            first_name:   firstName,
+            last_name:    lastName,
+            email:        obj.email || obj.email_address || '',
+            company,
+            title:        obj.title || obj.job_title || obj.position || '',
+            phone:        obj.phone || obj.phone_number || obj.mobile || '',
+            linkedin_url: obj.linkedin || obj.linkedin_url || obj.linkedin_profile || '',
+            status:       'Fresh',
+            notes:        obj.notes || obj.note || '',
+            // account fields (stored alongside for account creation)
+            _industry:    obj.industry || obj.industry_name || '',
+            _country:     obj.country || obj.location || obj.region || '',
+            _website:     obj.website || obj.domain || obj.url || '',
+            _revenue:     obj.revenue || obj.revenue_millions || obj.annual_revenue || '',
+            _employees:   obj.employees || obj.employee_count || obj.headcount || '',
           };
         }).filter(r => r.first_name || r.last_name || r.email);
 
-        if (rows.length === 0) { setMsg('No valid rows found'); setUploading(false); return; }
+        if (rows.length === 0) { setMsg('No valid rows found'); return; }
 
-        const BATCH = 50;
-        let total = 0;
-        let insertedContacts = [];
-        for (let i = 0; i < rows.length; i += BATCH) {
-          const { data: inserted, error } = await supabase.from('contacts').insert(rows.slice(i, i + BATCH)).select('id, company');
-          if (error) { setMsg('Upload failed: ' + error.message); setUploading(false); return; }
-          insertedContacts.push(...(inserted || []));
-          total += Math.min(BATCH, rows.length - i);
-          setMsg(`Uploading… ${total}/${rows.length}`);
+        // Find new companies (not in existing accounts)
+        const uniqueCompanies = [...new Set(rows.map(r => r.company).filter(c => c && c.trim()))];
+        const { data: existing } = await supabase.from('accounts').select('id, name').in('name', uniqueCompanies);
+        const existingNames = new Set((existing || []).map(a => a.name));
+        const newCoList = uniqueCompanies.filter(n => !existingNames.has(n)).map(name => {
+          // gather account fields from first matching row
+          const sample = rows.find(r => r.company === name) || {};
+          return {
+            name,
+            industry:         sample._industry || '',
+            country:          sample._country  || '',
+            website:          sample._website  || '',
+            revenue_millions: sample._revenue  ? parseFloat(sample._revenue) || null : null,
+            employees:        sample._employees || '',
+          };
+        });
+
+        setParsedRows(rows);
+        if (newCoList.length > 0) {
+          setNewCompanies(newCoList);
+          setSelectedNew(new Set(newCoList.map(c => c.name)));
+          setStep('reviewing');
+        } else {
+          // all companies already exist — go straight to import
+          await runImport(rows, existing || [], []);
         }
-
-        // Auto-create accounts for companies in the CSV and link contacts
-        const uniqueCompanies = [...new Set(insertedContacts.map(c => c.company).filter(c => c && c.trim()))];
-        if (uniqueCompanies.length > 0) {
-          setMsg('Linking accounts…');
-          const { data: existingAccounts } = await supabase.from('accounts').select('id, name').in('name', uniqueCompanies);
-          const existingNames = new Set((existingAccounts || []).map(a => a.name));
-          const toCreate = uniqueCompanies.filter(n => !existingNames.has(n));
-
-          let allAccounts = [...(existingAccounts || [])];
-          if (toCreate.length > 0) {
-            const { data: newAccounts } = await supabase.from('accounts').insert(
-              toCreate.map(name => ({ name, owner_id: userId }))
-            ).select('id, name');
-            if (newAccounts) allAccounts.push(...newAccounts);
-          }
-
-          const accountMap = {};
-          allAccounts.forEach(a => { accountMap[a.name] = a.id; });
-
-          const toLink = insertedContacts.filter(c => c.company && accountMap[c.company]);
-          for (let i = 0; i < toLink.length; i += BATCH) {
-            await Promise.all(toLink.slice(i, i + BATCH).map(c =>
-              supabase.from('contacts').update({ account_id: accountMap[c.company] }).eq('id', c.id)
-            ));
-          }
-        }
-
-        setUploading(false);
-        setMsg(`✓ ${rows.length} contacts imported`);
-        onDone();
-        setTimeout(() => setMsg(''), 4000);
       } catch (err) {
         setMsg('Error: ' + err.message);
-        setUploading(false);
       }
     };
     reader.readAsText(file);
+  }
+
+  async function runImport(rows, existingAccounts, createdAccounts) {
+    setStep('importing');
+    setMsg('Importing contacts…');
+
+    const accountMap = {};
+    [...existingAccounts, ...createdAccounts].forEach(a => { accountMap[a.name] = a.id; });
+
+    // Strip internal _fields before inserting contacts
+    const contactRows = rows.map(({ _industry, _country, _website, _revenue, _employees, ...rest }) => ({
+      ...rest,
+      account_id: accountMap[rest.company] || null,
+    }));
+
+    const BATCH = 50;
+    let total = 0;
+    for (let i = 0; i < contactRows.length; i += BATCH) {
+      const { error } = await supabase.from('contacts').insert(contactRows.slice(i, i + BATCH));
+      if (error) { setMsg('Upload failed: ' + error.message); setStep('idle'); return; }
+      total += Math.min(BATCH, contactRows.length - i);
+      setMsg(`Uploading… ${total}/${contactRows.length}`);
+    }
+
+    setStep('done');
+    setMsg(`✓ ${contactRows.length} contacts imported`);
+    onDone();
+    setTimeout(() => { setMsg(''); setStep('idle'); }, 4000);
+  }
+
+  async function confirmAndImport() {
+    setStep('importing');
+    setMsg('Creating accounts…');
+
+    // Existing accounts
+    const uniqueNames = [...new Set(parsedRows.map(r => r.company).filter(Boolean))];
+    const { data: existingAccounts } = await supabase.from('accounts').select('id, name').in('name', uniqueNames);
+
+    // Create selected new accounts
+    const toCreate = newCompanies.filter(c => selectedNew.has(c.name)).map(c => ({
+      name: c.name,
+      owner_id: userId,
+      industry: c.industry || null,
+      country: c.country || null,
+      website: c.website || null,
+      revenue_millions: c.revenue_millions || null,
+      employees: c.employees || null,
+    }));
+    let createdAccounts = [];
+    if (toCreate.length > 0) {
+      const { data: created } = await supabase.from('accounts').insert(toCreate).select('id, name');
+      createdAccounts = created || [];
+    }
+
+    await runImport(parsedRows, existingAccounts || [], createdAccounts);
   }
 
   function handleFile(e) {
     const file = e.target.files[0];
     if (!file) return;
     e.target.value = '';
-    processUploadWithFile(file);
+    setMsg('');
+    setStep('idle');
+    parseCSV(file);
   }
+
+  const toggleCompany = (name) => {
+    setSelectedNew(prev => {
+      const next = new Set(prev);
+      next.has(name) ? next.delete(name) : next.add(name);
+      return next;
+    });
+  };
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       {msg && (
-        <span style={{ fontSize: 12, color: msg.startsWith('✓') ? '#059669' : msg.startsWith('Upload') ? '#dc2626' : '#555' }}>
+        <span style={{ fontSize: 12, color: msg.startsWith('✓') ? '#059669' : msg.startsWith('Upload') || msg.startsWith('Error') ? '#dc2626' : '#555' }}>
           {msg}
         </span>
       )}
-      <label style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.7 : 1, whiteSpace: 'nowrap' }}>
-        {uploading ? 'Uploading…' : '+ Import CSV'}
-        <input type="file" accept=".csv" onChange={handleFile} style={{ display: 'none' }} disabled={uploading} />
+      <label style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: step === 'importing' ? 'not-allowed' : 'pointer', opacity: step === 'importing' ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+        {step === 'importing' ? 'Importing…' : '+ Import CSV'}
+        <input type="file" accept=".csv" onChange={handleFile} style={{ display: 'none' }} disabled={step === 'importing'} />
       </label>
+
+      {/* New companies review modal */}
+      {step === 'reviewing' && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 28, width: 560, maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <h2 style={{ fontSize: 17, fontWeight: 700, margin: '0 0 6px' }}>New companies found</h2>
+            <p style={{ fontSize: 13, color: '#666', margin: '0 0 18px' }}>
+              {newCompanies.length} companies not in your Accounts yet. Select which ones to create automatically.
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+              <button onClick={() => setSelectedNew(new Set(newCompanies.map(c => c.name)))}
+                style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #e0e0e0', background: '#f9f9f9', cursor: 'pointer' }}>Select all</button>
+              <button onClick={() => setSelectedNew(new Set())}
+                style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #e0e0e0', background: '#f9f9f9', cursor: 'pointer' }}>Deselect all</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+              {newCompanies.map(c => (
+                <div key={c.name} onClick={() => toggleCompany(c.name)}
+                  style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 10, border: '1px solid ' + (selectedNew.has(c.name) ? '#bfdbfe' : '#e5e7eb'), background: selectedNew.has(c.name) ? '#eff6ff' : '#fafafa', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={selectedNew.has(c.name)} onChange={() => toggleCompany(c.name)} style={{ marginTop: 2, cursor: 'pointer' }} onClick={e => e.stopPropagation()} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: '#111' }}>{c.name}</div>
+                    <div style={{ fontSize: 12, color: '#888', marginTop: 2, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                      {c.industry && <span>Industry: {c.industry}</span>}
+                      {c.country && <span>Country: {c.country}</span>}
+                      {c.employees && <span>Employees: {c.employees}</span>}
+                      {c.revenue_millions && <span>Revenue: ${c.revenue_millions}M</span>}
+                      {c.website && <span>Website: {c.website}</span>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => runImport(parsedRows, [], [])}
+                style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #e0e0e0', background: '#fff', fontSize: 13, cursor: 'pointer', color: '#666' }}>
+                Skip — import contacts only
+              </button>
+              <button onClick={confirmAndImport}
+                style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#2563eb', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                Create {selectedNew.size} account{selectedNew.size !== 1 ? 's' : ''} & import
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
