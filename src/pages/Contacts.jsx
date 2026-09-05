@@ -45,9 +45,17 @@ export default function Contacts() {
   const [batchMsg, setBatchMsg] = useState('');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 50;
+  // Advanced filters
+  const [industryFilter, setIndustryFilter]   = useState('');
+  const [pitchTypeFilter, setPitchTypeFilter] = useState('');
+  const [personaFilter, setPersonaFilter]     = useState('');
+  const [listFilter, setListFilter]           = useState('');
+  const [hasEmailFilter, setHasEmailFilter]   = useState('');
+  const [lists, setLists]                     = useState([]);
+  const [listContactIds, setListContactIds]   = useState(new Set());
 
-  useEffect(() => { fetchContacts(); }, [filter]);
-  useEffect(() => { setPage(1); }, [filter, search]);
+  useEffect(() => { fetchContacts(); fetchLists(); }, [filter]);
+  useEffect(() => { setPage(1); }, [filter, search, industryFilter, pitchTypeFilter, personaFilter, listFilter, hasEmailFilter]);
 
   async function fetchContacts() {
     setLoading(true);
@@ -57,6 +65,18 @@ export default function Contacts() {
     setContacts(data || []);
     setLoading(false);
     setSelected(new Set());
+  }
+
+  async function fetchLists() {
+    const { data } = await supabase.from('lists').select('id, name').eq('owner_id', user.id).order('name');
+    setLists(data || []);
+  }
+
+  async function applyListFilter(listId) {
+    setListFilter(listId);
+    if (!listId) { setListContactIds(new Set()); return; }
+    const { data } = await supabase.from('contact_lists').select('contact_id').eq('list_id', listId);
+    setListContactIds(new Set((data || []).map(r => r.contact_id)));
   }
 
   async function updateStatus(id, status) {
@@ -107,12 +127,27 @@ export default function Contacts() {
     fetchContacts();
   }
 
+  // Derive unique filter options from loaded contacts
+  const industries  = [...new Set(contacts.map(c => c.industry).filter(Boolean))].sort();
+  const pitchTypes  = [...new Set(contacts.map(c => c.pitch_type).filter(Boolean))].sort();
+  const personas    = [...new Set(contacts.map(c => c.persona).filter(Boolean))].sort();
+
   const filtered = contacts.filter(c => {
-    if (!search) return true;
-    const s = search.toLowerCase();
-    const name = contactName(c).toLowerCase();
-    return name.includes(s) || c.email?.toLowerCase().includes(s) || c.company?.toLowerCase().includes(s);
+    if (search) {
+      const s = search.toLowerCase();
+      const name = contactName(c).toLowerCase();
+      if (!name.includes(s) && !c.email?.toLowerCase().includes(s) && !c.company?.toLowerCase().includes(s)) return false;
+    }
+    if (industryFilter  && c.industry   !== industryFilter)  return false;
+    if (pitchTypeFilter && c.pitch_type !== pitchTypeFilter)  return false;
+    if (personaFilter   && c.persona    !== personaFilter)    return false;
+    if (hasEmailFilter === 'yes' && !c.email) return false;
+    if (hasEmailFilter === 'no'  &&  c.email) return false;
+    if (listFilter && !listContactIds.has(c.id)) return false;
+    return true;
   });
+
+  const activeFilters = [industryFilter, pitchTypeFilter, personaFilter, listFilter, hasEmailFilter].filter(Boolean).length;
 
   const freshCount   = contacts.filter(c => c.status === 'Fresh').length;
   const activeCount  = contacts.filter(c => !['bounced','unsubscribed','lost'].includes(c.status)).length;
@@ -197,8 +232,8 @@ export default function Contacts() {
         </div>
       )}
 
-      {/* Filters */}
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+      {/* Stage filter tabs */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
         <input
           value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search name, email, company…"
@@ -216,6 +251,51 @@ export default function Contacts() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Advanced filters */}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+        {industries.length > 0 && (
+          <select value={industryFilter} onChange={e => setIndustryFilter(e.target.value)}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid ' + (industryFilter ? '#2563eb' : '#e0e0e0'), fontSize: 12, cursor: 'pointer', background: industryFilter ? '#eff6ff' : '#fff', color: industryFilter ? '#1d4ed8' : '#555' }}>
+            <option value="">All Industries</option>
+            {industries.map(i => <option key={i} value={i}>{i}</option>)}
+          </select>
+        )}
+        {pitchTypes.length > 0 && (
+          <select value={pitchTypeFilter} onChange={e => setPitchTypeFilter(e.target.value)}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid ' + (pitchTypeFilter ? '#2563eb' : '#e0e0e0'), fontSize: 12, cursor: 'pointer', background: pitchTypeFilter ? '#eff6ff' : '#fff', color: pitchTypeFilter ? '#1d4ed8' : '#555' }}>
+            <option value="">All Pitch Types</option>
+            {pitchTypes.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        )}
+        {personas.length > 0 && (
+          <select value={personaFilter} onChange={e => setPersonaFilter(e.target.value)}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid ' + (personaFilter ? '#2563eb' : '#e0e0e0'), fontSize: 12, cursor: 'pointer', background: personaFilter ? '#eff6ff' : '#fff', color: personaFilter ? '#1d4ed8' : '#555' }}>
+            <option value="">All Personas</option>
+            {personas.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        )}
+        {lists.length > 0 && (
+          <select value={listFilter} onChange={e => applyListFilter(e.target.value)}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid ' + (listFilter ? '#2563eb' : '#e0e0e0'), fontSize: 12, cursor: 'pointer', background: listFilter ? '#eff6ff' : '#fff', color: listFilter ? '#1d4ed8' : '#555' }}>
+            <option value="">All Lists</option>
+            {lists.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+          </select>
+        )}
+        <select value={hasEmailFilter} onChange={e => setHasEmailFilter(e.target.value)}
+          style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid ' + (hasEmailFilter ? '#2563eb' : '#e0e0e0'), fontSize: 12, cursor: 'pointer', background: hasEmailFilter ? '#eff6ff' : '#fff', color: hasEmailFilter ? '#1d4ed8' : '#555' }}>
+          <option value="">Has Email: All</option>
+          <option value="yes">Has Email</option>
+          <option value="no">No Email</option>
+        </select>
+        {activeFilters > 0 && (
+          <button onClick={() => { setIndustryFilter(''); setPitchTypeFilter(''); setPersonaFilter(''); setListFilter(''); setHasEmailFilter(''); setListContactIds(new Set()); }}
+            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #fecaca', background: '#fff', color: '#dc2626', fontSize: 12, cursor: 'pointer', fontWeight: 500 }}>
+            Clear filters ({activeFilters})
+          </button>
+        )}
+        <span style={{ fontSize: 12, color: '#aaa', marginLeft: 4 }}>{filtered.length} contacts</span>
       </div>
 
       {/* Table */}
