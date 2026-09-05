@@ -219,8 +219,8 @@ export default function Contacts() {
       </div>
 
       {/* Table */}
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e8e8e4', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e8e8e4', overflowX: 'auto' }}>
+        <table style={{ width: '100%', minWidth: 1100, borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ background: '#fafafa', borderBottom: '1px solid #eee' }}>
               <th style={{ padding: '10px 14px', width: 36 }}>
