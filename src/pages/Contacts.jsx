@@ -267,6 +267,7 @@ export default function Contacts() {
   }
 
   return (
+    <>
     <div style={{ padding: '24px 28px' }}>
 
       {/* Header */}
@@ -652,7 +653,7 @@ export default function Contacts() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
