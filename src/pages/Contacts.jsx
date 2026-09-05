@@ -53,13 +53,17 @@ export default function Contacts() {
   const [hasEmailFilter, setHasEmailFilter]   = useState('');
   const [lists, setLists]                     = useState([]);
   const [listContactIds, setListContactIds]   = useState(new Set());
+  const [companyFilter, setCompanyFilter]     = useState('');
+  const [responseFilter, setResponseFilter]   = useState('');
+  const [dateAddedFilter, setDateAddedFilter] = useState('');
+  const [lastReachedFilter, setLastReachedFilter] = useState('');
 
   useEffect(() => { fetchContacts(); fetchLists(); }, [filter]);
-  useEffect(() => { setPage(1); }, [filter, search, industryFilter, pitchTypeFilter, personaFilter, listFilter, hasEmailFilter]);
+  useEffect(() => { setPage(1); }, [filter, search, industryFilter, pitchTypeFilter, personaFilter, listFilter, hasEmailFilter, companyFilter, responseFilter, dateAddedFilter, lastReachedFilter]);
 
   async function fetchContacts() {
     setLoading(true);
-    let q = supabase.from('contacts').select('*').eq('owner_id', user.id).order('created_at', { ascending: false });
+    let q = supabase.from('contacts').select('*, accounts(id, name, industry)').eq('owner_id', user.id).order('created_at', { ascending: false });
     if (filter !== 'all') q = q.eq('status', filter);
     const { data } = await q;
     setContacts(data || []);
@@ -127,10 +131,16 @@ export default function Contacts() {
     fetchContacts();
   }
 
+  // Effective industry: contact's own industry OR inherited from account
+  const effectiveIndustry = (c) => c.industry || c.accounts?.industry || '';
+
   // Derive unique filter options from loaded contacts
-  const industries  = [...new Set(contacts.map(c => c.industry).filter(Boolean))].sort();
+  const industries  = [...new Set(contacts.map(c => effectiveIndustry(c)).filter(Boolean))].sort();
   const pitchTypes  = [...new Set(contacts.map(c => c.pitch_type).filter(Boolean))].sort();
   const personas    = [...new Set(contacts.map(c => c.persona).filter(Boolean))].sort();
+  const companies   = [...new Set(contacts.map(c => c.company).filter(Boolean))].sort();
+
+  const dayStart = (daysAgo) => { const d = new Date(); d.setDate(d.getDate() - daysAgo); d.setHours(0,0,0,0); return d; };
 
   const filtered = contacts.filter(c => {
     if (search) {
@@ -138,16 +148,35 @@ export default function Contacts() {
       const name = contactName(c).toLowerCase();
       if (!name.includes(s) && !c.email?.toLowerCase().includes(s) && !c.company?.toLowerCase().includes(s)) return false;
     }
-    if (industryFilter  && c.industry   !== industryFilter)  return false;
-    if (pitchTypeFilter && c.pitch_type !== pitchTypeFilter)  return false;
-    if (personaFilter   && c.persona    !== personaFilter)    return false;
+    if (industryFilter  && effectiveIndustry(c) !== industryFilter) return false;
+    if (pitchTypeFilter && c.pitch_type !== pitchTypeFilter)         return false;
+    if (personaFilter   && c.persona    !== personaFilter)           return false;
+    if (companyFilter   && c.company    !== companyFilter)           return false;
+    if (responseFilter  && c.response_type !== responseFilter)       return false;
     if (hasEmailFilter === 'yes' && !c.email) return false;
     if (hasEmailFilter === 'no'  &&  c.email) return false;
     if (listFilter && !listContactIds.has(c.id)) return false;
+    if (dateAddedFilter) {
+      const added = c.created_at ? new Date(c.created_at) : null;
+      if (!added) return false;
+      if (dateAddedFilter === '7d'  && added < dayStart(7))   return false;
+      if (dateAddedFilter === '30d' && added < dayStart(30))  return false;
+      if (dateAddedFilter === '90d' && added < dayStart(90))  return false;
+      if (dateAddedFilter === 'old' && added >= dayStart(30)) return false;
+    }
+    if (lastReachedFilter) {
+      const lr = c.last_touchpoint_date ? new Date(c.last_touchpoint_date) : null;
+      if (lastReachedFilter === 'never' && lr) return false;
+      if (lastReachedFilter === 'never' && !lr) return true;
+      if (!lr) return false;
+      if (lastReachedFilter === '7d'  && lr < dayStart(7))   return false;
+      if (lastReachedFilter === '30d' && lr < dayStart(30))  return false;
+      if (lastReachedFilter === 'old' && lr >= dayStart(30)) return false;
+    }
     return true;
   });
 
-  const activeFilters = [industryFilter, pitchTypeFilter, personaFilter, listFilter, hasEmailFilter].filter(Boolean).length;
+  const activeFilters = [industryFilter, pitchTypeFilter, personaFilter, listFilter, hasEmailFilter, companyFilter, responseFilter, dateAddedFilter, lastReachedFilter].filter(Boolean).length;
 
   const freshCount   = contacts.filter(c => c.status === 'Fresh').length;
   const activeCount  = contacts.filter(c => !['bounced','unsubscribed','lost'].includes(c.status)).length;
@@ -289,8 +318,40 @@ export default function Contacts() {
           <option value="yes">Has Email</option>
           <option value="no">No Email</option>
         </select>
+        {companies.length > 0 && (
+          <select value={companyFilter} onChange={e => setCompanyFilter(e.target.value)}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid ' + (companyFilter ? '#2563eb' : '#e0e0e0'), fontSize: 12, cursor: 'pointer', background: companyFilter ? '#eff6ff' : '#fff', color: companyFilter ? '#1d4ed8' : '#555', maxWidth: 180 }}>
+            <option value="">All Companies</option>
+            {companies.map(co => <option key={co} value={co}>{co}</option>)}
+          </select>
+        )}
+        <select value={responseFilter} onChange={e => setResponseFilter(e.target.value)}
+          style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid ' + (responseFilter ? '#2563eb' : '#e0e0e0'), fontSize: 12, cursor: 'pointer', background: responseFilter ? '#eff6ff' : '#fff', color: responseFilter ? '#1d4ed8' : '#555' }}>
+          <option value="">All Responses</option>
+          <option value="warm">Warm</option>
+          <option value="prospect">Prospect</option>
+          <option value="cold">Cold</option>
+          <option value="negative">Negative</option>
+          <option value="not_interested">Not Interested</option>
+        </select>
+        <select value={dateAddedFilter} onChange={e => setDateAddedFilter(e.target.value)}
+          style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid ' + (dateAddedFilter ? '#2563eb' : '#e0e0e0'), fontSize: 12, cursor: 'pointer', background: dateAddedFilter ? '#eff6ff' : '#fff', color: dateAddedFilter ? '#1d4ed8' : '#555' }}>
+          <option value="">Date Added: All</option>
+          <option value="7d">Last 7 days</option>
+          <option value="30d">Last 30 days</option>
+          <option value="90d">Last 90 days</option>
+          <option value="old">Older than 30 days</option>
+        </select>
+        <select value={lastReachedFilter} onChange={e => setLastReachedFilter(e.target.value)}
+          style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid ' + (lastReachedFilter ? '#2563eb' : '#e0e0e0'), fontSize: 12, cursor: 'pointer', background: lastReachedFilter ? '#eff6ff' : '#fff', color: lastReachedFilter ? '#1d4ed8' : '#555' }}>
+          <option value="">Last Reached: All</option>
+          <option value="7d">Last 7 days</option>
+          <option value="30d">Last 30 days</option>
+          <option value="old">Over 30 days ago</option>
+          <option value="never">Never reached</option>
+        </select>
         {activeFilters > 0 && (
-          <button onClick={() => { setIndustryFilter(''); setPitchTypeFilter(''); setPersonaFilter(''); setListFilter(''); setHasEmailFilter(''); setListContactIds(new Set()); }}
+          <button onClick={() => { setIndustryFilter(''); setPitchTypeFilter(''); setPersonaFilter(''); setListFilter(''); setHasEmailFilter(''); setCompanyFilter(''); setResponseFilter(''); setDateAddedFilter(''); setLastReachedFilter(''); setListContactIds(new Set()); }}
             style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #fecaca', background: '#fff', color: '#dc2626', fontSize: 12, cursor: 'pointer', fontWeight: 500 }}>
             Clear filters ({activeFilters})
           </button>
