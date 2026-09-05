@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { inferFromTitle } from '../utils/inferContact';
 
 const STAGES = ['Fresh','F1','F2','F3','F4','F5'];
 const OUTCOMES = ['won','lost','bounced','unsubscribed'];
@@ -92,6 +93,7 @@ export default function ContactDetail() {
   const [persona, setPersona] = useState('');
   const [savingPersona, setSavingPersona] = useState(false);
   const [personaSaved, setPersonaSaved] = useState(false);
+  const [pitchType, setPitchType] = useState('');
 
   const [timeline, setTimeline] = useState([]);
   const [advancing, setAdvancing] = useState(false);
@@ -106,6 +108,23 @@ export default function ContactDetail() {
       setSignals(data.signals || {});
       setPitch(data.pitch || '');
       setPersona(data.persona || '');
+      setPitchType(data.pitch_type || '');
+      // Auto-infer persona and pitch_type from title if not set
+      if ((!data.persona || !data.pitch_type) && data.title) {
+        const inferred = inferFromTitle(data.title, data.industry);
+        const updates = {};
+        if (!data.persona && inferred.persona) {
+          setPersona(inferred.persona);
+          updates.persona = inferred.persona;
+        }
+        if (!data.pitch_type && inferred.pitch_type) {
+          setPitchType(inferred.pitch_type);
+          updates.pitch_type = inferred.pitch_type;
+        }
+        if (Object.keys(updates).length > 0) {
+          supabase.from('contacts').update(updates).eq('id', data.id);
+        }
+      }
     }
     setLoading(false);
   }, [id]);
@@ -491,6 +510,24 @@ export default function ContactDetail() {
                     {savingPersona ? 'Saving…' : personaSaved ? '✓ Saved' : 'Save'}
                   </button>
                 </div>
+              </div>
+              <div style={{marginTop:16}}>
+                <label style={{display:'block',fontSize:11,fontWeight:600,color:'#555',marginBottom:6,textTransform:'uppercase',letterSpacing:'0.3px'}}>Pitch Type</label>
+                <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                  <select value={pitchType} onChange={e => setPitchType(e.target.value)}
+                    style={{flex:1,padding:'8px 12px',borderRadius:8,border:'1px solid #e0e0e0',fontSize:13,color:'#333',background:'#fff',outline:'none',cursor:'pointer'}}>
+                    <option value={''}>— Select pitch type —</option>
+                    {['Oracle','SAP','Salesforce','ServiceNow','Workday','MS Dynamics','Pega','nCino','Coupa','Autopilot (AI)','Automate Web','Automate Mobile','Automate API','ACCELQ Unified','Financial Services','Healthcare','Telecom','Insurance','Retail','IT Services'].map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                  <button onClick={async () => {
+                    await supabase.from('contacts').update({ pitch_type: pitchType }).eq('id', id);
+                    setContact(c => ({ ...c, pitch_type: pitchType }));
+                  }}
+                    style={{padding:'7px 16px',border:'none',borderRadius:8,fontSize:12,fontWeight:500,cursor:'pointer',whiteSpace:'nowrap',background:'#2563eb',color:'#fff'}}>
+                    Save
+                  </button>
+                </div>
+                {pitchType && <div style={{marginTop:5,fontSize:11,color:'#888',fontStyle:'italic'}}>Auto-inferred from title — edit if needed</div>}
               </div>
               </div>
             </InfoCard>
