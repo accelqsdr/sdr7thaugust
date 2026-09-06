@@ -150,7 +150,7 @@ export default function ContactDetail() {
     const authorIds = [...new Set(rows.map(r => r.author_id).filter(Boolean))];
     let nameMap = {};
     if (authorIds.length) {
-      const { data: users } = await supabase.from('user_settings').select('user_id, full_name').in('user_id', authorIds);
+      const { data: users } = await supabase.from('org_hierarchy').select('user_id, full_name').in('user_id', authorIds);
       (users || []).forEach(u => { nameMap[u.user_id] = u.full_name; });
     }
     setContactNotes((cn || []).map(n => ({ ...n, authorName: nameMap[n.author_id] || null })));
@@ -164,7 +164,7 @@ export default function ContactDetail() {
     const actorIds = [...new Set(rows.map(r => r.actor_id).filter(Boolean))];
     let nameMap = {};
     if (actorIds.length) {
-      const { data: users } = await supabase.from('user_settings').select('user_id, full_name').in('user_id', actorIds);
+      const { data: users } = await supabase.from('org_hierarchy').select('user_id, full_name').in('user_id', actorIds);
       (users || []).forEach(u => { nameMap[u.user_id] = u.full_name; });
     }
     setTimeline(rows.map(r => ({ ...r, actorName: nameMap[r.actor_id] || null })));
