@@ -114,9 +114,10 @@ export default function FollowUps() {
     });
   }
   const [drafting,      setDrafting]      = useState(null);
-  const [selectedIds,   setSelectedIds]   = useState(new Set());
   const [draftOpen,     setDraftOpen]     = useState(null);
   const [copied,        setCopied]        = useState(null);
+  const [strategyOpen,  setStrategyOpen]  = useState({});
+  const [historyOpen,   setHistoryOpen]   = useState({});
   const [markingSent,   setMarkingSent]   = useState(null);
   const [customPrompts, setCustomPrompts] = useState({});
   const autoGenRanRef = useRef(false);
@@ -143,18 +144,16 @@ export default function FollowUps() {
       let fb=supabase.from('contacts').select('*');
       if (!viewAll||!canViewAll) fb=fb.eq('owner_id',user.id);
       const fbRes=await fb.in('status',ALL_STAGES).order('last_contacted',{ascending:false,nullsFirst:false});
-      rows=(fbRes.data||[]).filter(c=>(c.status!=='Fresh'||(c.status==='Fresh'&&c.next_followup))&&!c.response_type);
+      rows=(fbRes.data||[]).filter(c=>c.status!=='Fresh'||(c.status==='Fresh'&&c.next_followup));
     }
-    // Exclude contacts that have received a response — they leave the queue
-    const queueRows=(rows||[]).filter(r=>!r.response_type);
-    setContacts(queueRows);
+    setContacts(rows||[]);
     const accMap={};
     (aRes.data||[]).forEach(a=>{accMap[a.id]=a;});
     setAccounts(accMap);
     const emailMap={};
     (lRes.data||[]).forEach(row=>{
       if(!emailMap[row.contact_id]) emailMap[row.contact_id]=[];
-      if(row.details?.body) emailMap[row.contact_id].push({body:row.details.body});
+      if(row.details?.body) emailMap[row.contact_id].push({subject:row.details.subject||'',body:row.details.body,stage:row.details.from_stage||'',date:row.created_at});
     });
     setSentEmails(emailMap);
     let lqQuery=supabase.from('lists').select('id,name');
@@ -198,40 +197,20 @@ export default function FollowUps() {
     if(!silent){setDrafting(contact.id);setDraftOpen(contact.id);}
     const account=accounts[contact.account_id]||{};
     const senderName=profile?.full_name||user?.email?.split('@')[0]||'SDR';
-    const priorBodies=(sentEmails[contact.id]||[]).slice(0,3).map(e=>e.body);
+    const priorBodies=(sentEmails[contact.id]||[]).slice(0,5).map(e=>e.subject?'Subject: '+e.subject+'\n\n'+e.body:e.body);
     const emailStage=contact.status==='Fresh'?'Fresh':contact.status;
     try {
       const res=await supabase.functions.invoke('generate-email',{body:{
         contact:{
           full_name:((contact.first_name||'')+' '+(contact.last_name||'')).trim(),
           title:contact.title,company:contact.company,email:contact.email,
-          response:contact.response_type,
-          pitch_type:contact.pitch_type||'',
-          pitch:contact.pitch_type||contact.pitch||contact.notes||'',
-          persona:contact.persona||'',
-          industry:account.industry,
+          response:contact.response_type,pitch:contact.notes,industry:account.industry,
         },
         stage:emailStage, customPrompt:customPrompt||null,
-        accountResearch:{
-          ...(account.research||{}),
-          overview: account.about || account.description || '',
-          notes: account.notes || '',
-          icpNotes: account.icp_notes || '',
-          importantToKnow: account.important_to_know || [],
-          testingTools: account.testing_tools || [],
-          enterpriseApps: account.enterprise_apps || [],
-          saasApps: account.saas_apps || [],
-          signals: account.signals || [],
-          aiSignals: account.ai_signals || [],
-          productsServices: account.products_services || [],
-          funding: account.funding_info || account.funding || '',
-          employees: account.employees || account.employee_count || '',
-          revenue: account.revenue_millions ? `$${account.revenue_millions}M` : '',
-        }, senderName, priorEmailBodies:priorBodies,
+        accountResearch:account.research||{}, senderName, priorEmailBodies:priorBodies,
       }});
       if(!res.error&&res.data?.subject){
-        const cleanDash=s=>(s||'').replace(/[—–]/g,'').replace(/  +/g,' ').trim();
-        setDrafts(d=>({...d,[contact.id]:{subject:cleanDash(res.data.subject),body:cleanDash(res.data.body)}}));
+        setDrafts(d=>({...d,[contact.id]:{subject:res.data.subject,body:res.data.body,strategy:res.data.strategy||null}}));
         if(!silent) setDraftOpen(contact.id);
       }
     } catch(e){console.error(e);}
@@ -278,33 +257,6 @@ export default function FollowUps() {
     navigator.clipboard.writeText(`Subject: ${draft.subject}\n\n${draft.body}`);
     setCopied(id); setTimeout(()=>setCopied(c=>c===id?null:c),2000);
   }
-  function downloadCSV(idsOverride){
-    const all=[...filteredFresh,...filteredActive];
-    const rows=idsOverride&&idsOverride.size>0?all.filter(c=>idsOverride.has(c.id)):all;
-    const escape=v=>`"${String(v||'').replace(/"/g,'""')}"`;
-    const lines=[['First Name','Email','Subject','Body'].map(escape).join(',')];
-    rows.forEach(c=>{
-      const d=drafts[c.id]||{};
-      lines.push([c.first_name,c.email,d.subject||'',d.body||''].map(escape).join(','));
-    });
-    const blob=new Blob([lines.join('\n')],{type:'text/csv'});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a'); a.href=url; a.download='followup_emails.csv'; a.click();
-    URL.revokeObjectURL(url);
-  }
-  function toggleSelect(id){
-    setSelectedIds(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});
-  }
-  function toggleSelectAll(){
-    const all=[...filteredFresh,...filteredActive].map(c=>c.id);
-    if(all.every(id=>selectedIds.has(id))) setSelectedIds(new Set());
-    else setSelectedIds(new Set(all));
-  }
-  async function bulkMarkSent(){
-    const all=[...filteredFresh,...filteredActive].filter(c=>selectedIds.has(c.id));
-    for(const c of all){ await markSent(c); }
-    setSelectedIds(new Set());
-  }
 
   const freshContacts=contacts.filter(c=>c.status==='Fresh');
   const activeContacts=contacts.filter(c=>c.status!=='Fresh');
@@ -349,14 +301,15 @@ export default function FollowUps() {
   function clearFilters(){setSearch('');setStageFilter('all');setTimingFilter('all');setResponseFilter('all');setCompanyFilter('all');setListFilter('all');}
   const totalInQueue=contacts.length;
   const sharedProps={
-    accounts,drafts,drafting,draftOpen,copied,markingSent,contactListMap,lists,
+    accounts,drafts,drafting,draftOpen,copied,markingSent,contactListMap,lists,sentEmails,
+    strategyOpen,setStrategyOpen,
+    historyOpen,setHistoryOpen,
     onGenerate:(c,cp)=>doGenerate(c,false,cp),
     onToggleDraft:c=>setDraftOpen(d=>d===c.id?null:c.id),
     onRegenerate:(c,cp)=>doGenerate(c,false,cp),
     onMarkSent:c=>markSent(c), onSnooze:(id,days)=>snooze(id,days),
     onCopy:id=>copyDraft(id), onView:id=>navigate(`/contacts/${id}`),
     customPrompts, onCustomPromptChange:(id,val)=>setCustomPrompts(p=>({...p,[id]:val})),
-    selectedIds, onToggleSelect:toggleSelect,
   };
   const noResults=filteredFresh.length===0&&filteredActive.length===0;
 
@@ -397,10 +350,6 @@ export default function FollowUps() {
             <div style={{padding:'5px 12px',borderRadius:20,fontSize:12,fontWeight:500,color:'#6b7280',background:'#f9fafb',border:'1px solid #e5e7eb'}}>
               {totalInQueue} in queue</div>
           </div>
-          <button onClick={()=>downloadCSV()}
-            style={{padding:'6px 14px',borderRadius:8,border:'1.5px solid #e5e7eb',background:'#fff',color:'#374151',fontSize:12,fontWeight:600,cursor:'pointer'}}>
-            ⬇ Download CSV
-          </button>
           <button onClick={()=>setSettingsOpen(s=>!s)}
             style={{padding:'6px 14px',borderRadius:8,border:`1.5px solid ${settingsOpen?'#2563eb':'#e5e7eb'}`,
               background:settingsOpen?'#dbeafe':'#fff',color:settingsOpen?'#1d4ed8':'#374151',fontSize:12,fontWeight:600,cursor:'pointer'}}>
@@ -493,26 +442,6 @@ export default function FollowUps() {
         </div>
       </div>
 
-      {/* Bulk action bar */}
-      {selectedIds.size>0&&(
-        <div style={{background:'#1e293b',color:'#fff',padding:'9px 24px',display:'flex',alignItems:'center',gap:12,flexShrink:0}}>
-          <input type="checkbox" checked onChange={toggleSelectAll} style={{cursor:'pointer',accentColor:'#3b82f6'}}/>
-          <span style={{fontSize:12,fontWeight:600}}>{selectedIds.size} selected</span>
-          <div style={{flex:1}}/>
-          <button onClick={()=>downloadCSV(selectedIds)}
-            style={{padding:'5px 14px',borderRadius:7,fontSize:12,fontWeight:600,border:'none',background:'#3b82f6',color:'#fff',cursor:'pointer'}}>
-            ⬇ Download CSV
-          </button>
-          <button onClick={bulkMarkSent}
-            style={{padding:'5px 14px',borderRadius:7,fontSize:12,fontWeight:600,border:'none',background:'#059669',color:'#fff',cursor:'pointer'}}>
-            ✓ Move to Next Stage
-          </button>
-          <button onClick={()=>setSelectedIds(new Set())}
-            style={{padding:'5px 10px',borderRadius:7,fontSize:12,fontWeight:500,border:'1px solid #475569',background:'transparent',color:'#cbd5e1',cursor:'pointer'}}>
-            Clear
-          </button>
-        </div>
-      )}
       {/* Content */}
       <div style={{flex:1,overflowY:'auto',padding:'20px 24px'}}>
         {loading?(
@@ -596,19 +525,19 @@ function TimingGroup({group,...props}){
 }
 
 function ContactRow({contact:c,accounts,drafts,drafting,draftOpen,copied,markingSent,
-  contactListMap,lists,
+  contactListMap,lists,sentEmails,strategyOpen,setStrategyOpen,historyOpen,setHistoryOpen,
   onGenerate,onToggleDraft,onRegenerate,onMarkSent,onSnooze,onCopy,onView,isFresh,
-  customPrompts,onCustomPromptChange,selectedIds,onToggleSelect}){
+  customPrompts,onCustomPromptChange}){
   const customPrompt=customPrompts?.[c.id]||'';
   const sm=STAGE_META[c.status]||{bg:'#f1f5f9',color:'#475569',label:c.status};
   const rm=c.response_type?RESPONSE_META[c.response_type]:null;
   const account=accounts[c.account_id];
   const draft=drafts[c.id]; const hasDraft=!!draft;
+  const sentHistory=(sentEmails||{})[c.id]||[];
   const isOverdue=c._bucket==='overdue';
   const isDrafting=drafting===c.id; const isDraftOpen=draftOpen===c.id;
   const isMarking=markingSent===c.id; const isCopied=copied===c.id;
   const ac=avatarColor(((c.first_name||'')+' '+(c.last_name||'')).trim());
-  const isSelected=selectedIds?.has(c.id)||false;
   const contactLists=contactListMap?.[c.id]||[];
   const hasActiveCampaign=contactLists.some(cl=>cl.is_active_campaign);
   const listNames=contactLists.map(cl=>(lists||[]).find(l=>l.id===cl.list_id)?.name).filter(Boolean);
@@ -623,10 +552,7 @@ function ContactRow({contact:c,accounts,drafts,drafting,draftOpen,copied,marking
       boxShadow:'0 1px 3px rgba(0,0,0,0.04)'}}>
       {/* Main row */}
       <div style={{display:'flex',alignItems:'center',gap:10,padding:'11px 14px'}}>
-        <input type="checkbox" checked={isSelected} onChange={()=>onToggleSelect&&onToggleSelect(c.id)}
-          onClick={e=>e.stopPropagation()}
-          style={{cursor:'pointer',flexShrink:0,width:15,height:15,accentColor:'#2563eb'}}/>
-        <div onClick={()=>onView(c.id)} style={{width:36,height:36,borderRadius:'50%',background:isSelected?'#2563eb':ac,color:'#fff',
+        <div onClick={()=>onView(c.id)} style={{width:36,height:36,borderRadius:'50%',background:ac,color:'#fff',
           display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700,flexShrink:0,cursor:'pointer',userSelect:'none'}}>
           {getInitials(((c.first_name||'')+' '+(c.last_name||'')).trim())}
         </div>
@@ -640,6 +566,14 @@ function ContactRow({contact:c,accounts,drafts,drafting,draftOpen,copied,marking
         </div>
         <span style={{fontSize:11,fontWeight:700,padding:'3px 9px',borderRadius:6,background:sm.bg,color:sm.color,flexShrink:0,whiteSpace:'nowrap'}}>{sm.label}</span>
         {rm&&<span style={{fontSize:11,padding:'2px 8px',borderRadius:6,background:rm.bg,color:rm.color,fontWeight:500,flexShrink:0}}>{rm.label}</span>}
+        {sentHistory.length>0&&(
+          <button onClick={()=>setHistoryOpen(h=>({...h,[c.id]:!h[c.id]}))}
+            style={{fontSize:10,padding:'2px 8px',borderRadius:12,background:historyOpen[c.id]?'#f0fdf4':'#f9fafb',
+              border:'1px solid #d1d5db',color:historyOpen[c.id]?'#059669':'#6b7280',
+              cursor:'pointer',fontWeight:600,flexShrink:0}}>
+            {sentHistory.length} sent
+          </button>
+        )}
         {listNames.length>0&&(
           <span style={{fontSize:10,padding:'2px 8px',borderRadius:12,background:'#eff6ff',color:'#2563eb',
             fontWeight:600,flexShrink:0,maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}
@@ -701,6 +635,17 @@ function ContactRow({contact:c,accounts,drafts,drafting,draftOpen,copied,marking
               </div>
               <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
                 <div style={{fontSize:12,fontWeight:700,color:'#374151',flex:1}}>AI Draft — {c.status==='Fresh'?'Initial Email':sm.label}</div>
+                {draft.strategy&&(
+                  <button onClick={()=>setStrategyOpen(s=>({...s,[c.id]:!s[c.id]}))}
+                    title="View email strategy"
+                    style={{width:22,height:22,borderRadius:'50%',border:'1.5px solid #6d28d9',
+                      background:strategyOpen[c.id]?'#6d28d9':'#fff',
+                      color:strategyOpen[c.id]?'#fff':'#6d28d9',
+                      fontSize:11,fontWeight:700,cursor:'pointer',flexShrink:0,
+                      display:'flex',alignItems:'center',justifyContent:'center',padding:0}}>
+                    i
+                  </button>
+                )}
                 <button onClick={()=>onRegenerate(c,customPrompt)} style={{fontSize:11,padding:'3px 10px',borderRadius:6,border:'1px solid #e5e7eb',background:'#fff',color:'#7c3aed',cursor:'pointer',fontWeight:500}}>Regenerate</button>
                 <button onClick={()=>onCopy(c.id)} style={{fontSize:11,padding:'3px 12px',borderRadius:6,border:'none',background:isCopied?'#059669':'#6d28d9',color:'#fff',cursor:'pointer',fontWeight:600}}>{isCopied?'Copied!':'Copy'}</button>
                 <button onClick={()=>onMarkSent(c)} disabled={isMarking} style={{fontSize:11,padding:'3px 12px',borderRadius:6,border:'none',background:isMarking?'#6ee7b7':'#059669',color:'#fff',cursor:isMarking?'wait':'pointer',fontWeight:700}}>{isMarking?'Done!':markSentLabel}</button>
@@ -718,6 +663,61 @@ function ContactRow({contact:c,accounts,drafts,drafting,draftOpen,copied,marking
                 <div style={{fontSize:10,fontWeight:700,color:'#9ca3af',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:4}}>Body</div>
                 <div style={{fontSize:12,lineHeight:1.85,color:'#374151',padding:'10px 13px',background:'#fff',borderRadius:7,border:'1px solid #e5e7eb',whiteSpace:'pre-wrap',fontFamily:'inherit'}}>{draft.body}</div>
               </div>
+              {strategyOpen[c.id]&&draft.strategy&&(
+                <div style={{marginTop:10,padding:'12px 14px',background:'#faf5ff',borderRadius:8,border:'1px solid #e9d5ff',fontSize:12}}>
+                  <div style={{fontWeight:700,color:'#6d28d9',marginBottom:10,fontSize:13,display:'flex',alignItems:'center',gap:6}}>
+                    <span style={{width:18,height:18,borderRadius:'50%',background:'#6d28d9',color:'#fff',fontSize:10,fontWeight:700,display:'inline-flex',alignItems:'center',justifyContent:'center'}}>i</span>
+                    Strategy Intelligence
+                  </div>
+                  {[
+                    ['Subject Strategy',draft.strategy.subjectLineType,draft.strategy.subjectLineReason],
+                    ['Opening',draft.strategy.openingStrategy,draft.strategy.openingReason],
+                    ['Body Framework',draft.strategy.bodyFramework,draft.strategy.bodyReason],
+                    ['CTA',draft.strategy.ctaType,draft.strategy.ctaReason],
+                  ].map(([label,name,reason])=>name&&(
+                    <div key={label} style={{marginBottom:8}}>
+                      <span style={{fontWeight:700,color:'#374151'}}>{label}:</span>{' '}
+                      <span style={{color:'#6d28d9',fontWeight:600}}>{name}</span>
+                      {reason&&<span style={{color:'#6b7280'}}> — {reason}</span>}
+                    </div>
+                  ))}
+                  {draft.strategy.psychTechniques?.length>0&&(
+                    <div style={{marginBottom:8}}>
+                      <span style={{fontWeight:700,color:'#374151'}}>Psych Techniques:</span>{' '}
+                      <span style={{color:'#7c3aed'}}>{draft.strategy.psychTechniques.join(', ')}</span>
+                    </div>
+                  )}
+                  {draft.strategy.competitorAngle&&draft.strategy.competitorAngle!=='null'&&(
+                    <div style={{marginBottom:8}}>
+                      <span style={{fontWeight:700,color:'#374151'}}>Competitor Angle:</span>{' '}
+                      <span style={{color:'#dc2626'}}>{draft.strategy.competitorAngle}</span>
+                    </div>
+                  )}
+                  {draft.strategy.stageLogic&&(
+                    <div>
+                      <span style={{fontWeight:700,color:'#374151'}}>Stage Logic:</span>{' '}
+                      <span style={{color:'#6b7280'}}>{draft.strategy.stageLogic}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {historyOpen[c.id]&&sentHistory.length>0&&(
+                <div style={{marginTop:10,padding:'12px 14px',background:'#f0fdf4',borderRadius:8,border:'1px solid #bbf7d0',fontSize:12}}>
+                  <div style={{fontWeight:700,color:'#059669',marginBottom:10,fontSize:13}}>
+                    Previously Sent ({sentHistory.length})
+                  </div>
+                  {sentHistory.map((e,i)=>(
+                    <div key={i} style={{marginBottom:i<sentHistory.length-1?14:0,paddingBottom:i<sentHistory.length-1?14:0,borderBottom:i<sentHistory.length-1?'1px solid #d1fae5':'none'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:5}}>
+                        {e.stage&&<span style={{fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:5,background:'#d1fae5',color:'#065f46'}}>{e.stage}</span>}
+                        {e.date&&<span style={{fontSize:10,color:'#9ca3af'}}>{new Date(e.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'})}</span>}
+                      </div>
+                      {e.subject&&<div style={{fontWeight:600,color:'#111',marginBottom:4,fontSize:12}}>Subject: {e.subject}</div>}
+                      <div style={{color:'#374151',lineHeight:1.7,whiteSpace:'pre-wrap',fontSize:11}}>{e.body}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div style={{marginTop:10,fontSize:11,color:'#9ca3af'}}>Review and personalise before sending · click <strong style={{color:'#059669'}}>{markSentLabel}</strong> after you send it</div>
             </>
           ):(
