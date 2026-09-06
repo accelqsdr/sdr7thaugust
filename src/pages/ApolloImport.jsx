@@ -88,11 +88,17 @@ export default function ApolloImport() {
         }
         const companyLower = c.organization?.name?.toLowerCase();
         const accountId = companyLower ? (accountMap[companyLower] || null) : null;
-        const row = { first_name: c.first_name || '', last_name: c.last_name || '', email: email || null, title: c.title || null, company: c.organization?.name || null, linkedin_url: c.linkedin_url || null, owner_id: assignTo, status: 'fresh', account_id: accountId };
+        const row = { first_name: c.first_name || '', last_name: c.last_name || '', email: email || null, title: c.title || null, company: c.organization?.name || null, linkedin_url: c.linkedin_url || null, owner_id: assignTo, status: 'Fresh', account_id: accountId, source: 'apollo_import' };
         if (c.email && duplicateAction[c.email] === 'overwrite') {
           await supabase.from('contacts').update(row).eq('email', c.email);
         } else {
-          await supabase.from('contacts').insert(row);
+          const { data: inserted } = await supabase.from('contacts').insert(row).select('id').single();
+          if (inserted?.id) {
+            await supabase.from('activity_log').insert({
+              actor_id: profile?.id || null, contact_id: inserted.id, activity_type: 'contact_created',
+              details: { source: 'apollo_import' },
+            });
+          }
         }
         imported++;
       } catch (_) { failed++; }
