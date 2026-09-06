@@ -728,6 +728,7 @@ function TimelineItem({ item, isLast }) {
 
 /* ── Email History Panel ── */
 function EmailHistoryPanel({ emails, loading, contact, userId, onSaved }) {
+  const contactName = contact ? ([contact.first_name, contact.last_name].filter(Boolean).join(' ') || contact.email || 'Contact') : '';
   const [showLog, setShowLog] = useState(false);
   const [form, setForm] = useState({ stage: 'Fresh', subject: '', body: '', format: 'Cold Email', sender_email: '', sent_at: new Date().toISOString().slice(0,10) });
   const [saving, setSaving] = useState(false);
