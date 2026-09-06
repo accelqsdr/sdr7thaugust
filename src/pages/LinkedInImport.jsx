@@ -88,7 +88,7 @@ export default function LinkedInImport() {
         }
         if (isDup) { stats.skipped++; continue; }
 
-        const { error } = await supabase.from('contacts').insert({
+        const { data: inserted, error } = await supabase.from('contacts').insert({
           first_name:   c.firstName || '',
           last_name:    c.lastName || '',
           title:        c.designation || '',
@@ -99,10 +99,19 @@ export default function LinkedInImport() {
           status:       'Fresh',
           owner_id:     profile?.id || null,
           notes:        c.country ? 'Location: ' + c.country : null,
-        });
+          source:       'linkedin_import',
+        }).select('id').single();
 
         if (error) stats.errors.push(c.firstName + ' ' + c.lastName + ': ' + error.message);
-        else stats.imported++;
+        else {
+          stats.imported++;
+          if (inserted?.id) {
+            await supabase.from('activity_log').insert({
+              actor_id: profile?.id || null, contact_id: inserted.id, activity_type: 'contact_created',
+              details: { source: 'linkedin_import' },
+            });
+          }
+        }
       } catch (err) {
         stats.errors.push(c.firstName + ' ' + c.lastName + ': ' + err.message);
       }
