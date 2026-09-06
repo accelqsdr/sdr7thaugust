@@ -763,13 +763,20 @@ function UploadCSV({ userId, onDone }) {
     const contactRows = rows.map(({ _industry, _country, _website, _revenue, _employees, ...rest }) => ({
       ...rest,
       account_id: accountMap[rest.company] || null,
+      source: 'csv_import',
     }));
 
     const BATCH = 50;
     let total = 0;
     for (let i = 0; i < contactRows.length; i += BATCH) {
-      const { error } = await supabase.from('contacts').insert(contactRows.slice(i, i + BATCH));
+      const { data: inserted, error } = await supabase.from('contacts').insert(contactRows.slice(i, i + BATCH)).select('id');
       if (error) { setMsg('Upload failed: ' + error.message); setStep('idle'); return; }
+      if (inserted && inserted.length) {
+        await supabase.from('activity_log').insert(inserted.map(row => ({
+          actor_id: user.id, contact_id: row.id, activity_type: 'contact_created',
+          details: { source: 'csv_import' },
+        })));
+      }
       total += Math.min(BATCH, contactRows.length - i);
       setMsg(`Uploading… ${total}/${contactRows.length}`);
     }
