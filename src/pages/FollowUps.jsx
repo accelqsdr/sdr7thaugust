@@ -241,6 +241,10 @@ export default function FollowUps() {
       actor_id:user.id, contact_id:contact.id, activity_type:'email_sent',
       details:{from_stage:contact.status,to_stage:next,subject:draft?.subject||'',body:draft?.body||''},
     });
+    await supabase.from('emails').insert({
+      contact_id:contact.id, owner_id:user.id, stage:contact.status,
+      subject:draft?.subject||'', body:draft?.body||'', direction:'outbound', sent_at:now,
+    });
     setDrafts(d=>{const nd={...d};delete nd[contact.id];return nd;});
     setDraftOpen(o=>o===contact.id?null:o);
     setMarkingSent(null);
