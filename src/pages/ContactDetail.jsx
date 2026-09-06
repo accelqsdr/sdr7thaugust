@@ -44,7 +44,7 @@ const SIGNAL_FIELDS = [];
 const PERSONA_LIST = ['Economic Buyer','Decision Maker','Champion','Technical Buyer','User / End User','Influencer','Gatekeeper','Procurement Buyer','Executive Sponsor'];
 
 const ACTIVITY_LABELS = {
-  status_changed:   'Status changed',
+  status_changed:   'Stage changed',
   bounce_detected:  'Marked bounced',
   email_sent:       'Email sent',
   reply_logged:     'Reply logged',
@@ -53,11 +53,21 @@ const ACTIVITY_LABELS = {
   signals_updated:  'Signals updated',
   stage_advanced:   'Stage advanced',
   followup_done:    'Follow-up done',
+  response_set:     'Response marked',
+  outreach_started: 'Outreach started',
+  contact_created:  'Contact added',
 };
 const ACTIVITY_ICONS = {
   status_changed: '🔄', bounce_detected: '⛔', email_sent: '✉️',
   reply_logged: '💬', note_added: '📝', research_updated: '🔍',
   signals_updated: '🎯', stage_advanced: '⬆️', followup_done: '✅',
+  response_set: '📩', outreach_started: '🚀', contact_created: '➕',
+};
+const SOURCE_LABELS = {
+  csv_import: 'CSV import',
+  linkedin_import: 'LinkedIn import',
+  apollo_import: 'Apollo import',
+  manual: 'Manual entry',
 };
 
 export default function ContactDetail() {
@@ -131,21 +141,34 @@ export default function ContactDetail() {
 
   const fetchNotes = useCallback(async (companyName) => {
     const [{ data: cn }, { data: co }] = await Promise.all([
-      supabase.from('contact_notes').select('*, profiles(full_name)').eq('contact_id', id).order('created_at', { ascending: false }),
+      supabase.from('contact_notes').select('*').eq('contact_id', id).order('created_at', { ascending: false }),
       companyName
-        ? supabase.from('company_notes').select('*, profiles(full_name)').eq('company_name', companyName).order('created_at', { ascending: false })
+        ? supabase.from('company_notes').select('*').eq('company_name', companyName).order('created_at', { ascending: false })
         : Promise.resolve({ data: [] }),
     ]);
-    setContactNotes(cn || []);
-    setCompanyNotes(co || []);
+    const rows = [...(cn || []), ...(co || [])];
+    const authorIds = [...new Set(rows.map(r => r.author_id).filter(Boolean))];
+    let nameMap = {};
+    if (authorIds.length) {
+      const { data: users } = await supabase.from('user_settings').select('user_id, full_name').in('user_id', authorIds);
+      (users || []).forEach(u => { nameMap[u.user_id] = u.full_name; });
+    }
+    setContactNotes((cn || []).map(n => ({ ...n, authorName: nameMap[n.author_id] || null })));
+    setCompanyNotes((co || []).map(n => ({ ...n, authorName: nameMap[n.author_id] || null })));
   }, [id]);
 
   const fetchTimeline = useCallback(async () => {
-    const { data } = await supabase.from('activity_log').select('*, profiles(full_name)')
+    const { data } = await supabase.from('activity_log').select('*')
       .eq('contact_id', id).order('created_at', { ascending: false }).limit(50);
-    setTimeline(data || []);
+    const rows = data || [];
+    const actorIds = [...new Set(rows.map(r => r.actor_id).filter(Boolean))];
+    let nameMap = {};
+    if (actorIds.length) {
+      const { data: users } = await supabase.from('user_settings').select('user_id, full_name').in('user_id', actorIds);
+      (users || []).forEach(u => { nameMap[u.user_id] = u.full_name; });
+    }
+    setTimeline(rows.map(r => ({ ...r, actorName: nameMap[r.actor_id] || null })));
   }, [id]);
-
   const fetchEmails = useCallback(async () => {
     setEmailsLoading(true);
     const { data } = await supabase.from('emails').select('*').eq('contact_id', id).order('sent_at', { ascending: false });
@@ -682,7 +705,7 @@ function NoteSection({ title, subtitle, notes, newNote, onChangeNote, onAdd, sav
 }
 
 function NoteCard({ note, isCompany }) {
-  const author = note.profiles?.full_name || 'Unknown';
+  const author = note.authorName || 'Unknown';
   const date = note.created_at ? new Date(note.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
   return (
     <div style={{ padding: '12px 14px', borderRadius: 8, marginBottom: 8, background: isCompany ? '#fffbeb' : '#f8f8f6', borderLeft: `3px solid ${isCompany ? '#f59e0b' : '#e0e0e0'}` }}>
@@ -696,10 +719,11 @@ function NoteCard({ note, isCompany }) {
 }
 
 function TimelineItem({ item, isLast }) {
-  const author = item.profiles?.full_name || 'System';
-  const label = ACTIVITY_LABELS[item.activity_type] || item.activity_type?.replace(/_/g, ' ');
+  const author = item.actorName || 'System';
+  const label = ACTIVITY_LABELS[item.activity_type] || (item.activity_type || '').replace(/_/g, ' ');
   const icon = ACTIVITY_ICONS[item.activity_type] || '●';
   const date = item.created_at ? new Date(item.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+  const d = item.details || {};
   return (
     <div style={{ display: 'flex', gap: 12, paddingBottom: isLast ? 0 : 20, position: 'relative' }}>
       {!isLast && <div style={{ position: 'absolute', left: 17, top: 34, bottom: 0, width: 1, background: '#f0f0ee' }} />}
@@ -707,26 +731,39 @@ function TimelineItem({ item, isLast }) {
         {icon}
       </div>
       <div style={{ flex: 1, paddingTop: 5 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
           <span style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{label}</span>
           <span style={{ fontSize: 11, color: '#bbb' }}>{date}</span>
         </div>
         <span style={{ fontSize: 12, color: '#999' }}>{author}</span>
-        {item.details?.from && item.details?.to && (
-          <span style={{ marginLeft: 8, fontSize: 11, background: '#e0f2fe', color: '#0369a1', padding: '1px 8px', borderRadius: 10 }}>
-            {item.details.from} → {item.details.to}
-          </span>
+        {item.activity_type === 'email_sent' && d.subject && (
+          <div style={{ marginTop: 4, fontSize: 12, color: '#555' }}>
+            “{d.subject}” {d.from_stage && d.to_stage && (
+              <span style={{ marginLeft: 6, fontSize: 11, background: '#e0f2fe', color: '#0369a1', padding: '1px 8px', borderRadius: 10 }}>{d.from_stage} → {d.to_stage}</span>
+            )}
+          </div>
         )}
-        {item.details?.status && !item.details?.from && (
-          <span style={{ marginLeft: 8, fontSize: 11, background: '#e0f2fe', color: '#0369a1', padding: '1px 8px', borderRadius: 10 }}>→ {item.details.status}</span>
+        {item.activity_type === 'response_set' && d.response_type && (
+          <div style={{ marginTop: 4 }}>
+            <span style={{ fontSize: 11, background: '#fef3c7', color: '#92400e', padding: '1px 8px', borderRadius: 10 }}>{d.response_type}</span>
+          </div>
+        )}
+        {item.activity_type === 'contact_created' && (
+          <div style={{ marginTop: 4 }}>
+            <span style={{ fontSize: 11, background: '#dcfce7', color: '#166534', padding: '1px 8px', borderRadius: 10 }}>{SOURCE_LABELS[d.source] || d.source || 'Unknown source'}</span>
+          </div>
+        )}
+        {d.status && !d.from && item.activity_type !== 'response_set' && (
+          <span style={{ marginLeft: 8, fontSize: 11, background: '#e0f2fe', color: '#0369a1', padding: '1px 8px', borderRadius: 10 }}>→ {d.status}</span>
+        )}
+        {d.from && d.to && item.activity_type !== 'email_sent' && (
+          <span style={{ marginLeft: 8, fontSize: 11, background: '#e0f2fe', color: '#0369a1', padding: '1px 8px', borderRadius: 10 }}>{d.from} → {d.to}</span>
         )}
       </div>
     </div>
   );
 }
 
-
-/* ── Email History Panel ── */
 function EmailHistoryPanel({ emails, loading, contact, userId, onSaved }) {
   const contactName = contact ? ([contact.first_name, contact.last_name].filter(Boolean).join(' ') || contact.email || 'Contact') : '';
   const [showLog, setShowLog] = useState(false);
