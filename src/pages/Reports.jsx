@@ -14,7 +14,7 @@ export default function Reports() {
       let q1 = supabase.from('contacts').select('*');
       let q2 = supabase.from('activity_log').select('*, org_hierarchy!actor_id(full_name,role)').order('created_at', { ascending: false }).limit(200);
 
-      if (profile?.role === 'sdr') {
+      if (profile?.role === 'owner') {
         q1 = q1.eq('owner_id', user.id);
         q2 = q2.eq('actor_id', user.id);
       } else {
