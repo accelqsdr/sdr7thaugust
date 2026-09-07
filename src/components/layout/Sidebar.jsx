@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { signOut } from '../../lib/auth';
 
 const navByRole = {
-  sdr: [
+  owner: [
     { to: '/', icon: '⊞', label: 'Dashboard', end: true },
     { to: '/contacts', icon: '👥', label: 'My contacts' },
     { to: '/accounts', icon: '🏢', label: 'Accounts' },
@@ -14,7 +14,8 @@ const navByRole = {
     { to: '/pipeline', icon: '📊', label: 'Pipeline' },
     { to: '/sequences', icon: '🔁', label: 'Sequences' },
   ],
-  poc: [
+  // sub-admin who manages owners directly (old "poc")
+  subAdminDirect: [
     { to: '/', icon: '⊞', label: 'Dashboard', end: true },
     { to: '/teams', icon: '👥', label: 'My team' },
     { to: '/contacts', icon: '📋', label: 'Contacts' },
@@ -25,7 +26,8 @@ const navByRole = {
     { to: '/activity', icon: '📡', label: 'Activity feed' },
     { to: '/reports', icon: '📈', label: 'Reports' },
   ],
-  manager: [
+  // sub-admin who manages other sub-admins (old "manager")
+  subAdminTeam: [
     { to: '/', icon: '⊞', label: 'Dashboard', end: true },
     { to: '/teams', icon: '👥', label: 'All teams' },
     { to: '/accounts', icon: '🏢', label: 'Accounts' },
@@ -36,7 +38,7 @@ const navByRole = {
     { to: '/activity', icon: '📡', label: 'Activity' },
     { to: '/reports', icon: '📄', label: 'Reports' },
   ],
-  director: [
+  admin: [
     { to: '/', icon: '⊞', label: 'Overview', end: true },
     { to: '/users-admin', icon: '👤', label: 'People' },
     { to: '/prospect-discovery', icon: '🔍', label: 'Account Discovery' },
@@ -50,13 +52,19 @@ const navByRole = {
   ],
 };
 
-const roleColors = { director: '#7c3aed', manager: '#d97706', poc: '#2563eb', sdr: '#059669' };
-const roleLabels = { director: 'Director', manager: 'Manager', poc: 'POC', sdr: 'SDR' };
+const roleColors = { admin: '#7c3aed', subAdminTeam: '#d97706', subAdminDirect: '#2563eb', owner: '#059669' };
+const roleLabels = { admin: 'Admin', subAdminTeam: 'Sub-Admin', subAdminDirect: 'Sub-Admin', owner: 'Owner' };
+
+function resolveNavKey(profile) {
+  if (profile?.role === 'admin') return 'admin';
+  if (profile?.role === 'sub-admin') return profile.subAdminTier === 'team' ? 'subAdminTeam' : 'subAdminDirect';
+  return 'owner';
+}
 
 export default function Sidebar() {
   const { profile } = useAuth();
-  const role = profile?.role || 'sdr';
-  const nav = navByRole[role] || navByRole.sdr;
+  const role = resolveNavKey(profile);
+  const nav = navByRole[role] || navByRole.owner;
   const color = roleColors[role];
 
   const linkStyle = (isActive) => ({
