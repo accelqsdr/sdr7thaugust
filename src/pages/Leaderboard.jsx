@@ -52,7 +52,7 @@ export default function Leaderboard() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: 48, color: '#aaa' }}>Loading…</div>
       ) : rows.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 48, color: '#aaa' }}>No SDRs found in the org hierarchy.</div>
+        <div style={{ textAlign: 'center', padding: 48, color: '#aaa' }}>No owners found in the org hierarchy.</div>
       ) : (
         <>
           {/* Top 3 podium */}
