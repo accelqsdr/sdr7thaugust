@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 
 export default function Settings() {
   const { profile } = useAuth();
-  const isDirector = profile?.role === 'director';
+  const isDirector = profile?.role === 'admin';
   const [apiKey, setApiKey] = useState('');
   const [provider, setProvider] = useState('anthropic');
   const [saved, setSaved] = useState('');
