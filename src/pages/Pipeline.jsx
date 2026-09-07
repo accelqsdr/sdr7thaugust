@@ -31,7 +31,7 @@ export default function Pipeline() {
     async function load() {
       setLoading(true);
       let q = supabase.from('contacts').select('*').eq('bounced', false).neq('status', 'bounced').neq('status', 'unsubscribed');
-      if (profile?.role === 'sdr') {
+      if (profile?.role === 'owner') {
         q = q.eq('owner_id', user.id);
       } else {
         const { data: subs } = await supabase.rpc('get_subordinate_ids', { manager_user_id: user.id });
