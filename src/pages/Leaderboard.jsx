@@ -13,7 +13,7 @@ export default function Leaderboard() {
   async function load() {
     setLoading(true);
     const [{ data: sdrs }, { data: c }] = await Promise.all([
-      supabase.from('org_hierarchy').select('*').eq('role', 'sdr'),
+      supabase.from('org_hierarchy').select('*').eq('role', 'owner'),
       supabase.from('contacts').select('owner_id, status, bounced, created_at'),
     ]);
 
