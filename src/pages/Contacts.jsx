@@ -991,7 +991,8 @@ function UploadCSV({ userId, onDone }) {
     setMsg('Creating accounts…');
 
     const uniqueNames = [...new Set(parsedRows.map(r => r.company).filter(Boolean))];
-    const { data: existingAccounts } = await supabase.from('accounts').select('id, name').in('name', uniqueNames);
+    // Scope to this owner only, for the same reason as checkNewCompaniesAndProceed.
+    const { data: existingAccounts } = await supabase.from('accounts').select('id, name').in('name', uniqueNames).eq('owner_id', userId);
 
     const toCreate = newCompanies.filter(c => selectedNew.has(c.name)).map(c => ({
       name: c.name,
