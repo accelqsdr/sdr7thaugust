@@ -98,7 +98,7 @@ export default function DirectorDashboard() {
           </thead>
           <tbody>
             {leaderboard.length === 0 ? (
-              <tr><td colSpan={9} style={{ padding: 24, textAlign: 'center', color: '#aaa' }}>No SDRs found in org_hierarchy.</td></tr>
+              <tr><td colSpan={9} style={{ padding: 24, textAlign: 'center', color: '#aaa' }}>No owners found in org_hierarchy.</td></tr>
             ) : leaderboard.map((s, i) => (
               <tr key={s.id} style={{ borderBottom: '0.5px solid #f5f5f3', background: i === 0 ? '#fffbeb' : 'transparent' }}>
                 <td style={{ padding: '9px 12px', fontWeight: 600, color: i === 0 ? '#d97706' : '#999' }}>
