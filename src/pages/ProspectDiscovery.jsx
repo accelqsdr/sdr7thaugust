@@ -463,11 +463,11 @@ export default function ProspectDiscovery() {
             <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase',
               letterSpacing: '0.08em', marginBottom: 10 }}>🌍 Geography</div>
 
-            {availableStates.length > 0 && (<MultiSelect label="States / Provinces" icon="" options={availableStates}
-              selected={selectedStates} onChange={setSelectedStates} placeholder="Any US state" />)}
-
             <MultiSelect label="Countries" icon="" options={COUNTRIES}
               selected={selectedCountries} onChange={v => { setSelectedCountries(v); setSelectedStates([]); }} placeholder="Any country" />
+
+            {availableStates.length > 0 && (<MultiSelect label="States / Provinces" icon="" options={availableStates}
+              selected={selectedStates} onChange={setSelectedStates} placeholder="Any US state" />)}
 
             <div style={S.divider} />
 
