@@ -82,7 +82,7 @@ export default function Leaderboard() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ borderBottom: '0.5px solid #e8e8e4' }}>
-                  {['Rank', 'SDR', 'Region', 'Active', 'Replies', 'Meetings', 'Won', 'Bounced', 'Reply rate'].map(h => (
+                  {['Rank', 'Owner', 'Region', 'Active', 'Replies', 'Meetings', 'Won', 'Bounced', 'Reply rate'].map(h => (
                     <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, color: '#999', fontWeight: 500 }}>{h}</th>
                   ))}
                 </tr>
