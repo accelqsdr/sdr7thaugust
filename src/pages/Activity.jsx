@@ -22,7 +22,7 @@ export default function Activity() {
       .order('created_at', { ascending: false })
       .limit(100);
 
-    if (profile?.role === 'sdr') {
+    if (profile?.role === 'owner') {
       q = q.eq('actor_id', user.id);
     } else {
       const { data: subs } = await supabase.rpc('get_subordinate_ids', { manager_user_id: user.id });
