@@ -10,9 +10,8 @@ export default function Dashboard() {
   const { profile } = useAuth();
   const role = profile?.role;
 
-  if (role === 'sdr') return <SDRDashboard />;
-  if (role === 'poc') return <POCDashboard />;
-  if (role === 'manager') return <ManagerDashboard />;
-  if (role === 'director') return <DirectorDashboard />;
+  if (role === 'owner') return <SDRDashboard />;
+  if (role === 'sub-admin') return profile?.subAdminTier === 'team' ? <ManagerDashboard /> : <POCDashboard />;
+  if (role === 'admin') return <DirectorDashboard />;
   return <div style={{ padding: 24, color: '#888' }}>Loading dashboard…</div>;
 }
