@@ -45,7 +45,7 @@ export default function Teams() {
     };
   }
 
-  // Build tree: manager (me) → pocs → sdrs
+  // Build tree: me → direct reports → their reports
   const me = hierarchy.find(h => h.user_id === user.id) || { full_name: profile?.full_name, role: profile?.role };
   const pocs = hierarchy.filter(h => h.reports_to === user.id);
 
