@@ -78,7 +78,7 @@ export default function Teams() {
                     <div style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>{poc.full_name}</div>
                     <div style={{ fontSize: 12, color: '#888' }}>{poc.region || 'No region'}</div>
                   </div>
-                  <span style={{ padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 600, background: '#e0edff', color: '#2563eb' }}>POC</span>
+                  <span style={{ padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 600, background: '#e0edff', color: '#2563eb' }}>{formatRole(poc.role)}</span>
                   <div style={{ display: 'flex', gap: 16, fontSize: 12, color: '#555' }}>
                     <span><strong style={{ color: '#111' }}>{pocStats.active}</strong> contacts</span>
                     <span><strong style={{ color: '#059669' }}>{pocStats.replies}</strong> replies</span>
