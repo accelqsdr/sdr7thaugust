@@ -87,11 +87,11 @@ export default function DirectorDashboard() {
 
       {/* Leaderboard */}
       <div style={{ background: '#fff', border: '0.5px solid #e8e8e4', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
-        <div style={{ padding: '12px 16px', borderBottom: '0.5px solid #e8e8e4', fontSize: 13, fontWeight: 600, color: '#111' }}>SDR leaderboard</div>
+        <div style={{ padding: '12px 16px', borderBottom: '0.5px solid #e8e8e4', fontSize: 13, fontWeight: 600, color: '#111' }}>Owner leaderboard</div>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: '0.5px solid #f0f0ee' }}>
-              {['#', 'SDR', 'Region', 'Active', 'Replies', 'Meetings', 'Won', 'Bounced', 'Rate'].map(h => (
+              {['#', 'Owner', 'Region', 'Active', 'Replies', 'Meetings', 'Won', 'Bounced', 'Rate'].map(h => (
                 <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11, color: '#999', fontWeight: 500 }}>{h}</th>
               ))}
             </tr>
