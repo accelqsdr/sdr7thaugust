@@ -109,7 +109,7 @@ export default function Teams() {
                   );
                 })}
                 {sdrs.length === 0 && (
-                  <div style={{ padding: '12px 40px', color: '#ccc', fontSize: 13 }}>No SDRs under this POC</div>
+                  <div style={{ padding: '12px 40px', color: '#ccc', fontSize: 13 }}>No team members under this {formatRole(poc.role)}</div>
                 )}
               </div>
             );
