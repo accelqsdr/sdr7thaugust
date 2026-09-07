@@ -98,7 +98,7 @@ export default function Teams() {
                         <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{sdr.full_name}</div>
                         <div style={{ fontSize: 11, color: '#aaa' }}>{sdr.region || 'No region'}</div>
                       </div>
-                      <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 600, background: '#f0fdf4', color: '#059669' }}>SDR</span>
+                      <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 600, background: '#f0fdf4', color: '#059669' }}>{formatRole(sdr.role)}</span>
                       <div style={{ display: 'flex', gap: 14, fontSize: 12, color: '#666' }}>
                         <span><strong style={{ color: '#111' }}>{ss.active}</strong> contacts</span>
                         <span><strong style={{ color: '#059669' }}>{ss.replies}</strong> replies</span>
