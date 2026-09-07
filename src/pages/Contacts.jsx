@@ -772,6 +772,8 @@ function UploadCSV({ userId, onDone }) {
   const [parsedRows, setParsedRows]    = useState([]);
   const [newCompanies, setNewCompanies]  = useState([]); // [{name, industry, country, website, revenue_millions, employees}]
   const [selectedNew, setSelectedNew]   = useState(new Set()); // company names to create
+  const [dupeMatches, setDupeMatches]   = useState([]); // [{email, existingName, ownerName, isOwn}]
+  const [dupeSkip, setDupeSkip]         = useState(new Set()); // emails (lowercase) to skip on import
 
   function splitCSVLine(line) {
     const vals = [];
@@ -863,6 +865,39 @@ function UploadCSV({ userId, onDone }) {
 
     if (rows.length === 0) { setMsg('No valid rows found — check your column mapping'); setStep('idle'); return; }
 
+    setParsedRows(rows);
+    setStep('importing');
+    setMsg('Checking for duplicate contacts…');
+
+    const emails = [...new Set(rows.map(r => (r.email || '').trim().toLowerCase()).filter(Boolean))];
+    let matches = [];
+    if (emails.length > 0) {
+      const { data: existingContacts } = await supabase.from('contacts').select('id, email, first_name, last_name, owner_id').in('email', emails);
+      if (existingContacts && existingContacts.length > 0) {
+        const ownerIds = [...new Set(existingContacts.map(c => c.owner_id))];
+        const { data: owners } = await supabase.from('org_hierarchy').select('user_id, full_name').in('user_id', ownerIds);
+        const ownerNameMap = {};
+        (owners || []).forEach(o => { ownerNameMap[o.user_id] = o.full_name; });
+        matches = existingContacts.map(ec => ({
+          email: ec.email,
+          existingName: [ec.first_name, ec.last_name].filter(Boolean).join(' ') || ec.email,
+          ownerName: ec.owner_id === userId ? 'you' : (ownerNameMap[ec.owner_id] || 'another rep'),
+          isOwn: ec.owner_id === userId,
+        }));
+      }
+    }
+
+    if (matches.length > 0) {
+      setDupeMatches(matches);
+      setDupeSkip(new Set(matches.map(m => m.email.toLowerCase())));
+      setStep('dupes');
+      return;
+    }
+
+    await checkNewCompaniesAndProceed(rows);
+  }
+
+  async function checkNewCompaniesAndProceed(rows) {
     setStep('importing');
     setMsg('Checking accounts…');
 
@@ -873,22 +908,45 @@ function UploadCSV({ userId, onDone }) {
       const sample = rows.find(r => r.company === name) || {};
       return {
         name,
-        industry:         sample._industry || '',
-        country:          sample._country  || '',
-        website:          sample._website  || '',
-        revenue_millions: sample._revenue   ? parseFloat(sample._revenue) || null : null,
-        employees:        sample._employees || '',
+        industry:            sample._industry || '',
+        country:             sample._country || '',
+        website:             sample._website || '',
+        revenue_millions:    sample._revenue || '',
+        employees:           sample._employees || '',
       };
     });
 
-    setParsedRows(rows);
+    setNewCompanies(newCoList);
     if (newCoList.length > 0) {
-      setNewCompanies(newCoList);
       setSelectedNew(new Set(newCoList.map(c => c.name)));
       setStep('reviewing');
     } else {
       await runImport(rows, existing || [], []);
     }
+  }
+
+  function toggleDupeSkip(email) {
+    const e = email.toLowerCase();
+    setDupeSkip(prev => {
+      const next = new Set(prev);
+      next.has(e) ? next.delete(e) : next.add(e);
+      return next;
+    });
+  }
+
+  async function confirmDupesAndContinue() {
+    const rows = parsedRows.filter(r => {
+      const e = (r.email || '').trim().toLowerCase();
+      if (!e) return true;
+      return !dupeSkip.has(e);
+    });
+    if (rows.length === 0) {
+      setMsg('All contacts skipped — nothing to import');
+      setStep('idle');
+      return;
+    }
+    setParsedRows(rows);
+    await checkNewCompaniesAndProceed(rows);
   }
 
   async function runImport(rows, existingAccounts, createdAccounts) {
@@ -1031,6 +1089,42 @@ function UploadCSV({ userId, onDone }) {
                   Continue
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cross-rep duplicate contacts review modal */}
+      {step === 'dupes' && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 28, width: 560, maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <h2 style={{ fontSize: 17, fontWeight: 700, margin: '0 0 6px' }}>Possible duplicate contacts</h2>
+            <p style={{ fontSize: 13, color: '#666', margin: '0 0 18px' }}>
+              {dupeMatches.length} email{dupeMatches.length === 1 ? '' : 's'} in this file already exist in the platform. They're skipped by default — check a box to import it anyway.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
+              {dupeMatches.map(m => (
+                <label key={m.email} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: 10, borderRadius: 8, border: '1px solid #eee', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={!dupeSkip.has(m.email.toLowerCase())} onChange={() => toggleDupeSkip(m.email)} style={{ marginTop: 3, cursor: 'pointer' }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: '#111' }}>{m.existingName}</div>
+                    <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{m.email}</div>
+                    <div style={{ fontSize: 12, color: m.isOwn ? '#b45309' : '#991b1b', marginTop: 2 }}>
+                      {m.isOwn ? 'You already have this contact' : `Already owned by ${m.ownerName}`}
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button onClick={() => { setStep('idle'); setDupeMatches([]); setDupeSkip(new Set()); }}
+                style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '1px solid #e0e0e0', background: '#fff', color: '#666', cursor: 'pointer' }}>
+                Cancel import
+              </button>
+              <button onClick={confirmDupesAndContinue}
+                style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#2563eb', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
+                Continue
+              </button>
             </div>
           </div>
         </div>
