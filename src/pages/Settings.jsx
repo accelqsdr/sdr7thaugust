@@ -88,14 +88,14 @@ export default function Settings() {
       <div style={{ background: '#fff', border: '0.5px solid #e8e8e4', borderRadius: 12, padding: 20, maxWidth: 560 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: '#111', marginBottom: 6 }}>AI API Key</div>
         <p style={{ fontSize: 13, color: '#888', marginBottom: 16, lineHeight: 1.6 }}>
-          This key is shared across all users. Only the Director can update it.
+          This key is shared across all users. Only an Admin can update it.
           It is stored securely in Supabase and never exposed to the browser.
         </p>
         {loading ? (
           <div style={{ color: '#aaa' }}>Loading…</div>
         ) : !isDirector ? (
           <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#0369a1' }}>
-            ✓ AI API key is configured by your Director. Your outreach AI features are active.
+            ✓ AI API key is configured by your Admin. Your outreach AI features are active.
           </div>
         ) : (
           <>
