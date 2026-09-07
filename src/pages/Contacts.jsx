@@ -902,7 +902,9 @@ function UploadCSV({ userId, onDone }) {
     setMsg('Checking accounts…');
 
     const uniqueCompanies = [...new Set(rows.map(r => r.company).filter(c => c && c.trim()))];
-    const { data: existing } = await supabase.from('accounts').select('id, name').in('name', uniqueCompanies);
+    // Scope to this owner only — otherwise another rep's account for the
+    // same company name hides the fact that YOU don't have one yet.
+    const { data: existing } = await supabase.from('accounts').select('id, name').in('name', uniqueCompanies).eq('owner_id', userId);
     const existingNames = new Set((existing || []).map(a => a.name));
     const newCoList = uniqueCompanies.filter(n => !existingNames.has(n)).map(name => {
       const sample = rows.find(r => r.company === name) || {};
