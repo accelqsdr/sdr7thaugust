@@ -65,7 +65,7 @@ export default function Activity() {
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: TYPE_COLORS[a.activity_type] || '#888', marginTop: 5, flexShrink: 0 }} />
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, color: '#111' }}>
-                {profile?.role !== 'sdr' && (
+                {profile?.role !== 'owner' && (
                   <strong>{a.org_hierarchy?.full_name || 'Unknown'} </strong>
                 )}
                 <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, background: (TYPE_COLORS[a.activity_type] || '#888') + '20', color: TYPE_COLORS[a.activity_type] || '#555' }}>
