@@ -55,7 +55,7 @@ function parseCSV(text) {
 
 export default function Lists() {
   const { user, profile } = useAuth();
-  const canViewAll = ['director', 'manager'].includes(profile?.role);
+  const canViewAll = ['admin', 'sub-admin'].includes(profile?.role);
   const [viewAll, setViewAll] = useState(false);
 
   const [lists, setLists] = useState([]);
