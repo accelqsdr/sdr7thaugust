@@ -46,7 +46,7 @@ export default function Leaderboard() {
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 20, fontWeight: 600, color: '#111', margin: 0 }}>Leaderboard</h1>
-        <p style={{ fontSize: 13, color: '#888', margin: '3px 0 0' }}>SDR performance rankings · all time</p>
+        <p style={{ fontSize: 13, color: '#888', margin: '3px 0 0' }}>Owner performance rankings · all time</p>
       </div>
 
       {loading ? (
