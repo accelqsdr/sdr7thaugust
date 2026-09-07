@@ -30,8 +30,8 @@ export default function DirectorDashboard() {
       });
       setActivity(acts || []);
 
-      // Leaderboard: SDRs only, ranked by replies
-      const sdrs = (allHierarchy || []).filter(h => h.role === 'sdr');
+      // Leaderboard: owners only, ranked by replies
+      const sdrs = (allHierarchy || []).filter(h => h.role === 'owner');
       const board = sdrs.map(s => {
         const sc = c.filter(x => x.owner_id === s.user_id);
         const active = sc.filter(x => !x.bounced).length;
