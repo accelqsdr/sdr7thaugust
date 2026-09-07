@@ -2,7 +2,14 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
-const ROLE_COLORS = { director:'#7c3aed', manager:'#2563eb', poc:'#0891b2', sdr:'#059669' };
+const ROLE_COLORS = { admin:'#7c3aed', 'sub-admin':'#2563eb', owner:'#059669' };
+
+function formatRole(role) {
+  if (role === 'admin') return 'Admin';
+  if (role === 'sub-admin') return 'Sub-Admin';
+  if (role === 'owner') return 'Owner';
+  return role || '—';
+}
 
 export default function Teams() {
   const { user, profile } = useAuth();
