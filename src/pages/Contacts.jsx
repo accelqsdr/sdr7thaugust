@@ -90,10 +90,10 @@ export default function Contacts() {
   async function fetchFilterOptions() {
     const { data } = await supabase
       .from('contacts')
-      .select('industry, account_id, pitch_type, persona, company, status, accounts(industry)')
+      .select('account_id, pitch_type, persona, company, status, accounts(industry)')
       .eq('owner_id', user.id);
     const rows = data || [];
-    setIndustries([...new Set(rows.map(c => c.industry || c.accounts?.industry || '').filter(Boolean))].sort());
+    setIndustries([...new Set(rows.map(c => c.accounts?.industry || '').filter(Boolean))].sort());
     setPitchTypes([...new Set(rows.map(c => c.pitch_type).filter(Boolean))].sort());
     setPersonas([...new Set(rows.map(c => c.persona).filter(Boolean))].sort());
     setCompanies([...new Set(rows.map(c => c.company).filter(Boolean))].sort());
@@ -121,9 +121,14 @@ export default function Contacts() {
       const { data: accRows } = await supabase.from('accounts').select('id').eq('industry', industryFilter);
       const accIds = (accRows || []).map(a => a.id);
       if (accIds.length > 0) {
-        q = q.or(`industry.eq.${industryFilter},account_id.in.(${accIds.join(',')})`);
+        q = q.in('account_id', accIds);
       } else {
-        q = q.eq('industry', industryFilter);
+        setContacts([]);
+        setTotalCount(0);
+        setLoading(false);
+        setSelected(new Set());
+        fetchFilterOptions();
+        return;
       }
     }
     if (pitchTypeFilter) q = q.eq('pitch_type', pitchTypeFilter);
@@ -284,7 +289,7 @@ export default function Contacts() {
   }
 
   // Effective industry: contact's own industry OR inherited from account
-  function effectiveIndustry(c) { return c.industry || c.accounts?.industry || ''; }
+  function effectiveIndustry(c) { return c.accounts?.industry || ''; }
 
   const activeFilters = [industryFilter, pitchTypeFilter, personaFilter, listFilter, hasEmailFilter, companyFilter, responseFilter, dateAddedFilter, lastReachedFilter, dateAddedFrom, dateAddedTo, lastReachedFrom, lastReachedTo].filter(Boolean).length;
 
