@@ -99,7 +99,7 @@ export default function ManagerDashboard() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: '0.5px solid #f0f0ee' }}>
-              {['POC', 'SDRs', 'Active contacts', 'Replies', 'Meetings', 'Bounced', 'Reply rate'].map(h => (
+              {['Sub-Admin', 'Owners', 'Active contacts', 'Replies', 'Meetings', 'Bounced', 'Reply rate'].map(h => (
                 <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 11, color: '#999', fontWeight: 500 }}>{h}</th>
               ))}
             </tr>
