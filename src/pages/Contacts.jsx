@@ -1005,7 +1005,9 @@ function UploadCSV({ userId, onDone }) {
     }));
     let createdAccounts = [];
     if (toCreate.length > 0) {
-      const { data: created } = await supabase.from('accounts').insert(toCreate).select('id, name');
+      // Upsert on (owner_id, name): safe against races and against the
+      // now-enforced unique constraint if this owner already has the account.
+      const { data: created } = await supabase.from('accounts').upsert(toCreate, { onConflict: 'owner_id,name' }).select('id, name');
       createdAccounts = created || [];
     }
 
