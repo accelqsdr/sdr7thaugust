@@ -657,99 +657,166 @@ export default function Contacts() {
   );
 }
 
+
+const CONTACT_FIELDS = [
+  { key: '',              label: "Don't import" },
+  { key: 'full_name',     label: 'Full Name' },
+  { key: 'first_name',    label: 'First Name' },
+  { key: 'last_name',     label: 'Last Name' },
+  { key: 'email',         label: 'Email' },
+  { key: 'title',         label: 'Job Title' },
+  { key: 'company',       label: 'Company' },
+  { key: 'phone',         label: 'Phone' },
+  { key: 'linkedin_url',  label: 'LinkedIn URL' },
+  { key: 'pitch',         label: 'Pitch' },
+  { key: 'pitch_type',    label: 'Pitch Type' },
+  { key: 'persona',       label: 'Persona' },
+  { key: 'response_type', label: 'Response Type' },
+  { key: 'sender_email',  label: 'Sender Email' },
+  { key: 'notes',         label: 'Contact Notes' },
+  { key: '_industry',     label: 'Account: Industry' },
+  { key: '_country',      label: 'Account: Country' },
+  { key: '_website',      label: 'Account: Website' },
+  { key: '_revenue',      label: 'Account: Revenue ($M)' },
+  { key: '_employees',    label: 'Account: Employees' },
+];
+
+const FIELD_GUESS = [
+  { field: 'full_name',     keys: ['name','full_name','fullname','contact_name','contact'] },
+  { field: 'first_name',    keys: ['first_name','firstname','first'] },
+  { field: 'last_name',     keys: ['last_name','lastname','last','surname'] },
+  { field: 'email',         keys: ['email','email_address','work_email','contact_email'] },
+  { field: 'title',         keys: ['title','job_title','designation','role','position'] },
+  { field: 'company',       keys: ['company','company_name','organization','organisation','account','employer'] },
+  { field: 'phone',         keys: ['phone','phone_number','mobile','contact_number','telephone'] },
+  { field: 'linkedin_url',  keys: ['linkedin','linkedin_url','linkedin_profile','li_url'] },
+  { field: 'pitch',         keys: ['pitch','pitch_notes','pitch_content'] },
+  { field: 'pitch_type',    keys: ['pitch_type','pitchtype','pitch_category'] },
+  { field: 'persona',       keys: ['persona','buyer_persona','persona_type'] },
+  { field: 'response_type', keys: ['response_type','responsetype','response'] },
+  { field: 'sender_email',  keys: ['sender_email','sender','from_email','sent_from'] },
+  { field: 'notes',         keys: ['notes','note','contact_note','contact_notes','comments','remarks'] },
+  { field: '_industry',     keys: ['industry','sector'] },
+  { field: '_country',      keys: ['country','account_country','company_country'] },
+  { field: '_website',      keys: ['website','company_website','url','domain'] },
+  { field: '_revenue',      keys: ['revenue','revenue_millions','annual_revenue'] },
+  { field: '_employees',    keys: ['employees','employee_count','company_size','headcount'] },
+];
+
 function UploadCSV({ userId, onDone }) {
-  const [step, setStep]         = useState('idle'); // idle | reviewing | importing | done
-  const [msg, setMsg]           = useState('');
-  const [parsedRows, setParsedRows]   = useState([]);
-  const [newCompanies, setNewCompanies] = useState([]); // [{name, industry, country, website, revenue_millions, employees}]
-  const [selectedNew, setSelectedNew]  = useState(new Set()); // company names to create
+  const [step, setStep]          = useState('idle'); // idle | mapping | reviewing | importing | done
+  const [msg, setMsg]            = useState('');
+  const [csvHeaders, setCsvHeaders]   = useState([]); // raw header strings
+  const [csvDataRows, setCsvDataRows] = useState([]); // array of arrays (raw string values)
+  const [mapping, setMapping]         = useState({}); // { headerIndex: fieldKey }
+  const [parsedRows, setParsedRows]    = useState([]);
+  const [newCompanies, setNewCompanies]  = useState([]); // [{name, industry, country, website, revenue_millions, employees}]
+  const [selectedNew, setSelectedNew]   = useState(new Set()); // company names to create
+
+  function splitCSVLine(line) {
+    const vals = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      if (line[i] === '"') { inQ = !inQ; }
+      else if (line[i] === ',' && !inQ) { vals.push(cur.trim()); cur = ''; }
+      else { cur += line[i]; }
+    }
+    vals.push(cur.trim());
+    return vals;
+  }
+
+  function guessField(header) {
+    const h = header.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+    for (const g of FIELD_GUESS) {
+      if (g.keys.includes(h)) return g.field;
+    }
+    return '';
+  }
 
   function parseCSV(file) {
     const reader = new FileReader();
-    reader.onload = async (ev) => {
+    reader.onload = (ev) => {
       try {
         const text = ev.target.result.trim();
         const lines = text.split('\n');
         if (lines.length < 2) { setMsg('CSV has no data rows'); return; }
 
-        const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_'));
+        const headers = splitCSVLine(lines[0]);
+        const dataRows = lines.slice(1).filter(l => l.trim()).map(splitCSVLine);
 
-        const rows = lines.slice(1).filter(l => l.trim()).map(line => {
-          const vals = [];
-          let cur = '', inQ = false;
-          for (let i = 0; i < line.length; i++) {
-            if (line[i] === '"') { inQ = !inQ; }
-            else if (line[i] === ',' && !inQ) { vals.push(cur.trim()); cur = ''; }
-            else { cur += line[i]; }
-          }
-          vals.push(cur.trim());
-          const obj = {};
-          headers.forEach((h, i) => { obj[h] = (vals[i] || '').replace(/^"|"$/g, '').trim(); });
+        const initialMapping = {};
+        headers.forEach((h, i) => { initialMapping[i] = guessField(h); });
 
-          let firstName = obj.first_name || obj.firstname || '';
-          let lastName  = obj.last_name  || obj.lastname  || '';
-          if (!firstName && !lastName) {
-            const full = obj.name || obj.full_name || obj.contact_name || '';
-            const parts = full.split(' ');
-            firstName = parts[0] || '';
-            lastName  = parts.slice(1).join(' ') || '';
-          }
-
-          const company = obj.company || obj.company_name || obj.organization || '';
-          return {
-            // contact fields
-            owner_id:     userId,
-            first_name:   firstName,
-            last_name:    lastName,
-            email:        obj.email || obj.email_address || '',
-            company,
-            title:        obj.title || obj.job_title || obj.position || '',
-            phone:        obj.phone || obj.phone_number || obj.mobile || '',
-            linkedin_url: obj.linkedin || obj.linkedin_url || obj.linkedin_profile || '',
-            status:       'Fresh',
-            notes:        obj.notes || obj.note || '',
-            // account fields (stored alongside for account creation)
-            _industry:    obj.industry || obj.industry_name || '',
-            _country:     obj.country || obj.location || obj.region || '',
-            _website:     obj.website || obj.domain || obj.url || '',
-            _revenue:     obj.revenue || obj.revenue_millions || obj.annual_revenue || '',
-            _employees:   obj.employees || obj.employee_count || obj.headcount || '',
-          };
-        }).filter(r => r.first_name || r.last_name || r.email);
-
-        if (rows.length === 0) { setMsg('No valid rows found'); return; }
-
-        // Find new companies (not in existing accounts)
-        const uniqueCompanies = [...new Set(rows.map(r => r.company).filter(c => c && c.trim()))];
-        const { data: existing } = await supabase.from('accounts').select('id, name').in('name', uniqueCompanies);
-        const existingNames = new Set((existing || []).map(a => a.name));
-        const newCoList = uniqueCompanies.filter(n => !existingNames.has(n)).map(name => {
-          // gather account fields from first matching row
-          const sample = rows.find(r => r.company === name) || {};
-          return {
-            name,
-            industry:         sample._industry || '',
-            country:          sample._country  || '',
-            website:          sample._website  || '',
-            revenue_millions: sample._revenue  ? parseFloat(sample._revenue) || null : null,
-            employees:        sample._employees || '',
-          };
-        });
-
-        setParsedRows(rows);
-        if (newCoList.length > 0) {
-          setNewCompanies(newCoList);
-          setSelectedNew(new Set(newCoList.map(c => c.name)));
-          setStep('reviewing');
-        } else {
-          // all companies already exist — go straight to import
-          await runImport(rows, existing || [], []);
-        }
+        setCsvHeaders(headers);
+        setCsvDataRows(dataRows);
+        setMapping(initialMapping);
+        setMsg('');
+        setStep('mapping');
       } catch (err) {
         setMsg('Error: ' + err.message);
       }
     };
     reader.readAsText(file);
+  }
+
+  function updateMapping(headerIndex, field) {
+    setMapping(prev => ({ ...prev, [headerIndex]: field }));
+  }
+
+  async function applyMappingAndContinue() {
+    const rows = csvDataRows.map(vals => {
+      const obj = { owner_id: userId, status: 'Fresh' };
+      let firstName = '', lastName = '';
+      Object.entries(mapping).forEach(([idxStr, field]) => {
+        if (!field) return;
+        const idx = Number(idxStr);
+        const val = (vals[idx] || '').trim();
+        if (!val) return;
+        if (field === 'full_name') {
+          const parts = val.split(/\s+/);
+          firstName = firstName || parts[0] || '';
+          lastName = lastName || parts.slice(1).join(' ') || '';
+        } else if (field === 'first_name') {
+          firstName = val;
+        } else if (field === 'last_name') {
+          lastName = val;
+        } else {
+          obj[field] = val;
+        }
+      });
+      obj.first_name = firstName;
+      obj.last_name = lastName;
+      return obj;
+    }).filter(r => r.first_name || r.last_name || r.email);
+
+    if (rows.length === 0) { setMsg('No valid rows found — check your column mapping'); setStep('idle'); return; }
+
+    setStep('importing');
+    setMsg('Checking accounts…');
+
+    const uniqueCompanies = [...new Set(rows.map(r => r.company).filter(c => c && c.trim()))];
+    const { data: existing } = await supabase.from('accounts').select('id, name').in('name', uniqueCompanies);
+    const existingNames = new Set((existing || []).map(a => a.name));
+    const newCoList = uniqueCompanies.filter(n => !existingNames.has(n)).map(name => {
+      const sample = rows.find(r => r.company === name) || {};
+      return {
+        name,
+        industry:         sample._industry || '',
+        country:          sample._country  || '',
+        website:          sample._website  || '',
+        revenue_millions: sample._revenue   ? parseFloat(sample._revenue) || null : null,
+        employees:        sample._employees || '',
+      };
+    });
+
+    setParsedRows(rows);
+    if (newCoList.length > 0) {
+      setNewCompanies(newCoList);
+      setSelectedNew(new Set(newCoList.map(c => c.name)));
+      setStep('reviewing');
+    } else {
+      await runImport(rows, existing || [], []);
+    }
   }
 
   async function runImport(rows, existingAccounts, createdAccounts) {
@@ -773,7 +840,7 @@ function UploadCSV({ userId, onDone }) {
       if (error) { setMsg('Upload failed: ' + error.message); setStep('idle'); return; }
       if (inserted && inserted.length) {
         await supabase.from('activity_log').insert(inserted.map(row => ({
-          actor_id: user.id, contact_id: row.id, activity_type: 'contact_created',
+          actor_id: userId, contact_id: row.id, activity_type: 'contact_created',
           details: { source: 'csv_import' },
         })));
       }
@@ -791,11 +858,9 @@ function UploadCSV({ userId, onDone }) {
     setStep('importing');
     setMsg('Creating accounts…');
 
-    // Existing accounts
     const uniqueNames = [...new Set(parsedRows.map(r => r.company).filter(Boolean))];
     const { data: existingAccounts } = await supabase.from('accounts').select('id, name').in('name', uniqueNames);
 
-    // Create selected new accounts
     const toCreate = newCompanies.filter(c => selectedNew.has(c.name)).map(c => ({
       name: c.name,
       owner_id: userId,
@@ -831,6 +896,9 @@ function UploadCSV({ userId, onDone }) {
     });
   };
 
+  const mappedFieldCount = Object.values(mapping).filter(Boolean).length;
+  const hasNameOrEmail = Object.values(mapping).some(f => ['first_name','last_name','full_name','email'].includes(f));
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       {msg && (
@@ -842,6 +910,59 @@ function UploadCSV({ userId, onDone }) {
         {step === 'importing' ? 'Importing…' : '+ Import CSV'}
         <input type="file" accept=".csv" onChange={handleFile} style={{ display: 'none' }} disabled={step === 'importing'} />
       </label>
+
+      {step === 'mapping' && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 28, width: 680, maxHeight: '82vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <h2 style={{ fontSize: 17, fontWeight: 700, margin: '0 0 6px' }}>Map your CSV columns</h2>
+            <p style={{ fontSize: 13, color: '#666', margin: '0 0 4px' }}>
+              We found {csvHeaders.length} column{csvHeaders.length !== 1 ? 's' : ''} and {csvDataRows.length} row{csvDataRows.length !== 1 ? 's' : ''}. Tell us what each column means so nothing gets lost or mismatched.
+            </p>
+            <p style={{ fontSize: 12, color: '#999', margin: '0 0 16px' }}>
+              Columns left as "Don't import" are ignored.
+            </p>
+
+            {!hasNameOrEmail && (
+              <div style={{ fontSize: 12, color: '#92400e', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 12px', marginBottom: 14 }}>
+                ⚠ Map at least a name or email column so contacts can be identified.
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+              {csvHeaders.map((h, i) => {
+                const sample = csvDataRows.find(r => (r[i] || '').trim())?.[i] || '';
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: '#f9fafb', borderRadius: 8, border: '1px solid #eee' }}>
+                    <div style={{ flex: '0 0 160px', minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{h || `Column ${i + 1}`}</div>
+                      <div style={{ fontSize: 11, color: '#999', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sample ? `e.g. "${sample}"` : 'no sample data'}</div>
+                    </div>
+                    <span style={{ color: '#bbb', fontSize: 14 }}>→</span>
+                    <select value={mapping[i] || ''} onChange={e => updateMapping(i, e.target.value)}
+                      style={{ flex: 1, padding: '6px 8px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, background: '#fff', color: mapping[i] ? '#111' : '#999' }}>
+                      {CONTACT_FIELDS.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
+                    </select>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 12, color: '#999' }}>{mappedFieldCount} of {csvHeaders.length} columns mapped</span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => { setStep('idle'); setCsvHeaders([]); setCsvDataRows([]); setMapping({}); }}
+                  style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #e0e0e0', background: '#fff', fontSize: 13, cursor: 'pointer', color: '#666' }}>
+                  Cancel
+                </button>
+                <button onClick={applyMappingAndContinue} disabled={!hasNameOrEmail}
+                  style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: hasNameOrEmail ? '#2563eb' : '#c7d2fe', color: '#fff', fontSize: 13, fontWeight: 600, cursor: hasNameOrEmail ? 'pointer' : 'not-allowed' }}>
+                  Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* New companies review modal */}
       {step === 'reviewing' && (
