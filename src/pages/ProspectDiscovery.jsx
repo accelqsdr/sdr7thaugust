@@ -343,9 +343,11 @@ export default function ProspectDiscovery() {
   async function handleAdd(r) {
     setActionWorking(w => ({ ...w, [r.id]: 'adding' }));
     try {
-      const { data: account, error: accErr } = await supabase.from('accounts').insert({
+      // Upsert on (owner_id, name) so re-adding a company you already have
+      // reuses that account instead of creating a duplicate row.
+      const { data: account, error: accErr } = await supabase.from('accounts').upsert({
         name: r.company_name, industry: r.industry || null, owner_id: user.id, status: 'active',
-      }).select().single();
+      }, { onConflict: 'owner_id,name' }).select().single();
       if (accErr) throw accErr;
       await supabase.from('prospect_suggestions').update({ status: 'added' }).eq('id', r.id);
       try {
