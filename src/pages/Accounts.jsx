@@ -200,12 +200,14 @@ export default function Accounts() {
       if(sim.length>0){setAcctDupCandidates(sim);return;}
     }
     setAdding(true);
-    const { data } = await supabase.from('accounts').insert({
+    // Upsert on (owner_id, name) so this can't create a duplicate if the
+    // fuzzy check above was bypassed with force=true on an exact-name match.
+    const { data } = await supabase.from('accounts').upsert({
       name: newAcct.name.trim(), industry: newAcct.industry || null, country: newAcct.country || null,
       linkedin_url: newAcct.linkedin_url || null,
       revenue_millions: newAcct.revenue_millions ? parseFloat(newAcct.revenue_millions) : null,
       owner_id: user.id,
-    }).select().single();
+    }, { onConflict: 'owner_id,name' }).select().single();
     setAdding(false); setShowAddAccount(false);
     setNewAcct({ name: '', industry: '', country: '', linkedin_url: '', revenue_millions: '' });
     await fetchAll();
