@@ -33,9 +33,9 @@ export default function ManagerDashboard() {
       });
       setActivity(acts || []);
 
-      // Group by POC level (reports_to manager)
-      const pocs = (hierarchy || []).filter(h => h.role === 'poc');
-      const sdrs = (hierarchy || []).filter(h => h.role === 'sdr');
+      // Group by sub-admin level (reports_to this manager)
+      const pocs = (hierarchy || []).filter(h => h.role === 'sub-admin');
+      const sdrs = (hierarchy || []).filter(h => h.role === 'owner');
 
       const teamMap = pocs.map(poc => {
         const pocSdrs = sdrs.filter(s => s.reports_to === poc.user_id);
