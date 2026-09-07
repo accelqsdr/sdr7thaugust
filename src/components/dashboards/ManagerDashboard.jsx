@@ -68,7 +68,7 @@ export default function ManagerDashboard() {
   return (
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 600, color: '#111', margin: 0 }}>Manager dashboard</h1>
+        <h1 style={{ fontSize: 20, fontWeight: 600, color: '#111', margin: 0 }}>Sub-Admin dashboard</h1>
         <p style={{ fontSize: 13, color: '#888', margin: '3px 0 0' }}>{profile?.full_name} · {profile?.region}</p>
       </div>
 
