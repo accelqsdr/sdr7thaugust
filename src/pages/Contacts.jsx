@@ -681,6 +681,12 @@ const CONTACT_FIELDS = [
   { key: '_employees',    label: 'Account: Employees' },
 ];
 
+const PITCH_TYPE_VALUES = new Set([
+  'oracle','sap','salesforce','servicenow','workday','ms dynamics','pega','ncino','coupa',
+  'autopilot (ai)','autopilot','automate web','automate mobile','automate api','accelq unified',
+  'financial services','healthcare','telecom','insurance','retail','it services',
+].map(s => s.toLowerCase()));
+
 const FIELD_GUESS = [
   { field: 'full_name',     keys: ['name','full_name','fullname','contact_name','contact'] },
   { field: 'first_name',    keys: ['first_name','firstname','first'] },
@@ -745,7 +751,19 @@ function UploadCSV({ userId, onDone }) {
         const dataRows = lines.slice(1).filter(l => l.trim()).map(splitCSVLine);
 
         const initialMapping = {};
-        headers.forEach((h, i) => { initialMapping[i] = guessField(h); });
+        headers.forEach((h, i) => {
+          let guess = guessField(h);
+          // Disambiguate "pitch" vs "pitch_type": if the free-text pitch field was guessed
+          // but every sample value in this column matches a known pitch-type option
+          // (e.g. "Workday", "SAP"), it's almost certainly meant as the categorical Pitch Type.
+          if (guess === 'pitch') {
+            const samples = dataRows.map(r => (r[i] || '').trim()).filter(Boolean);
+            if (samples.length > 0 && samples.every(v => PITCH_TYPE_VALUES.has(v.toLowerCase()))) {
+              guess = 'pitch_type';
+            }
+          }
+          initialMapping[i] = guess;
+        });
 
         setCsvHeaders(headers);
         setCsvDataRows(dataRows);
