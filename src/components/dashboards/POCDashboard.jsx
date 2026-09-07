@@ -63,20 +63,20 @@ export default function POCDashboard() {
         ))}
       </div>
 
-      {/* SDR table */}
+      {/* Owner table */}
       <div style={{ background: '#fff', border: '0.5px solid #e8e8e4', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
-        <div style={{ padding: '12px 16px', borderBottom: '0.5px solid #e8e8e4', fontSize: 13, fontWeight: 600, color: '#111' }}>My SDRs</div>
+        <div style={{ padding: '12px 16px', borderBottom: '0.5px solid #e8e8e4', fontSize: 13, fontWeight: 600, color: '#111' }}>My team</div>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: '0.5px solid #f0f0ee' }}>
-              {['SDR', 'Region', 'Active contacts', 'Replies', 'Reply rate', 'Bounced', 'Status'].map(h => (
+              {['Owner', 'Region', 'Active contacts', 'Replies', 'Reply rate', 'Bounced', 'Status'].map(h => (
                 <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 11, color: '#999', fontWeight: 500 }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {team.length === 0 ? (
-              <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', color: '#aaa' }}>No team members found. Add SDRs to org_hierarchy.</td></tr>
+              <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', color: '#aaa' }}>No team members found. Add owners to org_hierarchy.</td></tr>
             ) : team.map(m => (
               <tr key={m.id} style={{ borderBottom: '0.5px solid #f5f5f3' }}>
                 <td style={{ padding: '10px 14px', fontWeight: 500 }}>{m.full_name}</td>
