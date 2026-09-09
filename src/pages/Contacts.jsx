@@ -737,8 +737,7 @@ const CONTACT_FIELDS = [
 
 const PITCH_TYPE_VALUES = new Set([
   'oracle','sap','salesforce','servicenow','workday','ms dynamics','pega','ncino','coupa',
-  'autopilot (ai)','autopilot','automate web','automate mobile','automate api','accelq unified',
-  'financial services','healthcare','telecom','insurance','retail','it services',
+  'web','mobile','api',
 ].map(s => s.toLowerCase()));
 
 const FIELD_GUESS = [
