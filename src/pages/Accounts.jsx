@@ -384,6 +384,15 @@ export default function Accounts() {
             );
           })}
         </div>
+        {totalPages > 1 && (
+          <div style={{ padding: '10px 14px', borderTop: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+              style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #e0e0e0', background: '#fff', fontSize: 11, cursor: page === 1 ? 'not-allowed' : 'pointer', color: page === 1 ? '#ccc' : '#555' }}>‹ Prev</button>
+            <span style={{ fontSize: 11, color: '#9ca3af' }}>Page {page} of {totalPages} · {totalCount} accounts</span>
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+              style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid #e0e0e0', background: '#fff', fontSize: 11, cursor: page === totalPages ? 'not-allowed' : 'pointer', color: page === totalPages ? '#ccc' : '#555' }}>Next ›</button>
+          </div>
+        )}
       </div>
 
       {/* RIGHT PANEL */}
