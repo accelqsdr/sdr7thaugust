@@ -29,7 +29,7 @@ const RESEARCH_DEFAULTS = [
   { key: 'painPoints', label: 'Pain Points',       icon: '🔥', hint: 'top 2 QA/testing pain points ACCELQ solves for this company' },
 ];
 const COMMON_ENTERPRISE_APPS = ['SAP','Oracle','Workday','ServiceNow','Salesforce','Microsoft Dynamics','SAP S/4HANA','Oracle EBS','PeopleSoft','Guidewire','Siebel','Veeva'];
-const PITCH_TYPES = ['Autopilot (AI)','Automate Web','Automate Mobile','Automate API','ACCELQ Unified','Salesforce','ServiceNow','SAP','Workday','Oracle','MS Dynamics','Pega','nCino','Coupa','Financial Services','Healthcare','Telecom','Insurance','Retail','IT Services'];
+const PITCH_TYPES = ['Salesforce','ServiceNow','SAP','Workday','Oracle','MS Dynamics','Pega','nCino','Coupa','Web','Mobile','API'];
 const PERSONA_LIST = ['Economic Buyer','Decision Maker','Champion','Technical Buyer','User / End User','Influencer','Gatekeeper','Procurement Buyer','Executive Sponsor'];
 const STAGE_COLORS = {
   Fresh: { bg: '#dbeafe', color: '#1d4ed8' },
