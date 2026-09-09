@@ -166,35 +166,85 @@ export default function Accounts() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    let accs = [];
-    if (canViewAll) {
-      const { data } = await supabase.from('accounts').select('*').order('created_at', { ascending: false });
-      accs = data || [];
-    } else {
+    let accountIdsScope = null;
+    if (!canViewAll) {
       const { data: myContacts } = await supabase.from('contacts').select('account_id').eq('owner_id', user.id).not('account_id', 'is', null);
-      const accountIds = [...new Set((myContacts || []).map(c => c.account_id))];
-      if (accountIds.length > 0) {
-        const { data } = await supabase.from('accounts').select('*').in('id', accountIds).order('created_at', { ascending: false });
-        accs = data || [];
+      accountIdsScope = [...new Set((myContacts || []).map(c => c.account_id))];
+      if (accountIdsScope.length === 0) {
+        setAccounts([]);
+        setTotalCount(0);
+        setContactsByAccount({});
+        setLoading(false);
+        return;
       }
     }
-    // Fetch contacts and group by account_id (scoped same as accounts)
-    let contactQuery = supabase.from('contacts').select('*');
-    if (!canViewAll) contactQuery = contactQuery.eq('owner_id', user.id);
-    const { data: allContacts } = await contactQuery;
-    const byAcct = {};
-    (allContacts || []).forEach(c => {
-      if (c.account_id) { if (!byAcct[c.account_id]) byAcct[c.account_id] = []; byAcct[c.account_id].push(c); }
-    });
-    setContactsByAccount(byAcct);
-    setAccounts(accs || []);
+
+    // Filtering, search, sorting, and paging all happen server-side against the
+    // accounts_with_stats view, which precomputes score/contact_count/signal flags
+    // so we never pull the whole accounts or contacts table into the browser.
+    let q = supabase.from('accounts_with_stats').select('*', { count: 'exact' });
+    if (accountIdsScope) q = q.in('id', accountIdsScope);
+
+    if (filterBy === 'legacy') q = q.eq('has_legacy_tool', true);
+    if (filterBy === 'hiring') q = q.eq('is_hiring_qa', true);
+    if (filterBy === 'funded') q = q.eq('is_funded', true);
+    if (filterBy === 'signals') q = q.or('has_legacy_tool.eq.true,is_hiring_qa.eq.true,is_funded.eq.true,has_outage.eq.true,has_leadership_change.eq.true');
+    if (filterBy === 'notes') q = q.eq('has_notes', true);
+
+    if (search) {
+      const s = `%${search}%`;
+      q = q.or(`name.ilike.${s},industry.ilike.${s},country.ilike.${s}`);
+    }
+
+    if (sortBy === 'score') q = q.order('score', { ascending: false });
+    else if (sortBy === 'contacts') q = q.order('contact_count', { ascending: false });
+    else q = q.order('name', { ascending: true });
+
+    q = q.range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+
+    const { data, count } = await q;
+    const accs = data || [];
+    setAccounts(accs);
+    setTotalCount(count || 0);
+
+    // Only fetch contacts for the accounts actually shown on this page
+    // (used for badges, reply counts, and the detail panel).
+    const pageIds = accs.map(a => a.id);
+    if (pageIds.length > 0) {
+      let contactQuery = supabase.from('contacts').select('*').in('account_id', pageIds);
+      if (!canViewAll) contactQuery = contactQuery.eq('owner_id', user.id);
+      const { data: pageContacts } = await contactQuery;
+      const byAcct = {};
+      (pageContacts || []).forEach(c => {
+        if (c.account_id) { if (!byAcct[c.account_id]) byAcct[c.account_id] = []; byAcct[c.account_id].push(c); }
+      });
+      setContactsByAccount(byAcct);
+    } else {
+      setContactsByAccount({});
+    }
     setLoading(false);
-  }, [user.id, canViewAll]);
+  }, [user.id, canViewAll, filterBy, search, sortBy, page]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => { setPage(1); }, [filterBy, search, sortBy]);
   useEffect(() => {
     if (location.state?.selectId) { setSelectedId(location.state.selectId); window.history.replaceState({}, ''); }
   }, [location.state]);
+  // If a selected account isn't on the current page (e.g. deep-linked or
+  // selected before a filter/search change moved it off-page), fetch it
+  // individually so the detail panel still opens.
+  useEffect(() => {
+    if (!selectedId) return;
+    if (accounts.some(a => a.id === selectedId)) return;
+    (async () => {
+      const { data: acc } = await supabase.from('accounts_with_stats').select('*').eq('id', selectedId).maybeSingle();
+      if (acc) {
+        setAccounts(prev => prev.some(a => a.id === acc.id) ? prev : [acc, ...prev]);
+        const { data: cts } = await supabase.from('contacts').select('*').eq('account_id', selectedId);
+        setContactsByAccount(prev => ({ ...prev, [selectedId]: cts || [] }));
+      }
+    })();
+  }, [selectedId, accounts]);
 
   async function addAccount(force=false) {
     if (!newAcct.name.trim()) return;
