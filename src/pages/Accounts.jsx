@@ -276,23 +276,10 @@ export default function Accounts() {
     { key: 'notes', label: '📝 Notes' },
   ];
 
-  const filtered = accounts.filter(a => {
-    const sig = a.signals || {}; const tools = a.testing_tools || [];
-    if (filterBy === 'legacy' && !tools.some(t => t.status === 'Legacy')) return false;
-    if (filterBy === 'hiring' && !sig.hiringQA) return false;
-    if (filterBy === 'funded' && !sig.funding) return false;
-    if (filterBy === 'signals' && getSignalBadges(a).length === 0) return false;
-    if (filterBy === 'notes' && !(a.notes || '').trim()) return false;
-    if (search) {
-      const s = search.toLowerCase();
-      if (!a.name?.toLowerCase().includes(s) && !a.industry?.toLowerCase().includes(s) && !a.country?.toLowerCase().includes(s)) return false;
-    }
-    return true;
-  }).sort((a, b) => {
-    if (sortBy === 'score') return calcScore(b, contactsByAccount[b.id]) - calcScore(a, contactsByAccount[a.id]);
-    if (sortBy === 'contacts') return (contactsByAccount[b.id]?.length || 0) - (contactsByAccount[a.id]?.length || 0);
-    return a.name.localeCompare(b.name);
-  });
+  // Filtering, search, and sorting now happen server-side in fetchAll (see above)
+  // against accounts_with_stats, so 'accounts' is already the correct page of results.
+  const filtered = accounts;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   const selected = accounts.find(a => a.id === selectedId) || null;
 
