@@ -155,6 +155,9 @@ export default function Accounts() {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('score');
   const [filterBy, setFilterBy] = useState('all');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 50;
+  const [totalCount, setTotalCount] = useState(0);
   const [selectedId, setSelectedId] = useState(null);
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [newAcct, setNewAcct] = useState({ name: '', industry: '', country: '', linkedin_url: '', revenue_millions: '' });
