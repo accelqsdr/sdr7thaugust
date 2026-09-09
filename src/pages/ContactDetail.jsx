@@ -41,7 +41,7 @@ const RESEARCH_FIELDS = [
 
 const SIGNAL_FIELDS = [];
 
-const PERSONA_LIST = ['Economic Buyer','Decision Maker','Champion','Technical Buyer','User / End User','Influencer','Gatekeeper','Procurement Buyer','Executive Sponsor'];
+const PERSONA_LIST = ['Executive / Economic Buyer','QA / Quality Leader','Engineering Leader','Automation / Technical Expert','DevOps / Transformation / Architecture','Practitioner / End User'];
 
 const ACTIVITY_LABELS = {
   status_changed:   'Stage changed',
