@@ -29,14 +29,6 @@ const PITCH_TYPE_RULES = [
   { pattern: /\bcoupa\b/i, pitch_type: 'Coupa' },
 ];
 
-const INDUSTRY_PITCH_RULES = [
-  { pattern: /\b(bank|financial|fintech|insurance|capital|investment|asset management)\b/i, pitch_type: 'Financial Services' },
-  { pattern: /\b(health|hospital|pharma|biotech|medical|clinical|life science)\b/i, pitch_type: 'Healthcare' },
-  { pattern: /\b(telecom|telco|wireless|carrier|network operator)\b/i, pitch_type: 'Telecom' },
-  { pattern: /\b(retail|ecommerce|e-commerce|consumer goods|fmcg)\b/i, pitch_type: 'Retail' },
-  { pattern: /\b(it services|consulting|outsourc|managed service|system integrat)\b/i, pitch_type: 'IT Services' },
-];
-
 export function inferPersona(title) {
   if (!title) return null;
   for (const rule of PERSONA_RULES) {
