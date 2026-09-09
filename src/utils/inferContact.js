@@ -4,17 +4,18 @@
  */
 
 const PERSONA_RULES = [
-  { pattern: /\b(ceo|chief executive|president|owner|founder|co-founder|managing director|md)\b/i, persona: 'Economic Buyer' },
-  { pattern: /\b(cfo|chief financial|vp finance|vp of finance|finance director)\b/i, persona: 'Economic Buyer' },
-  { pattern: /\b(coo|chief operating)\b/i, persona: 'Economic Buyer' },
-  { pattern: /\b(cto|chief technology|chief technical|vp engineering|vp of engineering|head of engineering|engineering director|director of engineering)\b/i, persona: 'Technical Buyer' },
-  { pattern: /\b(cio|chief information|vp it|head of it|it director|director of it|director of technology)\b/i, persona: 'Technical Buyer' },
-  { pattern: /\b(vp (of )?quality|director (of )?quality|head of quality|quality director)\b/i, persona: 'Technical Buyer' },
-  { pattern: /\b(qa|quality assurance|quality engineer|test engineer|sdet|software development engineer in test|automation engineer|test automation|testing engineer|qe lead|qa lead|qa manager|director of qa|head of qa|vp qa)\b/i, persona: 'QA Champion' },
-  { pattern: /\b(engineering manager|software engineering manager|senior engineering manager)\b/i, persona: 'Technical Buyer' },
-  { pattern: /\b(devops|platform engineer|release engineer|site reliability|sre)\b/i, persona: 'Technical Buyer' },
-  { pattern: /\b(vp product|head of product|product director|chief product)\b/i, persona: 'Economic Buyer' },
-  { pattern: /\b(product manager|product owner)\b/i, persona: 'Technical Buyer' },
+  // 1. Executive / Economic Buyer
+  { pattern: /\b(cio|chief information officer|cto|chief technology officer|chief technical officer|chief digital officer|vp technology|vp of technology|svp technology|svp of technology|cfo|chief financial officer)\b/i, persona: 'Executive / Economic Buyer' },
+  // 4. Automation / Technical Expert (checked before broader leader terms to catch specific architect/lead titles)
+  { pattern: /\b(head of test automation|test automation manager|automation architect|qa architect|test architect|sdet lead)\b/i, persona: 'Automation / Technical Expert' },
+  // 5. DevOps / Transformation / Architecture
+  { pattern: /\b(vp devops|vp of devops|head of devops|devops director|enterprise architect|solution architect|solutions architect|digital transformation leader|digital transformation lead|digital transformation manager|digital transformation director)\b/i, persona: 'DevOps / Transformation / Architecture' },
+  // 2. QA / Quality Leader
+  { pattern: /\b(vp qa|vp of qa|vp quality engineering|vp of quality engineering|head of qa|head of qe|director qa|director of qa|director qe|director of qe|qa manager)\b/i, persona: 'QA / Quality Leader' },
+  // 3. Engineering Leader
+  { pattern: /\b(vp engineering|svp engineering|vp of engineering|svp of engineering|head of engineering|director engineering|director of engineering|engineering manager)\b/i, persona: 'Engineering Leader' },
+  // 6. Practitioner / End User
+  { pattern: /\b(sdet|qa engineer|automation engineer|test engineer|quality engineer|qa analyst)\b/i, persona: 'Practitioner / End User' },
 ];
 
 const PITCH_TYPE_RULES = [
