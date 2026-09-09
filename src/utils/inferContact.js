@@ -42,9 +42,6 @@ export function inferPitchType(title, industry) {
   for (const rule of PITCH_TYPE_RULES) {
     if (rule.pattern.test(text)) return rule.pitch_type;
   }
-  for (const rule of INDUSTRY_PITCH_RULES) {
-    if (rule.pattern.test(industry || '')) return rule.pitch_type;
-  }
   return null;
 }
 
