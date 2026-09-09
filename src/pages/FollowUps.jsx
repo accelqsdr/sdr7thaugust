@@ -126,12 +126,18 @@ export default function FollowUps() {
 
   async function fetchData() {
     setLoading(true);
+    // Safety ceiling: this is a work queue (reps need to see the whole thing to
+    // prioritize, not page through it), but an explicit cap stops it from ever
+    // silently truncating past Supabase's default 1000-row return limit as the
+    // org's contact volume grows. 2000 is far beyond any single queue today.
+    const QUEUE_LIMIT = 2000;
     let cQuery = supabase.from('contacts').select('*');
     if (!viewAll||!canViewAll) cQuery=cQuery.eq('owner_id',user.id);
     cQuery=cQuery
       .or('status.in.(F1,F2,F3,F4,F5),and(status.eq.Fresh,next_followup.not.is.null)')
-      .order('last_contacted',{ascending:false,nullsFirst:false});
-    let aQuery = supabase.from('accounts').select('id,name,industry,research');
+      .order('last_contacted',{ascending:false,nullsFirst:false})
+      .limit(QUEUE_LIMIT);
+    let aQuery = supabase.from('accounts').select('id,name,industry,research').limit(QUEUE_LIMIT);
     if (!viewAll||!canViewAll) aQuery=aQuery.eq('owner_id',user.id);
     const [cRes,aRes,lRes]=await Promise.all([
       cQuery, aQuery,
@@ -143,7 +149,7 @@ export default function FollowUps() {
     if (cRes.error||!rows) {
       let fb=supabase.from('contacts').select('*');
       if (!viewAll||!canViewAll) fb=fb.eq('owner_id',user.id);
-      const fbRes=await fb.in('status',ALL_STAGES).order('last_contacted',{ascending:false,nullsFirst:false});
+      const fbRes=await fb.in('status',ALL_STAGES).order('last_contacted',{ascending:false,nullsFirst:false}).limit(QUEUE_LIMIT);
       rows=(fbRes.data||[]).filter(c=>c.status!=='Fresh'||(c.status==='Fresh'&&c.next_followup));
     }
     setContacts(rows||[]);
@@ -158,9 +164,15 @@ export default function FollowUps() {
     setSentEmails(emailMap);
     let lqQuery=supabase.from('lists').select('id,name');
     if (!viewAll||!canViewAll) lqQuery=lqQuery.eq('owner_id',user.id);
+    // contact_lists used to be fetched with no scoping at all (every membership
+    // row for every contact in the whole org, regardless of viewAll/role).
+    // Scope it to just the contacts actually loaded above instead.
+    const rowIds = (rows||[]).map(c=>c.id);
     const [listsRes,clRes]=await Promise.all([
       lqQuery,
-      supabase.from('contact_lists').select('contact_id,list_id,is_active_campaign'),
+      rowIds.length > 0
+        ? supabase.from('contact_lists').select('contact_id,list_id,is_active_campaign').in('contact_id', rowIds)
+        : Promise.resolve({ data: [] }),
     ]);
     setLists(listsRes.data||[]);
     const clMap={};
