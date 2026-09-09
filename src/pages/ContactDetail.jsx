@@ -540,7 +540,7 @@ export default function ContactDetail() {
                   <select value={pitchType} onChange={e => setPitchType(e.target.value)}
                     style={{flex:1,padding:'8px 12px',borderRadius:8,border:'1px solid #e0e0e0',fontSize:13,color:'#333',background:'#fff',outline:'none',cursor:'pointer'}}>
                     <option value={''}>— Select pitch type —</option>
-                    {['Oracle','SAP','Salesforce','ServiceNow','Workday','MS Dynamics','Pega','nCino','Coupa','Autopilot (AI)','Automate Web','Automate Mobile','Automate API','ACCELQ Unified','Financial Services','Healthcare','Telecom','Insurance','Retail','IT Services'].map(p => <option key={p} value={p}>{p}</option>)}
+                    {['Salesforce','Oracle','SAP','ServiceNow','Workday','MS Dynamics','Pega','nCino','Coupa','Web','Mobile','API'].map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
                   <button onClick={async () => {
                     await supabase.from('contacts').update({ pitch_type: pitchType }).eq('id', id);
