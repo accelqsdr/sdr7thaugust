@@ -216,10 +216,13 @@ export default function FollowUps() {
         contact:{
           full_name:((contact.first_name||'')+' '+(contact.last_name||'')).trim(),
           title:contact.title,company:contact.company,email:contact.email,
-          response:contact.response_type,pitch:contact.notes,industry:account.industry,
+          response:contact.response_type,industry:account.industry,
+          persona:contact.persona,pitch_type:contact.pitch_type,pitch:contact.pitch,
+          contact_note:contact.notes,
         },
         stage:emailStage, customPrompt:customPrompt||null,
-        accountResearch:account.research||{}, senderName, priorEmailBodies:priorBodies,
+        accountResearch:account.research||{}, accountNote:account.notes||'',
+        senderName, priorEmailBodies:priorBodies,
       }});
       if(!res.error&&res.data?.subject){
         setDrafts(d=>({...d,[contact.id]:{subject:res.data.subject,body:res.data.body,strategy:res.data.strategy||null}}));
