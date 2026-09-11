@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
@@ -18,11 +19,13 @@ async function callFn(body) {
 }
 
 export default function UsersAdmin() {
-  const { profile } = useAuth();
+  const { profile, user, viewAsUser } = useAuth();
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [managerOptions, setManagerOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState({});
+  const [switching, setSwitching] = useState({});
   const [toast, setToast] = useState(null);
   const [editing, setEditing] = useState({}); // { userId: { role, full_name, region, reports_to } }
 
@@ -66,6 +69,20 @@ export default function UsersAdmin() {
     }
   }
 
+  async function handleViewAs(u) {
+    setSwitching(prev => ({ ...prev, [u.id]: true }));
+    try {
+      const res = await viewAsUser(u.id, u.email);
+      if (res?.error) {
+        showToast(res.error, 'error');
+      } else {
+        navigate('/');
+      }
+    } finally {
+      setSwitching(prev => ({ ...prev, [u.id]: false }));
+    }
+  }
+
   function showToast(msg, type = 'success') {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
@@ -100,7 +117,7 @@ export default function UsersAdmin() {
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', marginBottom: 4 }}>Team Members</h1>
         <p style={{ fontSize: 13, color: '#888' }}>
-          {isAdmin ? 'Assign roles, regions and reporting lines for your whole org.' :
+          {isAdmin ? 'Assign roles, regions and reporting lines for your whole org. Use View as to see the platform through any team member’s eyes.' :
             'Manage your team — assign regions and reporting lines within your own downline.'} {users.length} users {isAdmin ? 'total' : 'in your team'}.
         </p>
       </div>
@@ -112,12 +129,14 @@ export default function UsersAdmin() {
           {users.map(u => {
             const ed = editing[u.id];
             const isSaving = saving[u.id];
+            const isSwitching = switching[u.id];
             const rc = u.role ? ROLE_COLORS[u.role] : { bg: '#f5f5f3', color: '#888' };
             // A sub-admin can edit anyone in their downline, but can never grant
             // admin/sub-admin — the edge function enforces this too, this just
             // keeps the UI honest about what will actually be accepted.
             const roleOptionsForCaller = isAdmin ? ROLES : ROLES.filter(r => r === 'owner');
             const canEdit = isAdmin || isSubAdmin;
+            const isSelf = u.id === user?.id;
 
             return (
               <div key={u.id} style={{ background: '#fff', border: '0.5px solid #e8e8e4',
@@ -148,6 +167,15 @@ export default function UsersAdmin() {
                         borderRadius: 20, background: rc.bg, color: rc.color }}>
                         {u.role ? ROLE_LABELS[u.role] : 'No role'}
                       </span>
+                      {isAdmin && !isSelf && u.has_profile && (
+                        <button onClick={() => handleViewAs(u)} disabled={isSwitching}
+                          title={`Browse the platform as ${u.full_name || u.email}`}
+                          style={{ padding: '6px 14px', background: '#eff6ff', border: '0.5px solid #bfdbfe',
+                            borderRadius: 8, fontSize: 12, cursor: 'pointer', color: '#1d4ed8', fontWeight: 500,
+                            opacity: isSwitching ? 0.6 : 1 }}>
+                          {isSwitching ? 'Switching…' : '👁 View as'}
+                        </button>
+                      )}
                       {canEdit && (
                         <button onClick={() => startEdit(u)}
                           style={{ padding: '6px 14px', background: '#f5f5f3', border: '0.5px solid #e8e8e4',
