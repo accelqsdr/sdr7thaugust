@@ -2,70 +2,80 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { signOut } from '../../lib/auth';
 
+// Nav sets kept from the pre-rename role model (sdr/poc/manager/director) —
+// same links, just re-keyed onto the current org_hierarchy roles
+// (owner/sub-admin/admin) so they actually match again. A sub-admin's set
+// depends on their computed tier: 'team' (manages other sub-admins, like the
+// old "manager") vs 'direct' (manages owners directly, like the old "poc").
 const navByRole = {
   owner: [
     { to: '/', icon: '⊞', label: 'Dashboard', end: true },
+    { to: '/discover', icon: '🔍', label: 'Account Discovery' },
     { to: '/contacts', icon: '👥', label: 'My contacts' },
     { to: '/accounts', icon: '🏢', label: 'Accounts' },
-    { to: '/prospect-discovery', icon: '🔍', label: 'Account Discovery' },
+    { to: '/hqs', icon: '🏛', label: 'HQ Management' },
     { to: '/followups', icon: '🕐', label: 'Follow-ups' },
-    { to: '/responses', icon: '💬', label: 'Responses' },
-    { to: '/lists', icon: '📋', label: 'Lists' },
     { to: '/pipeline', icon: '📊', label: 'Pipeline' },
     { to: '/sequences', icon: '🔁', label: 'Sequences' },
+    { to: '/settings', icon: '⚙️', label: 'Settings' },
   ],
-  // sub-admin who manages owners directly (old "poc")
-  subAdminDirect: [
+  'sub-admin-direct': [
     { to: '/', icon: '⊞', label: 'Dashboard', end: true },
     { to: '/teams', icon: '👥', label: 'My team' },
+    { to: '/users', icon: '🧑‍💼', label: 'Team Members' },
     { to: '/contacts', icon: '📋', label: 'Contacts' },
     { to: '/accounts', icon: '🏢', label: 'Accounts' },
+    { to: '/hqs', icon: '🏛', label: 'HQ Management' },
     { to: '/followups', icon: '🕐', label: 'Follow-ups' },
-    { to: '/responses', icon: '💬', label: 'Responses' },
-    { to: '/lists', icon: '📋', label: 'Lists' },
     { to: '/activity', icon: '📡', label: 'Activity feed' },
     { to: '/reports', icon: '📈', label: 'Reports' },
+    { to: '/settings', icon: '⚙️', label: 'Settings' },
   ],
-  // sub-admin who manages other sub-admins (old "manager")
-  subAdminTeam: [
+  'sub-admin-team': [
     { to: '/', icon: '⊞', label: 'Dashboard', end: true },
-    { to: '/teams', icon: '👥', label: 'All teams' },
+    { to: '/discover', icon: '🔍', label: 'Account Discovery' },
+    { to: '/contacts', icon: '👥', label: 'My Contacts' },
     { to: '/accounts', icon: '🏢', label: 'Accounts' },
-    { to: '/lists', icon: '📋', label: 'Lists' },
-    { to: '/responses', icon: '💬', label: 'Responses' },
-    { to: '/pipeline', icon: '📊', label: 'Pipeline' },
-    { to: '/analytics', icon: '📈', label: 'Analytics' },
-    { to: '/activity', icon: '📡', label: 'Activity' },
-    { to: '/reports', icon: '📄', label: 'Reports' },
+    { to: '/hqs', icon: '🏛', label: 'HQ Management' },
+    { to: '/followups', icon: '🕐', label: 'Follow-ups' },
+    { to: '/users', icon: '🧑‍💼', label: 'Team Members' },
+    { to: '/settings', icon: '⚙️', label: 'Settings' },
   ],
   admin: [
-    { to: '/', icon: '⊞', label: 'Overview', end: true },
-    { to: '/users-admin', icon: '👤', label: 'People' },
-    { to: '/prospect-discovery', icon: '🔍', label: 'Account Discovery' },
-    { to: '/teams', icon: '🏢', label: 'Org structure' },
+    { to: '/', icon: '⊞', label: 'Dashboard', end: true },
+    { to: '/discover', icon: '🔍', label: 'Account Discovery' },
+    { to: '/contacts', icon: '👥', label: 'My Contacts' },
     { to: '/accounts', icon: '🏢', label: 'Accounts' },
+    { to: '/hqs', icon: '🏛', label: 'HQ Management' },
+    { to: '/followups', icon: '🕐', label: 'Follow-ups' },
+    { to: '/users', icon: '🧑‍💼', label: 'Team Members' },
     { to: '/analytics', icon: '📈', label: 'Analytics' },
-    { to: '/lists', icon: '📋', label: 'Lists' },
-    { to: '/pipeline', icon: '📊', label: 'Pipeline' },
     { to: '/leaderboard', icon: '🏆', label: 'Leaderboard' },
     { to: '/settings', icon: '⚙️', label: 'Settings' },
   ],
 };
 
-const roleColors = { admin: '#7c3aed', subAdminTeam: '#d97706', subAdminDirect: '#2563eb', owner: '#059669' };
-const roleLabels = { admin: 'Admin', subAdminTeam: 'Sub-Admin', subAdminDirect: 'Sub-Admin', owner: 'Owner' };
+const roleMeta = {
+  owner:      { color: '#059669', label: 'Owner' },
+  'sub-admin':{ color: '#d97706', label: 'Sub-admin' },
+  admin:      { color: '#7c3aed', label: 'Admin' },
+};
 
-function resolveNavKey(profile) {
-  if (profile?.role === 'admin') return 'admin';
-  if (profile?.role === 'sub-admin') return profile.subAdminTier === 'team' ? 'subAdminTeam' : 'subAdminDirect';
+function navKeyFor(profile) {
+  const role = profile?.role || 'owner';
+  if (role === 'sub-admin') {
+    return profile?.subAdminTier === 'team' ? 'sub-admin-team' : 'sub-admin-direct';
+  }
+  if (role === 'admin') return 'admin';
   return 'owner';
 }
 
 export default function Sidebar() {
-  const { profile } = useAuth();
-  const role = resolveNavKey(profile);
-  const nav = navByRole[role] || navByRole.owner;
-  const color = roleColors[role];
+  const { profile, user } = useAuth();
+  const displayName = profile?.full_name || user?.email?.split('@')[0] || '—';
+  const role = profile?.role || 'owner';
+  const nav = navByRole[navKeyFor(profile)] || navByRole.owner;
+  const meta = roleMeta[role] || roleMeta.owner;
 
   const linkStyle = (isActive) => ({
     display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
@@ -94,9 +104,9 @@ export default function Sidebar() {
       {/* Role badge */}
       <div style={{ padding: '10px 16px', borderBottom: '0.5px solid #e8e8e4' }}>
         <div style={{ fontSize: 11, color: '#999', marginBottom: 4 }}>Signed in as</div>
-        <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{profile?.full_name || '—'}</div>
-        <span style={{ display: 'inline-block', marginTop: 4, fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: color + '20', color }}>
-          {roleLabels[role]}
+        <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{displayName}</div>
+        <span style={{ display: 'inline-block', marginTop: 4, fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: meta.color + '20', color: meta.color }}>
+          {meta.label}
         </span>
       </div>
 
