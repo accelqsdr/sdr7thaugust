@@ -19,7 +19,7 @@ async function callFn(body) {
 }
 
 export default function UsersAdmin() {
-  const { profile, user, viewAsUser } = useAuth();
+  const { profile, user, viewAsUser, viewingAs } = useAuth();
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [managerOptions, setManagerOptions] = useState([]);
@@ -31,16 +31,21 @@ export default function UsersAdmin() {
 
   const isAdmin = profile?.role === 'admin';
   const isSubAdmin = profile?.role === 'sub-admin';
+  // While an admin is "viewing as" someone, this edge function call still
+  // authenticates with the admin's own real session — pass view_as so the
+  // backend recomputes the list exactly as that person would see it (their
+  // downline only), instead of always returning the real admin's full org view.
+  const viewAsParam = viewingAs?.id ? { view_as: viewingAs.id } : {};
 
   useEffect(() => {
-    callFn({ action: 'list_users' })
+    callFn({ action: 'list_users', ...viewAsParam })
       .then(d => {
         setUsers(d.users || []);
         setManagerOptions(d.manager_options || []);
         setLoading(false);
       })
       .catch(e => { setToast({ msg: e.message, type: 'error' }); setLoading(false); });
-  }, []);
+  }, [viewingAs?.id]);
 
   function startEdit(u) {
     setEditing(prev => ({
@@ -58,7 +63,7 @@ export default function UsersAdmin() {
     if (!edits) return;
     setSaving(prev => ({ ...prev, [u.id]: true }));
     try {
-      await callFn({ action: 'update_user', user_id: u.id, ...edits, reports_to: edits.reports_to || null });
+      await callFn({ action: 'update_user', user_id: u.id, ...edits, reports_to: edits.reports_to || null, ...viewAsParam });
       setUsers(prev => prev.map(x => x.id === u.id ? { ...x, ...edits, has_profile: true } : x));
       cancelEdit(u.id);
       showToast('Saved!');
@@ -167,7 +172,7 @@ export default function UsersAdmin() {
                         borderRadius: 20, background: rc.bg, color: rc.color }}>
                         {u.role ? ROLE_LABELS[u.role] : 'No role'}
                       </span>
-                      {isAdmin && !isSelf && u.has_profile && (
+                      {isAdmin && !isSelf && u.has_profile && !viewingAs && (
                         <button onClick={() => handleViewAs(u)} disabled={isSwitching}
                           title={`Browse the platform as ${u.full_name || u.email}`}
                           style={{ padding: '6px 14px', background: '#eff6ff', border: '0.5px solid #bfdbfe',
