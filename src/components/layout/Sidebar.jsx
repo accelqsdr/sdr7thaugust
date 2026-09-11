@@ -2,19 +2,21 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { signOut } from '../../lib/auth';
 
-// Nav sets kept from the pre-rename role model (sdr/poc/manager/director) —
-// same links, just re-keyed onto the current org_hierarchy roles
-// (owner/sub-admin/admin) so they actually match again. A sub-admin's set
-// depends on their computed tier: 'team' (manages other sub-admins, like the
-// old "manager") vs 'direct' (manages owners directly, like the old "poc").
+// Nav sets re-keyed onto the current org_hierarchy roles (owner/sub-admin/admin).
+// A sub-admin's set depends on their computed tier: 'team' (manages other
+// sub-admins, like the old "manager") vs 'direct' (manages owners directly,
+// like the old "poc"). Routes here must match the actual paths registered in
+// App.jsx — there is no /discover or /hqs route (that's /prospect-discovery,
+// and HQ Management was removed from the platform entirely).
 const navByRole = {
   owner: [
     { to: '/', icon: '⊞', label: 'Dashboard', end: true },
-    { to: '/discover', icon: '🔍', label: 'Account Discovery' },
+    { to: '/prospect-discovery', icon: '🔍', label: 'Account Discovery' },
     { to: '/contacts', icon: '👥', label: 'My contacts' },
     { to: '/accounts', icon: '🏢', label: 'Accounts' },
-    { to: '/hqs', icon: '🏛', label: 'HQ Management' },
     { to: '/followups', icon: '🕐', label: 'Follow-ups' },
+    { to: '/responses', icon: '💬', label: 'Responses' },
+    { to: '/lists', icon: '📋', label: 'Lists' },
     { to: '/pipeline', icon: '📊', label: 'Pipeline' },
     { to: '/sequences', icon: '🔁', label: 'Sequences' },
     { to: '/settings', icon: '⚙️', label: 'Settings' },
@@ -25,30 +27,31 @@ const navByRole = {
     { to: '/users', icon: '🧑‍💼', label: 'Team Members' },
     { to: '/contacts', icon: '📋', label: 'Contacts' },
     { to: '/accounts', icon: '🏢', label: 'Accounts' },
-    { to: '/hqs', icon: '🏛', label: 'HQ Management' },
     { to: '/followups', icon: '🕐', label: 'Follow-ups' },
+    { to: '/responses', icon: '💬', label: 'Responses' },
+    { to: '/lists', icon: '📋', label: 'Lists' },
     { to: '/activity', icon: '📡', label: 'Activity feed' },
     { to: '/reports', icon: '📈', label: 'Reports' },
     { to: '/settings', icon: '⚙️', label: 'Settings' },
   ],
   'sub-admin-team': [
     { to: '/', icon: '⊞', label: 'Dashboard', end: true },
-    { to: '/discover', icon: '🔍', label: 'Account Discovery' },
+    { to: '/prospect-discovery', icon: '🔍', label: 'Account Discovery' },
     { to: '/contacts', icon: '👥', label: 'My Contacts' },
     { to: '/accounts', icon: '🏢', label: 'Accounts' },
-    { to: '/hqs', icon: '🏛', label: 'HQ Management' },
     { to: '/followups', icon: '🕐', label: 'Follow-ups' },
     { to: '/users', icon: '🧑‍💼', label: 'Team Members' },
+    { to: '/analytics', icon: '📈', label: 'Analytics' },
     { to: '/settings', icon: '⚙️', label: 'Settings' },
   ],
   admin: [
     { to: '/', icon: '⊞', label: 'Dashboard', end: true },
-    { to: '/discover', icon: '🔍', label: 'Account Discovery' },
+    { to: '/prospect-discovery', icon: '🔍', label: 'Account Discovery' },
     { to: '/contacts', icon: '👥', label: 'My Contacts' },
     { to: '/accounts', icon: '🏢', label: 'Accounts' },
-    { to: '/hqs', icon: '🏛', label: 'HQ Management' },
     { to: '/followups', icon: '🕐', label: 'Follow-ups' },
     { to: '/users', icon: '🧑‍💼', label: 'Team Members' },
+    { to: '/reports', icon: '📄', label: 'Reports' },
     { to: '/analytics', icon: '📈', label: 'Analytics' },
     { to: '/leaderboard', icon: '🏆', label: 'Leaderboard' },
     { to: '/settings', icon: '⚙️', label: 'Settings' },
