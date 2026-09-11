@@ -2,13 +2,12 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
-const ROLES = ['sdr', 'poc', 'manager', 'director'];
-const ROLE_LABELS = { sdr: 'SDR', poc: 'POC', manager: 'Manager', director: 'Director' };
+const ROLES = ['owner', 'sub-admin', 'admin'];
+const ROLE_LABELS = { owner: 'Owner', 'sub-admin': 'Sub-admin', admin: 'Admin' };
 const ROLE_COLORS = {
-  sdr:      { bg: '#eff6ff', color: '#1d4ed8' },
-  poc:      { bg: '#f0fdf4', color: '#166534' },
-  manager:  { bg: '#fdf4ff', color: '#7e22ce' },
-  director: { bg: '#fff7ed', color: '#c2410c' },
+  owner:      { bg: '#eff6ff', color: '#1d4ed8' },
+  'sub-admin':{ bg: '#fdf4ff', color: '#7e22ce' },
+  admin:      { bg: '#fff7ed', color: '#c2410c' },
 };
 
 async function callFn(body) {
@@ -21,23 +20,29 @@ async function callFn(body) {
 export default function UsersAdmin() {
   const { profile } = useAuth();
   const [users, setUsers] = useState([]);
+  const [managerOptions, setManagerOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState({});
   const [toast, setToast] = useState(null);
-  const [editing, setEditing] = useState({}); // { userId: { role, full_name, region } }
+  const [editing, setEditing] = useState({}); // { userId: { role, full_name, region, reports_to } }
 
-  const isDirector = profile?.role === 'director';
+  const isAdmin = profile?.role === 'admin';
+  const isSubAdmin = profile?.role === 'sub-admin';
 
   useEffect(() => {
     callFn({ action: 'list_users' })
-      .then(d => { setUsers(d.users || []); setLoading(false); })
+      .then(d => {
+        setUsers(d.users || []);
+        setManagerOptions(d.manager_options || []);
+        setLoading(false);
+      })
       .catch(e => { setToast({ msg: e.message, type: 'error' }); setLoading(false); });
   }, []);
 
   function startEdit(u) {
     setEditing(prev => ({
       ...prev,
-      [u.id]: { role: u.role || 'sdr', full_name: u.full_name || '', region: u.region || '' }
+      [u.id]: { role: u.role || 'owner', full_name: u.full_name || '', region: u.region || '', reports_to: u.reports_to || '' }
     }));
   }
 
@@ -50,7 +55,7 @@ export default function UsersAdmin() {
     if (!edits) return;
     setSaving(prev => ({ ...prev, [u.id]: true }));
     try {
-      await callFn({ action: 'update_user', user_id: u.id, ...edits });
+      await callFn({ action: 'update_user', user_id: u.id, ...edits, reports_to: edits.reports_to || null });
       setUsers(prev => prev.map(x => x.id === u.id ? { ...x, ...edits, has_profile: true } : x));
       cancelEdit(u.id);
       showToast('Saved!');
@@ -66,12 +71,18 @@ export default function UsersAdmin() {
     setTimeout(() => setToast(null), 3000);
   }
 
-  if (!['director', 'manager'].includes(profile?.role)) {
+  if (!['admin', 'sub-admin'].includes(profile?.role)) {
     return (
       <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>
-        Access restricted to Directors and Managers.
+        Access restricted to Admins and Sub-admins.
       </div>
     );
+  }
+
+  function managerName(id) {
+    if (!id) return '—';
+    const m = users.find(u => u.id === id) || managerOptions.find(m => m.id === id);
+    return m?.full_name || m?.email || id;
   }
 
   return (
@@ -89,7 +100,8 @@ export default function UsersAdmin() {
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', marginBottom: 4 }}>Team Members</h1>
         <p style={{ fontSize: 13, color: '#888' }}>
-          {isDirector ? 'Assign roles and manage your team.' : 'View your team members.'} {users.length} users total.
+          {isAdmin ? 'Assign roles, regions and reporting lines for your whole org.' :
+            'Manage your team — assign regions and reporting lines within your own downline.'} {users.length} users {isAdmin ? 'total' : 'in your team'}.
         </p>
       </div>
 
@@ -101,6 +113,11 @@ export default function UsersAdmin() {
             const ed = editing[u.id];
             const isSaving = saving[u.id];
             const rc = u.role ? ROLE_COLORS[u.role] : { bg: '#f5f5f3', color: '#888' };
+            // A sub-admin can edit anyone in their downline, but can never grant
+            // admin/sub-admin — the edge function enforces this too, this just
+            // keeps the UI honest about what will actually be accepted.
+            const roleOptionsForCaller = isAdmin ? ROLES : ROLES.filter(r => r === 'owner');
+            const canEdit = isAdmin || isSubAdmin;
 
             return (
               <div key={u.id} style={{ background: '#fff', border: '0.5px solid #e8e8e4',
@@ -118,6 +135,9 @@ export default function UsersAdmin() {
                         {u.full_name || <span style={{ color: '#aaa', fontStyle: 'italic' }}>No name set</span>}
                       </div>
                       <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{u.email}</div>
+                      {u.reports_to && (
+                        <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>Reports to {managerName(u.reports_to)}</div>
+                      )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       {u.region && (
@@ -128,7 +148,7 @@ export default function UsersAdmin() {
                         borderRadius: 20, background: rc.bg, color: rc.color }}>
                         {u.role ? ROLE_LABELS[u.role] : 'No role'}
                       </span>
-                      {isDirector && (
+                      {canEdit && (
                         <button onClick={() => startEdit(u)}
                           style={{ padding: '6px 14px', background: '#f5f5f3', border: '0.5px solid #e8e8e4',
                             borderRadius: 8, fontSize: 12, cursor: 'pointer', color: '#555' }}>
@@ -150,15 +170,26 @@ export default function UsersAdmin() {
                       <div style={{ flex: 1, minWidth: 120 }}>
                         <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>Role</label>
                         <select value={ed.role} onChange={e => setEditing(p => ({ ...p, [u.id]: { ...p[u.id], role: e.target.value } }))}
+                          disabled={!isAdmin && ['admin', 'sub-admin'].includes(u.role)}
                           style={{ width: '100%', padding: '8px 10px', border: '1px solid #e0e0e0', borderRadius: 8, fontSize: 13, background: '#fff', boxSizing: 'border-box' }}>
-                          {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                          {ROLES.map(r => <option key={r} value={r} disabled={!isAdmin && r !== 'owner'}>{ROLE_LABELS[r]}</option>)}
                         </select>
                       </div>
                       <div style={{ flex: 1, minWidth: 120 }}>
                         <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>Region</label>
                         <input value={ed.region} onChange={e => setEditing(p => ({ ...p, [u.id]: { ...p[u.id], region: e.target.value } }))}
-                          placeholder="e.g. APAC, US"
+                          placeholder="e.g. APAC, Banking"
                           style={{ width: '100%', padding: '8px 10px', border: '1px solid #e0e0e0', borderRadius: 8, fontSize: 13, boxSizing: 'border-box' }} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 160 }}>
+                        <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>Reports to</label>
+                        <select value={ed.reports_to} onChange={e => setEditing(p => ({ ...p, [u.id]: { ...p[u.id], reports_to: e.target.value } }))}
+                          style={{ width: '100%', padding: '8px 10px', border: '1px solid #e0e0e0', borderRadius: 8, fontSize: 13, background: '#fff', boxSizing: 'border-box' }}>
+                          <option value="">— No manager —</option>
+                          {managerOptions.filter(m => m.id !== u.id).map(m => (
+                            <option key={m.id} value={m.id}>{m.full_name || m.id} ({ROLE_LABELS[m.role] || m.role})</option>
+                          ))}
+                        </select>
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
