@@ -172,6 +172,14 @@ export default function UsersAdmin() {
                         borderRadius: 20, background: rc.bg, color: rc.color }}>
                         {u.role ? ROLE_LABELS[u.role] : 'No role'}
                       </span>
+                      {u.has_profile && (
+                        <button onClick={() => navigate(`/scorecard/${u.id}`)}
+                          title={`View ${u.full_name || u.email}'s scorecard`}
+                          style={{ padding: '6px 14px', background: '#f5f3ff', border: '0.5px solid #ddd6fe',
+                            borderRadius: 8, fontSize: 12, cursor: 'pointer', color: '#6d28d9', fontWeight: 500 }}>
+                          📊 Scorecard
+                        </button>
+                      )}
                       {isAdmin && !isSelf && u.has_profile && !viewingAs && (
                         <button onClick={() => handleViewAs(u)} disabled={isSwitching}
                           title={`Browse the platform as ${u.full_name || u.email}`}
