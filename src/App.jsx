@@ -23,6 +23,7 @@ const AccountDetail= lazy(() => import('./pages/AccountDetail'));
 const Lists        = lazy(() => import('./pages/Lists'));
 const Responses    = lazy(() => import('./pages/Responses'));
 const ProspectDiscovery = lazy(() => import('./pages/ProspectDiscovery'));
+const Scorecard     = lazy(() => import('./pages/Scorecard'));
 
 const PageLoader = () => (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: '#aaa', fontSize: 14 }}>
@@ -74,6 +75,7 @@ export default function App() {
               <Route path="lists" element={<Lists />} />
               <Route path="responses" element={<Responses />} />
               <Route path="prospect-discovery" element={<ProspectDiscovery />} />
+              <Route path="scorecard/:userId" element={<Scorecard />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
