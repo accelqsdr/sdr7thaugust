@@ -41,7 +41,7 @@ const STAGE_COLORS = {
   won:   { bg: '#dcfce7', color: '#15803d' },
   lost:  { bg: '#f1f5f9', color: '#475569' },
   bounced:      { bg: '#fce7f3', color: '#9d174d' },
-  unsubscribed: { bg: '#f3f4f6', color: '#6b7280' },
+  unsubscribed: { bg: '#f3f4f6', color: '#6b7280' }, cooling_off: { bg: '#f1f5f9', color: '#64748b' },
 };
 const AVATAR_PALETTE = ['#2563eb','#7c3aed','#059669','#d97706','#dc2626','#0891b2','#9333ea','#16a34a','#c2410c','#0f766e'];
 const SIGNAL_TYPE_COLORS = {
@@ -1178,17 +1178,17 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
                   {enrichingContact === c.id ? 'Enriching...' : '✨ Enrich'}
                 </button>
               )}
-                    {c.status === 'Fresh' && !c.next_followup && (
+                    {(c.status === 'Fresh' && !c.next_followup || c.status === 'cooling_off') && (
                         <button onClick={() => startContact(c)} disabled={qualifying === c.id} style={{
                           fontSize: 12, padding: '6px 14px', borderRadius: 8, border: 'none',
                           background: qualifying === c.id ? '#d1fae5' : 'linear-gradient(135deg, #2563eb, #7c3aed)',
                           color: '#fff', cursor: qualifying === c.id ? 'wait' : 'pointer', fontWeight: 600, flexShrink: 0,
                           boxShadow: '0 1px 4px rgba(37,99,235,0.3)',
                         }}>
-                          {qualifying === c.id ? '⏳ Starting…' : '🚀 Start'}
+                          {qualifying === c.id ? '⏳ Starting…' : c.status === 'cooling_off' ? '🔁 Restart' : '🚀 Start'}
                         </button>
                       )}
-                      {c.status === 'Fresh' && c.next_followup && (
+                      {c.status === 'cooling_off' && (<span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, background: '#f1f5f9', color: '#64748b', fontWeight: 600, flexShrink: 0, border: '1px solid #cbd5e1' }}>❄️ Last touch: {c.last_touchpoint_date ? new Date(c.last_touchpoint_date).toLocaleDateString() : '—'}</span>)}{c.status === 'Fresh' && c.next_followup && (
                         <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, background: '#d1fae5', color: '#059669', fontWeight: 600, flexShrink: 0, border: '1px solid #6ee7b7' }}>
                           📬 In Queue
                         </span>
