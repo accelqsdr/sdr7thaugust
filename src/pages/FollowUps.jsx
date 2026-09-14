@@ -233,7 +233,7 @@ export default function FollowUps() {
   }
 
   async function markSent(contact){
-    const next=NEXT_STAGE[contact.status]; if(!next) return;
+    const next=contact.status==='F5'?'cooling_off':NEXT_STAGE[contact.status]; if(!next) return;
     setMarkingSent(contact.id);
     const draft=drafts[contact.id];
     const now=new Date().toISOString();
@@ -561,7 +561,7 @@ function ContactRow({contact:c,accounts,drafts,drafting,draftOpen,copied,marking
   const hasActiveCampaign=contactLists.some(cl=>cl.is_active_campaign);
   const listNames=contactLists.map(cl=>(lists||[]).find(l=>l.id===cl.list_id)?.name).filter(Boolean);
   const lastTouch=c.last_touchpoint_date||c.last_contacted;
-  const markSentLabel=c.status==='Fresh'?'Send → F1':'Mark Sent';
+  const markSentLabel=c.status==='Fresh'?'Send → F1':c.status==='F5'?'Send → Cooling off':'Mark Sent';
   const draftBtnLabel=isDrafting?'Drafting...':hasDraft?(isDraftOpen?'Hide Draft':'Show Draft'):c.status==='Fresh'?'Draft Initial Email':'Draft Email';
 
   return(
