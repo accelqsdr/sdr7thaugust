@@ -51,9 +51,9 @@ export default function Pipeline() {
   const total = contacts.length;
 
   // Response breakdown from F1-F5 contacts
-  const responded = contacts.filter(c => c.response);
+  const responded = contacts.filter(c => c.response_type);
   const byResponse = {};
-  Object.keys(RESPONSE_LABELS).forEach(r => { byResponse[r] = responded.filter(c => c.response === r).length; });
+  Object.keys(RESPONSE_LABELS).forEach(r => { byResponse[r] = responded.filter(c => c.response_type === r).length; });
 
   const conversionRate = total > 0 ? ((byStage.won?.length || 0) / total * 100).toFixed(1) : 0;
   const responseRate = total > 0 ? (responded.length / total * 100).toFixed(1) : 0;
