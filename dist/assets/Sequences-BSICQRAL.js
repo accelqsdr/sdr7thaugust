@@ -1,4 +1,4 @@
-import{u as v,r as i,b as o,j as e}from"./index-B2KjpJKP.js";const w=[{day:0,subject:"Quick question about {{company}}",body:`Hi {{first_name}},
+import{u as v,r as i,b as o,j as e}from"./index-Ch2Sm4_1.js";const w=[{day:0,subject:"Quick question about {{company}}",body:`Hi {{first_name}},
 
 I noticed [specific insight].
 
