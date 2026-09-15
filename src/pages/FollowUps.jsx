@@ -205,7 +205,7 @@ export default function FollowUps() {
   function saveCadence(next){setCadence(next);localStorage.setItem('sdr_cadence',JSON.stringify(next));}
   function toggleAutoGen(){const n=!autoGenerate;setAutoGenerate(n);localStorage.setItem('sdr_auto_generate',String(n));}
 
-  async function doGenerate(contact,silent=false,customPrompt=null){
+  async function exportQueueCSV(){ const list=[...filteredFresh,...filteredActive]; if(!list.length) return; const ids=list.map(c=>c.id); const { data:acts } = await supabase.from('activity_log').select('contact_id,activity_type,details,created_at').in('contact_id',ids).order('created_at',{ascending:true}); const stageDates={}; (acts||[]).forEach(a=>{ let stage=null; if(a.activity_type==='contact_created') stage='Fresh'; else if(a.activity_type==='status_changed') stage=a.details?.status; else if(a.activity_type==='stage_advanced') stage=a.details?.to; else if(a.activity_type==='email_sent') stage=a.details?.to_stage; if(!stage||!ALL_STAGES.includes(stage)) return; stageDates[a.contact_id]=stageDates[a.contact_id]||{}; if(!stageDates[a.contact_id][stage]) stageDates[a.contact_id][stage]=a.created_at; }); const RESPONSE_LABELS_EXPORT={cold:'Cold',warm:'Warm',prospect:'Prospect',negative:'Negative',not_interested:'Not Interested',bounce:'Bounce'}; const COLUMNS=['id','first_name','last_name','email','phone','title','company','account_id','status','next_followup','notes','response_type','linkedin_url','owner_id','created_at','updated_at','last_contacted','sequence_step','response_state','sender_email','pitch','persona','pitch_type','last_touchpoint_date','response_notes','source','bounced','bounced_at','Fresh','F1','F2','F3','F4','F5','Response']; const rows=list.map(c=>{ const sd=stageDates[c.id]||{}; const row={...c}; ALL_STAGES.forEach(s=>{row[s]=sd[s]?new Date(sd[s]).toLocaleDateString():'';}); row.Response=c.response_type?(RESPONSE_LABELS_EXPORT[c.response_type]||c.response_type):''; return COLUMNS.map(k=>JSON.stringify(row[k]??'')).join(','); }); const csv=[COLUMNS.join(','),...rows].join(String.fromCharCode(10)); const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url;a.download='followup_queue_export.csv';a.click(); URL.revokeObjectURL(url); } async function doGenerate(contact,silent=false,customPrompt=null){
     if(!silent){setDrafting(contact.id);setDraftOpen(contact.id);}
     const account=accounts[contact.account_id]||{};
     const senderName=profile?.full_name||user?.email?.split('@')[0]||'SDR';
@@ -369,7 +369,7 @@ export default function FollowUps() {
             <div style={{padding:'5px 12px',borderRadius:20,fontSize:12,fontWeight:500,color:'#6b7280',background:'#f9fafb',border:'1px solid #e5e7eb'}}>
               {totalInQueue} in queue</div>
           </div>
-          <button onClick={()=>setSettingsOpen(s=>!s)}
+          <button onClick={exportQueueCSV} style={{padding:'6px 14px',borderRadius:8,border:'1.5px solid #e5e7eb',background:'#fff',color:'#2563eb',fontSize:12,fontWeight:600,cursor:'pointer',marginRight:6}}>↓ CSV</button><button onClick={()=>setSettingsOpen(s=>!s)}
             style={{padding:'6px 14px',borderRadius:8,border:`1.5px solid ${settingsOpen?'#2563eb':'#e5e7eb'}`,
               background:settingsOpen?'#dbeafe':'#fff',color:settingsOpen?'#1d4ed8':'#374151',fontSize:12,fontWeight:600,cursor:'pointer'}}>
             Settings {settingsOpen?'▲':'▼'}
