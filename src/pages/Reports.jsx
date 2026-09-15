@@ -19,7 +19,7 @@ export default function Reports() {
         q2 = q2.eq('actor_id', user.id);
       } else {
         const { data: subs } = await supabase.rpc('get_subordinate_ids', { manager_user_id: user.id });
-        const ids = (subs || []).map(s => s.user_id);
+        const ids = [user.id, ...(subs || []).map(s => s.user_id)];
         if (ids.length) { q1 = q1.in('owner_id', ids); q2 = q2.in('actor_id', ids); }
         else { q1 = q1.eq('owner_id', user.id); q2 = q2.eq('actor_id', user.id); }
       }
