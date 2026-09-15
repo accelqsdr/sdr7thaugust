@@ -96,6 +96,9 @@ export default function FollowUps() {
   const [responseFilter, setResponseFilter] = useState('all');
   const [companyFilter,  setCompanyFilter]  = useState('all');
   const [listFilter,     setListFilter]     = useState('all');
+  const [senderFilter,   setSenderFilter]   = useState('all');
+  const [lastSentFrom,   setLastSentFrom]   = useState('');
+  const [lastSentTo,     setLastSentTo]     = useState('');
   const [drafts, setDraftsRaw] = useState(() => {
     try {
       const raw=JSON.parse(localStorage.getItem('sdr_drafts')||'{}');
@@ -287,6 +290,7 @@ export default function FollowUps() {
   const todayCt=[...enriched,...enrichedFresh].filter(c=>c._bucket==='today').length;
   const readyCt=[...enriched,...enrichedFresh].filter(c=>c._hasDraft).length;
   const uniqueCompanies=[...new Set(contacts.map(c=>c.company).filter(Boolean))].sort();
+  const uniqueSenders=[...new Set(contacts.map(c=>c.sender_email).filter(Boolean))].sort();
 
   function applyFilters(list){
     return list.filter(c=>{
@@ -294,6 +298,14 @@ export default function FollowUps() {
       if(timingFilter!=='all'&&c._bucket!==timingFilter) return false;
       if(responseFilter!=='all'&&c.response_type!==responseFilter) return false;
       if(companyFilter!=='all'&&c.company!==companyFilter) return false;
+      if(senderFilter!=='all'&&c.sender_email!==senderFilter) return false;
+      if(lastSentFrom||lastSentTo){
+        const lt=c.last_touchpoint_date||c.last_contacted;
+        if(!lt) return false;
+        const ltDate=new Date(lt);
+        if(lastSentFrom&&ltDate<new Date(lastSentFrom)) return false;
+        if(lastSentTo&&ltDate>new Date(lastSentTo+'T23:59:59')) return false;
+      }
       if(listFilter!=='all'){
         const cls=contactListMap[c.id]||[];
         if(!cls.some(cl=>cl.list_id===listFilter)) return false;
@@ -316,8 +328,8 @@ export default function FollowUps() {
   }).filter(g=>g.items.length>0);
   const activeGroups=timingFilter==='all'?groups:groups.filter(g=>g.key===timingFilter);
   const showFresh=stageFilter==='all'||stageFilter==='Fresh';
-  const anyFilter=search||stageFilter!=='all'||timingFilter!=='all'||responseFilter!=='all'||companyFilter!=='all'||listFilter!=='all';
-  function clearFilters(){setSearch('');setStageFilter('all');setTimingFilter('all');setResponseFilter('all');setCompanyFilter('all');setListFilter('all');}
+  const anyFilter=search||stageFilter!=='all'||timingFilter!=='all'||responseFilter!=='all'||companyFilter!=='all'||listFilter!=='all'||senderFilter!=='all'||lastSentFrom||lastSentTo;
+  function clearFilters(){setSearch('');setStageFilter('all');setTimingFilter('all');setResponseFilter('all');setCompanyFilter('all');setListFilter('all');setSenderFilter('all');setLastSentFrom('');setLastSentTo('');}
   const totalInQueue=contacts.length;
   const sharedProps={
     accounts,drafts,drafting,draftOpen,copied,markingSent,contactListMap,lists,sentEmails,
@@ -454,6 +466,22 @@ export default function FollowUps() {
               {lists.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
           )}
+                              {uniqueSenders.length>1&&(
+            <select value={senderFilter} onChange={e=>setSenderFilter(e.target.value)}
+              style={{padding:'5px 8px',borderRadius:8,border:(senderFilter!=='all'?'1px solid #2563eb':'1px solid #e5e7eb'),
+                fontSize:12,background:senderFilter!=='all'?'#eff6ff':'#f9fafb',color:'#374151',cursor:'pointer',maxWidth:170}}>
+              <option value="all">All senders</option>
+              {uniqueSenders.map(s=><option key={s} value={s}>{s}</option>)}
+            </select>
+          )}
+          <div style={{display:'flex',gap:4,alignItems:'center'}}>
+            <span style={{fontSize:10,color:'#9ca3af',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em'}}>Last sent:</span>
+            <input type="date" value={lastSentFrom} onChange={e=>setLastSentFrom(e.target.value)}
+              style={{padding:'4px 6px',borderRadius:6,border:(lastSentFrom?'1px solid #2563eb':'1px solid #e5e7eb'),fontSize:11,background:lastSentFrom?'#eff6ff':'#f9fafb',color:'#374151'}}/>
+            <span style={{fontSize:11,color:'#9ca3af'}}>to</span>
+            <input type="date" value={lastSentTo} onChange={e=>setLastSentTo(e.target.value)}
+              style={{padding:'4px 6px',borderRadius:6,border:(lastSentTo?'1px solid #2563eb':'1px solid #e5e7eb'),fontSize:11,background:lastSentTo?'#eff6ff':'#f9fafb',color:'#374151'}}/>
+          </div>
           {anyFilter&&<button onClick={clearFilters}
             style={{padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:500,color:'#dc2626',background:'#fef2f2',border:'none',cursor:'pointer'}}>
             Clear filters
@@ -604,8 +632,8 @@ function ContactRow({contact:c,accounts,drafts,drafting,draftOpen,copied,marking
         <div style={{flex:1}}/>
         {lastTouch&&(
           <div style={{fontSize:10,color:'#9ca3af',flexShrink:0,textAlign:'right',lineHeight:1.4}}>
-            <div>Last touch</div>
-            <div style={{fontWeight:600,color:'#6b7280'}}>{formatDateShort(lastTouch)}</div>
+            <div>Last sent</div>
+            <div style={{fontWeight:600,color:'#6b7280'}}>{new Date(lastTouch).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'})}</div>
           </div>
         )}
         <div style={{fontSize:11,fontWeight:600,flexShrink:0,width:72,textAlign:'right',color:isOverdue?'#dc2626':c._due?'#374151':'#d1d5db'}}>
