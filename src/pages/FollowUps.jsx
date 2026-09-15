@@ -588,7 +588,7 @@ function ContactRow({contact:c,accounts,drafts,drafting,draftOpen,copied,marking
   const contactLists=contactListMap?.[c.id]||[];
   const hasActiveCampaign=contactLists.some(cl=>cl.is_active_campaign);
   const listNames=contactLists.map(cl=>(lists||[]).find(l=>l.id===cl.list_id)?.name).filter(Boolean);
-  const lastTouch=c.last_touchpoint_date||c.last_contacted;
+  const lastTouch=c.last_touchpoint_date||c.last_contacted||(sentHistory&&sentHistory[0]&&sentHistory[0].date);
   const markSentLabel=c.status==='Fresh'?'Send → F1':c.status==='F5'?'Send → Cooling off':'Mark Sent';
   const draftBtnLabel=isDrafting?'Drafting...':hasDraft?(isDraftOpen?'Hide Draft':'Show Draft'):c.status==='Fresh'?'Draft Initial Email':'Draft Email';
 
