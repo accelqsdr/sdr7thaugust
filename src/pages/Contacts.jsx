@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext'; import { markContactBounced } from '../utils/bounce';
 
 const STATUSES = ['Fresh', 'F1', 'F2', 'F3', 'F4', 'F5', 'won', 'lost', 'bounced', 'unsubscribed'];
 
@@ -240,7 +240,7 @@ export default function Contacts() {
     setListContactIds(new Set((data || []).map(r => r.contact_id)));
   }
 
-  async function updateStatus(id, status) {
+  async function updateStatus(id, status) { if (status === 'bounced') { await markContactBounced(id, user.id); fetchContacts(); return; }
     await supabase.from('contacts').update({ status, last_touchpoint_date: new Date().toISOString() }).eq('id', id);
     await supabase.from('activity_log').insert({ actor_id: user.id, contact_id: id, activity_type: 'status_changed', details: { status } });
     fetchContacts();
