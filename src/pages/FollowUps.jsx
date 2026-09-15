@@ -336,7 +336,7 @@ export default function FollowUps() {
     <div style={{display:'flex',flexDirection:'column',height:'100vh',overflow:'hidden',background:'#f8f9fb'}}>
       <div style={{background:'#fff',borderBottom:'1px solid #e5e7eb',flexShrink:0}}>
         {/* Title row */}
-        <div style={{display:'flex',alignItems:'center',gap:12,padding:'14px 24px 10px'}}>
+        <div style={{display:'flex',alignItems:'center',gap:12,padding:'14px 24px 10px',flexWrap:'wrap'}}>
           <div>
             <div style={{display:'flex',alignItems:'center',gap:10}}>
               <h1 style={{fontSize:18,fontWeight:700,color:'#111',margin:0}}>Follow-up Queue</h1>
