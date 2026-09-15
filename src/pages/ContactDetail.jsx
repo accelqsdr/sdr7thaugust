@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { inferFromTitle } from '../utils/inferContact';
+import { inferFromTitle } from '../utils/inferContact'; import { markContactBounced } from '../utils/bounce';
 
 const STAGES = ['Fresh','F1','F2','F3','F4','F5'];
 const OUTCOMES = ['won','lost','bounced','unsubscribed'];
@@ -181,7 +181,7 @@ export default function ContactDetail() {
     if (contact) { fetchNotes(contact.company); fetchTimeline(); fetchEmails(); }
   }, [contact?.id]);
 
-  async function updateStatus(status) {
+  async function updateStatus(status) { if (status === 'bounced') { await markContactBounced(id, user.id); setContact(c => ({ ...c, status: 'bounced', bounced: true, response_state: 'Bounce' })); fetchTimeline(); return; }
     const update = { status };
     if (STEP_MAP[status] !== undefined) update.sequence_step = STEP_MAP[status];
     await supabase.from('contacts').update(update).eq('id', id);
@@ -193,7 +193,7 @@ export default function ContactDetail() {
     fetchTimeline();
   }
 
-  async function setResponse(response) {
+  async function setResponse(response) { if (response === 'bounce') { await markContactBounced(id, user.id); setContact(c => ({ ...c, status: 'bounced', bounced: true, response_state: 'Bounce' })); fetchTimeline(); return; }
     const update = { response: response || null };
     await supabase.from('contacts').update(update).eq('id', id);
     setContact(c => ({ ...c, response: response || null }));
@@ -224,9 +224,9 @@ export default function ContactDetail() {
 
   async function markBounced() {
     if (!window.confirm('Mark as bounced? They will be excluded from follow-ups.')) return;
-    await supabase.from('contacts').update({ status: 'bounced', bounced: true, bounced_at: new Date().toISOString() }).eq('id', id);
-    await supabase.from('activity_log').insert({ actor_id: user.id, contact_id: id, activity_type: 'bounce_detected', details: {} });
-    setContact(c => ({ ...c, status: 'bounced', bounced: true }));
+    await markContactBounced(id, user.id);
+    
+    setContact(c => ({ ...c, status: 'bounced', bounced: true, response_state: 'Bounce' }));
     fetchTimeline();
   }
 
