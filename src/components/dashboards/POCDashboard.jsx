@@ -11,7 +11,7 @@ export default function POCDashboard() {
   useEffect(() => {
     async function load() {
       const { data: subs } = await supabase.rpc('get_subordinate_ids', { manager_user_id: user.id });
-      const subIds = (subs || []).map(s => s.user_id);
+      const subIds = [user.id, ...(subs || []).map(s => s.user_id)];
 
       const { data: hierarchy } = await supabase.from('org_hierarchy').select('*').in('user_id', subIds);
       const allContacts=[]; {let _o=0; for(;;){const{data:_d}=await supabase.from('contacts').select('*').in('owner_id',subIds).range(_o,_o+999); if(!_d?.length)break; allContacts.push(..._d); if(_d.length<1000)break; _o+=1000;}}
