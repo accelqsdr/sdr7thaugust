@@ -18,7 +18,7 @@ export default function Analytics() {
         q = q.eq('owner_id', user.id);
       } else {
         const { data: subs } = await supabase.rpc('get_subordinate_ids', { manager_user_id: user.id });
-        const ids = (subs || []).map(s => s.user_id);
+        const ids = [user.id, ...(subs || []).map(s => s.user_id)];
         if (ids.length) q = q.in('owner_id', ids);
         else q = q.eq('owner_id', user.id);
       }
