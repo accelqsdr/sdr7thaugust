@@ -12,7 +12,7 @@ export default function ManagerDashboard() {
   useEffect(() => {
     async function load() {
       const { data: subs } = await supabase.rpc('get_subordinate_ids', { manager_user_id: user.id });
-      const subIds = (subs || []).map(s => s.user_id);
+      const subIds = [user.id, ...(subs || []).map(s => s.user_id)];
 
       const [{ data: hierarchy }, { data: allContacts }, { data: acts }] = await Promise.all([
         supabase.from('org_hierarchy').select('*').in('user_id', subIds),
