@@ -47,7 +47,7 @@ export default function SDRDashboard() {
   const pipeline = {};
   STAGES.forEach(s => { pipeline[s] = active.filter(c => c.status === s).length; });
 
-  const responded = active.filter(c => c.response).length;
+  const responded = active.filter(c => c.response_type).length;
   const won = active.filter(c => c.status === 'won').length;
   const bounced = contacts.filter(c => c.bounced).length;
   const overdue = active.filter(c => c.next_followup && new Date(c.next_followup) < new Date() && c.status !== 'won' && c.status !== 'lost');
