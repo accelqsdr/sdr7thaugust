@@ -194,9 +194,9 @@ export default function ContactDetail() {
   }
 
   async function setResponse(response) { if (response === 'bounce') { await markContactBounced(id, user.id); setContact(c => ({ ...c, status: 'bounced', bounced: true, response_state: 'Bounce' })); fetchTimeline(); return; }
-    const update = { response: response || null };
+    const val = response || null; const update = { response_type: val }; await supabase.from('activity_log').insert({ actor_id: user.id, contact_id: id, activity_type: 'response_set', details: { response_type: val } });
     await supabase.from('contacts').update(update).eq('id', id);
-    setContact(c => ({ ...c, response: response || null }));
+    setContact(c => ({ ...c, response_type: val }));
   }
 
   async function advanceStage() {
@@ -307,7 +307,7 @@ export default function ContactDetail() {
   const totalNotes = contactNotes.length + companyNotes.length;
   const currentStageIdx = STAGES.indexOf(contact.status);
   const nextStage = NEXT_STAGE[contact.status];
-  const responseInfo = RESPONSE_OPTIONS.find(r => r.value === contact.response);
+  const responseInfo = RESPONSE_OPTIONS.find(r => r.value === contact.response_type);
 
   const tabs = [
     { key: 'overview',  label: 'Overview' },
@@ -444,15 +444,15 @@ export default function ContactDetail() {
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {RESPONSE_OPTIONS.map(r => (
-                <button key={r.value} onClick={() => setResponse(contact.response === r.value ? null : r.value)}
+                <button key={r.value} onClick={() => setResponse(contact.response_type === r.value ? null : r.value)}
                   style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, cursor: 'pointer', fontWeight: 500, transition: 'all 0.15s',
-                    background: contact.response === r.value ? r.bg : '#f8f8f6',
-                    color: contact.response === r.value ? r.color : '#888',
-                    border: contact.response === r.value ? `1.5px solid ${r.color}` : '1.5px solid #e8e8e4' }}>
+                    background: contact.response_type === r.value ? r.bg : '#f8f8f6',
+                    color: contact.response_type === r.value ? r.color : '#888',
+                    border: contact.response_type === r.value ? `1.5px solid ${r.color}` : '1.5px solid #e8e8e4' }}>
                   {r.label}
                 </button>
               ))}
-              {contact.response && (
+              {contact.response_type && (
                 <button onClick={() => setResponse(null)}
                   style={{ fontSize: 11, padding: '4px 8px', borderRadius: 8, cursor: 'pointer', background: 'none', border: '1px solid #e8e8e4', color: '#bbb' }}>
                   ✕ Clear
