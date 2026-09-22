@@ -727,7 +727,7 @@ const CONTACT_FIELDS = [
   { key: 'persona',       label: 'Persona' },
   { key: 'response_type', label: 'Response Type' },
   { key: 'sender_email',  label: 'Sender Email' },
-  { key: 'notes',         label: 'Contact Notes' }, { key: 'status', label: 'Status' }, { key: 'response_notes', label: 'Response Notes' }, { key: 'source', label: 'Source' }, { key: 'next_followup', label: 'Next Follow-up' }, { key: 'last_contacted', label: 'Last Contacted' },
+  { key: 'notes',         label: 'Contact Notes' }, { key: '_contact_note', label: 'Contact Note (adds a note)' }, { key: '_company_note', label: 'Company Note (adds a note)' }, { key: 'status', label: 'Status' }, { key: 'response_notes', label: 'Response Notes' }, { key: 'source', label: 'Source' }, { key: 'next_followup', label: 'Next Follow-up' }, { key: 'last_contacted', label: 'Last Contacted' },
   { key: '_industry',     label: 'Account: Industry' },
   { key: '_country',      label: 'Account: Country' },
   { key: '_website',      label: 'Account: Website' },
@@ -754,7 +754,7 @@ const FIELD_GUESS = [
   { field: 'persona',       keys: ['persona','buyer_persona','persona_type'] },
   { field: 'response_type', keys: ['response_type','responsetype','response'] },
   { field: 'sender_email',  keys: ['sender_email','sender','from_email','sent_from'] }, { field: 'status', keys: ['status','stage'] }, { field: 'response_notes', keys: ['response_notes','responsenotes','response_note'] }, { field: 'source', keys: ['source','lead_source'] }, { field: 'next_followup', keys: ['next_followup','nextfollowup','next_follow_up'] }, { field: 'last_contacted', keys: ['last_contacted','lastcontacted'] },
-  { field: 'notes',         keys: ['notes','note','contact_note','contact_notes','comments','remarks'] },
+  { field: 'notes',         keys: ['notes','note','comments','remarks'] }, { field: '_contact_note', keys: ['contact_note','contact_notes'] }, { field: '_company_note', keys: ['company_note','company_notes'] },
   { field: '_industry',     keys: ['industry','sector'] },
   { field: '_country',      keys: ['country','account_country','company_country'] },
   { field: '_website',      keys: ['website','company_website','url','domain'] },
@@ -960,15 +960,20 @@ function UploadCSV({ userId, onDone }) {
     [...existingAccounts, ...createdAccounts].forEach(a => { accountMap[a.name] = a.id; });
 
     // Strip internal _fields before inserting contacts
-    const contactRows = rows.map(({ _industry, _country, _website, _revenue, _employees, ...rest }) => ({
+    const contactRows = rows.map(({ _industry, _country, _website, _revenue, _employees, _contact_note, _company_note, ...rest }) => ({
       ...rest,
       account_id: accountMap[rest.company] || null,
       source: 'csv_import',
     }));
 
+    const contactNotesToInsert = [];
+    const companyNotesToInsert = [];
+    const companyNotesSeen = new Set();
+
     const BATCH = 50;
     let total = 0;
     for (let i = 0; i < contactRows.length; i += BATCH) {
+      const batchRows = rows.slice(i, i + BATCH);
       const { data: inserted, error } = await supabase.from('contacts').insert(contactRows.slice(i, i + BATCH)).select('id');
       if (error) { setMsg('Upload failed: ' + error.message); setStep('idle'); return; }
       if (inserted && inserted.length) {
@@ -976,10 +981,26 @@ function UploadCSV({ userId, onDone }) {
           actor_id: userId, contact_id: row.id, activity_type: 'contact_created',
           details: { source: 'csv_import' },
         })));
+        inserted.forEach((row, idx) => {
+          const src = batchRows[idx];
+          if (src && src._contact_note) {
+            contactNotesToInsert.push({ contact_id: row.id, author_id: userId, body: src._contact_note });
+          }
+          if (src && src._company_note && src.company && !companyNotesSeen.has(src.company)) {
+            companyNotesSeen.add(src.company);
+            companyNotesToInsert.push({ company_name: src.company, author_id: userId, body: src._company_note });
+          }
+        });
       }
       total += Math.min(BATCH, contactRows.length - i);
       setMsg(`Uploading… ${total}/${contactRows.length}`);
     }
+
+    // Notes live in separate tables (contact_notes / company_notes) — each
+    // imported note is added as a new entry, matching how notes work
+    // everywhere else in the app, rather than overwriting anything.
+    if (contactNotesToInsert.length) await supabase.from('contact_notes').insert(contactNotesToInsert);
+    if (companyNotesToInsert.length) await supabase.from('company_notes').insert(companyNotesToInsert);
 
     setStep('done');
     setMsg(`✓ ${contactRows.length} contacts imported`);
