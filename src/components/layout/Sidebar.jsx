@@ -22,6 +22,7 @@ const navByRole = {
   ],
   'sub-admin-direct': [
     { to: '/', icon: '⊞', label: 'Dashboard', end: true },
+    { to: '/prospect-discovery', icon: '🔍', label: 'Account Discovery' },
     { to: '/teams', icon: '👥', label: 'My team' },
     { to: '/users', icon: '🧑‍💼', label: 'Team Members' },
     { to: '/contacts', icon: '📋', label: 'Contacts' },
