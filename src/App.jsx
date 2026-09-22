@@ -8,7 +8,6 @@ const Login        = lazy(() => import('./pages/Login'));
 const Dashboard    = lazy(() => import('./pages/Dashboard'));
 const Contacts     = lazy(() => import('./pages/Contacts'));
 const FollowUps    = lazy(() => import('./pages/FollowUps'));
-const Pipeline     = lazy(() => import('./pages/Pipeline'));
 const Activity     = lazy(() => import('./pages/Activity'));
 const Teams        = lazy(() => import('./pages/Teams'));
 const Analytics    = lazy(() => import('./pages/Analytics'));
@@ -63,7 +62,6 @@ export default function App() {
               <Route path="accounts" element={<Accounts />} />
               <Route path="accounts/:id" element={<AccountDetail />} />
               <Route path="followups" element={<FollowUps />} />
-              <Route path="pipeline" element={<Pipeline />} />
               <Route path="activity" element={<Activity />} />
               <Route path="teams" element={<Teams />} />
               <Route path="analytics" element={<Analytics />} />
