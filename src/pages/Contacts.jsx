@@ -853,6 +853,8 @@ function UploadCSV({ userId, onDone }) {
           firstName = val;
         } else if (field === 'last_name') {
           lastName = val;
+        } else if (field === 'status') {
+          // ignore — new contacts always start as Fresh regardless of any status/stage column in the source file
         } else {
           obj[field] = val;
         }
