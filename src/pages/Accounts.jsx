@@ -470,7 +470,10 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
   const [showAddSaas, setShowAddSaas] = useState(false);
   const [newCustomSection, setNewCustomSection] = useState('');
   const [showAddCustom, setShowAddCustom] = useState(false);
-  const [notesValue, setNotesValue] = useState(account.notes || '');
+  const [contactNotesMap, setContactNotesMap] = useState({});
+  const [companyNotesList, setCompanyNotesList] = useState([]);
+  const [newCompanyNoteText, setNewCompanyNoteText] = useState('');
+  const [savingCompanyNote, setSavingCompanyNote] = useState(false);
   const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
   const [editingCompanyDetails, setEditingCompanyDetails] = useState(false);
   const [companyDetailsDraft, setCompanyDetailsDraft] = useState({
@@ -478,7 +481,6 @@ function AccountDetail({ account, contacts, onUpdate, navigate }) {
     ticker: account.ticker || '',
     parent_company: account.parent_company || '',
   });
-  const notesTimer = useRef(null);
   // ── Contact add / CSV import ──
   const [showAddContact, setShowAddContact] = useState(false);
   const [newContact, setNewContact] = useState({first_name:'',last_name:'',title:'',email:'',linkedin_url:'',pitch:'',notes:''});
@@ -558,10 +560,28 @@ setSaving(false);
   }
   async function removeCustomSection(idx) { await patch({ custom_research: customResearch.filter((_, i) => i !== idx) }); }
   async function saveCustomResearch(idx, value) { await patch({ custom_research: customResearch.map((s, i) => i === idx ? { ...s, value } : s) }); }
-  function handleNotesChange(val) {
-    setNotesValue(val);
-    clearTimeout(notesTimer.current);
-    notesTimer.current = setTimeout(() => patch({ notes: val }), 800);
+  const fetchCompanyNotes = useCallback(async () => {
+    const { data: cn } = await supabase.from('company_notes').select('*, profiles(full_name)').eq('company_name', data.name).order('created_at', { ascending: false });
+    setCompanyNotesList(cn || []);
+  }, [data.name]);
+  useEffect(() => { fetchCompanyNotes(); }, [fetchCompanyNotes]);
+  useEffect(() => {
+    const ids = contacts.map(c => c.id);
+    if (!ids.length) { setContactNotesMap({}); return; }
+    supabase.from('contact_notes').select('contact_id,body,created_at').in('contact_id', ids).order('created_at', { ascending: false })
+      .then(({ data: rows }) => {
+        const m = {};
+        (rows || []).forEach(r => { if (!m[r.contact_id]) m[r.contact_id] = r.body; });
+        setContactNotesMap(m);
+      });
+  }, [contacts]);
+  async function addCompanyNote() {
+    if (!newCompanyNoteText.trim()) return;
+    setSavingCompanyNote(true);
+    await supabase.from('company_notes').insert({ company_name: data.name, author_id: user.id, body: newCompanyNoteText.trim() });
+    setNewCompanyNoteText('');
+    setSavingCompanyNote(false);
+    fetchCompanyNotes();
   }
   async function saveLinkedIn() { await patch({ linkedin_url: linkedInDraft }); setEditingLinkedIn(false); }
   async function saveCompanyDetails() {
@@ -768,12 +788,17 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
     const payload={first_name:newContact.first_name.trim(),last_name:newContact.last_name.trim()||null,
       title:newContact.title.trim()||null,email:newContact.email.trim()||null,
       linkedin_url:newContact.linkedin_url.trim()||null,pitch:newContact.pitch.trim()||null,
-      notes:newContact.notes.trim()||null,account_id:data.id,owner_id:user.id,status:'Fresh'};
+      account_id:data.id,owner_id:user.id,status:'Fresh'};
+    const noteText=newContact.notes.trim();
+    let targetContactId=null;
     if(forceOverwrite&&newContact.email){
       const dup=contacts.find(ct=>ct.email&&ct.email.toLowerCase()===newContact.email.toLowerCase());
-      if(dup) await supabase.from('contacts').update(payload).eq('id',dup.id);
-      else await supabase.from('contacts').insert(payload);
-    } else { await supabase.from('contacts').insert(payload); }
+      if(dup){ await supabase.from('contacts').update(payload).eq('id',dup.id); targetContactId=dup.id; }
+      else { const{data:ins}=await supabase.from('contacts').insert(payload).select('id').single(); targetContactId=ins?.id; }
+    } else { const{data:ins}=await supabase.from('contacts').insert(payload).select('id').single(); targetContactId=ins?.id; }
+    // Notes go into contact_notes (the same note history shown in ContactDetail),
+    // not a separate single field, so they show up wherever notes are read.
+    if(noteText&&targetContactId) await supabase.from('contact_notes').insert({contact_id:targetContactId,author_id:user.id,body:noteText});
     setAddingContact(false);setShowAddContact(false);setContactDupWarning(null);
     setNewContact({first_name:'',last_name:'',title:'',email:'',linkedin_url:'',pitch:'',notes:''});
     onUpdate();
@@ -814,14 +839,24 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
   async function doImport(clean,decisions) {
     setCsvImporting(true);
     const ins=clean.map(r=>({first_name:r.first_name,last_name:r.last_name||null,title:r.title||null,
-      email:r.email||null,linkedin_url:r.linkedin_url||null,pitch:r.pitch||null,notes:r.notes||null,
+      email:r.email||null,linkedin_url:r.linkedin_url||null,pitch:r.pitch||null,
       account_id:data.id,owner_id:user.id,status:'Fresh'}));
-    for(const{idx,row,existing}of csvDuplicates){
-      if((decisions[idx]||'keep')==='overwrite')
-        await supabase.from('contacts').update({first_name:row.first_name,last_name:row.last_name||null,
-          title:row.title||null,linkedin_url:row.linkedin_url||null,pitch:row.pitch||null,notes:row.notes||null}).eq('id',existing.id);
+    const contactNotesToInsert=[];
+    let insertedRows=[];
+    if(ins.length>0){
+      const{data:rows}=await supabase.from('contacts').insert(ins).select('id');
+      insertedRows=rows||[];
+      insertedRows.forEach((row,idx)=>{ const note=clean[idx]&&clean[idx].notes; if(note) contactNotesToInsert.push({contact_id:row.id,author_id:user.id,body:note}); });
     }
-    if(ins.length>0) await supabase.from('contacts').insert(ins);
+    for(const{idx,row,existing}of csvDuplicates){
+      if((decisions[idx]||'keep')==='overwrite'){
+        await supabase.from('contacts').update({first_name:row.first_name,last_name:row.last_name||null,
+          title:row.title||null,linkedin_url:row.linkedin_url||null,pitch:row.pitch||null}).eq('id',existing.id);
+        if(row.notes) contactNotesToInsert.push({contact_id:existing.id,author_id:user.id,body:row.notes});
+      }
+    }
+    // Notes go into contact_notes (note history), not a separate single field.
+    if(contactNotesToInsert.length) await supabase.from('contact_notes').insert(contactNotesToInsert);
     setCsvImporting(false);
     setCsvImportResult({added:ins.length,overwritten:Object.values(decisions).filter(d=>d==='overwrite').length});
     setCsvStep(4);onUpdate();
@@ -1132,7 +1167,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>{(c.first_name + ' ' + (c.last_name || '')).trim()}</div>
                         <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{c.title || ''}</div>
-                        {c.notes && <div style={{ fontSize: 11, color: '#7c3aed', marginTop: 4, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 380 }}>"{c.notes}"</div>}
+                        {contactNotesMap[c.id] && <div style={{ fontSize: 11, color: '#7c3aed', marginTop: 4, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 380 }}>"{contactNotesMap[c.id]}"</div>}
                       </div>
                       <span style={{ fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 8, background: sc2.bg, color: sc2.color, flexShrink: 0 }}>{c.status}</span>
                       <div style={{ display: 'flex', gap: 4, flexBasis: '100%', paddingLeft: 54, marginTop: -4 }}>
@@ -1196,7 +1231,7 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
                       <div style={{ position: 'relative', flexShrink: 0 }}>
                         <button onClick={() => { setNotePopover(notePopover === c.id ? null : c.id); setNoteDraft(''); }}
                           title="Add a note"
-                          style={{ fontSize: 14, padding: '6px 8px', borderRadius: 8, border: '1px solid #e5e7eb', background: c.notes ? '#fef9c3' : '#fff', color: '#92400e', cursor: 'pointer' }}>
+                          style={{ fontSize: 14, padding: '6px 8px', borderRadius: 8, border: '1px solid #e5e7eb', background: contactNotesMap[c.id] ? '#fef9c3' : '#fff', color: '#92400e', cursor: 'pointer' }}>
                           📝
                         </button>
                         {notePopover === c.id && (
@@ -1352,12 +1387,28 @@ if (r.employee_count_range && !data.employee_count) updates.employee_count = r.e
         {activeTab === 'notes' && (
           <div style={{ maxWidth: 860 }}>
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '18px 20px' }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 12 }}>📝 Account Notes</div>
-              <textarea value={notesValue} onChange={e => handleNotesChange(e.target.value)}
-                placeholder="Add intel: tech stack, deal status, pain points, next steps, objections, key stakeholders…"
-                rows={18}
-                style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: 13, lineHeight: 1.8, resize: 'vertical', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', color: '#374151', background: '#f9fafb' }} />
-              <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>Auto-saves as you type</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 4 }}>📝 Company Notes</div>
+              <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 16 }}>Shared across every rep working this account — same notes shown on each contact's Company Notes tab</div>
+              <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+                <textarea value={newCompanyNoteText} onChange={e => setNewCompanyNoteText(e.target.value)}
+                  placeholder="Add intel: tech stack, deal status, pain points, next steps, objections, key stakeholders…" rows={4}
+                  style={{ flex: 1, padding: '10px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 13, resize: 'vertical', fontFamily: 'inherit', outline: 'none' }} />
+                <button onClick={addCompanyNote} disabled={!newCompanyNoteText.trim() || savingCompanyNote}
+                  style={{ padding: '10px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', alignSelf: 'flex-end', opacity: !newCompanyNoteText.trim() ? 0.5 : 1 }}>
+                  {savingCompanyNote ? 'Saving…' : 'Add'}
+                </button>
+              </div>
+              {companyNotesList.length === 0 ? (
+                <p style={{ fontSize: 13, color: '#bbb', textAlign: 'center', padding: '24px 0' }}>No notes yet</p>
+              ) : companyNotesList.map(n => (
+                <div key={n.id} style={{ padding: '12px 14px', borderRadius: 8, marginBottom: 8, background: '#f8f8f6', borderLeft: '3px solid #e0e0e0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>{n.profiles?.full_name || 'Unknown'}</span>
+                    <span style={{ fontSize: 11, color: '#bbb' }}>{n.created_at ? new Date(n.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : ''}</span>
+                  </div>
+                  <p style={{ fontSize: 13, color: '#333', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{n.body}</p>
+                </div>
+              ))}
             </div>
           </div>
         )}
