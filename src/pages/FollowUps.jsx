@@ -238,10 +238,10 @@ export default function FollowUps() {
           title:contact.title,company:contact.company,email:contact.email,
           response:contact.response_type,industry:account.industry,
           persona:contact.persona,pitch_type:contact.pitch_type,pitch:contact.pitch,
-          contact_note:contact.notes,
+          contact_note:contactNoteMap[contact.id]||contact.notes||'',
         },
         stage:emailStage, customPrompt:customPrompt||null,
-        accountResearch:account.research||{}, accountNote:account.notes||'',
+        accountResearch:account.research||{}, accountNote:companyNoteMap[contact.company]||account.notes||'',
         senderName, priorEmailBodies:priorBodies,
       }});
       if(!res.error&&res.data?.subject){
