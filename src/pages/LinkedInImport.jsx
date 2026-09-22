@@ -98,7 +98,6 @@ export default function LinkedInImport() {
           linkedin_url: c.linkedinUrl || null,
           status:       'Fresh',
           owner_id:     profile?.id || null,
-          notes:        c.country ? 'Location: ' + c.country : null,
           source:       'linkedin_import',
         }).select('id').single();
 
@@ -110,6 +109,13 @@ export default function LinkedInImport() {
               actor_id: profile?.id || null, contact_id: inserted.id, activity_type: 'contact_created',
               details: { source: 'linkedin_import' },
             });
+            if (c.country) {
+              await supabase.from('contact_notes').insert({
+                contact_id: inserted.id,
+                author_id: profile?.id || null,
+                body: 'Location: ' + c.country,
+              });
+            }
           }
         }
       } catch (err) {
