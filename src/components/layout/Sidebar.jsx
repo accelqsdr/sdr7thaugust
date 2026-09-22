@@ -17,7 +17,6 @@ const navByRole = {
     { to: '/followups', icon: '🕐', label: 'Follow-ups' },
     { to: '/responses', icon: '💬', label: 'Responses' },
     { to: '/lists', icon: '📋', label: 'Lists' },
-    { to: '/pipeline', icon: '📊', label: 'Pipeline' },
     { to: '/sequences', icon: '🔁', label: 'Sequences' },
     { to: '/settings', icon: '⚙️', label: 'Settings' },
   ],
