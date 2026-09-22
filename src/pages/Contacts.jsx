@@ -271,13 +271,13 @@ export default function Contacts() {
     setBatchStarting(true);
     setBatchMsg('');
 
-    const now = new Date();
-    const followup = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+    const now = new Date().toISOString();
 
     let done = 0;
     for (const id of ids) {
-      await supabase.from('contacts').update({ status: 'F1', next_followup: followup }).eq('id', id);
-      await supabase.from('activity_log').insert({ actor_id: user.id, contact_id: id, activity_type: 'status_changed', details: { status: 'F1', note: 'Batch start' } });
+      // Keep status as Fresh — matches Accounts page Start behavior; contact appears in Follow-up Queue New Contacts section
+      await supabase.from('contacts').update({ status: 'Fresh', next_followup: now }).eq('id', id);
+      await supabase.from('activity_log').insert({ actor_id: user.id, contact_id: id, activity_type: 'outreach_started', details: { started_from: 'contacts', note: 'Batch start' } });
       done++;
       setBatchMsg(`Starting… ${done}/${ids.length}`);
     }
