@@ -99,6 +99,7 @@ export default function FollowUps() {
   const [senderFilter,   setSenderFilter]   = useState('all');
   const [lastSentFrom,   setLastSentFrom]   = useState('');
   const [lastSentTo,     setLastSentTo]     = useState('');
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [drafts, setDraftsRaw] = useState(() => {
     try {
       const raw=JSON.parse(localStorage.getItem('sdr_drafts')||'{}');
@@ -208,7 +209,7 @@ export default function FollowUps() {
   function saveCadence(next){setCadence(next);localStorage.setItem('sdr_cadence',JSON.stringify(next));}
   function toggleAutoGen(){const n=!autoGenerate;setAutoGenerate(n);localStorage.setItem('sdr_auto_generate',String(n));}
 
-  async function exportQueueCSV(){ const csvField=v=>{v=(v==null?'':String(v)); var Q=String.fromCharCode(34); var NL=String.fromCharCode(10); var CR=String.fromCharCode(13); var bad=v.indexOf(Q)>-1||v.indexOf(',')>-1||v.indexOf(NL)>-1||v.indexOf(CR)>-1; if(!bad) return v; var out=Q; for(var j=0;j<v.length;j++){var ch=v[j]; out+=ch; if(ch===Q) out+=Q;} out+=Q; return out;}; const list=[...filteredFresh,...filteredActive]; if(!list.length) return; const ids=list.map(c=>c.id); const { data:acts } = await supabase.from('activity_log').select('contact_id,activity_type,details,created_at').in('contact_id',ids).order('created_at',{ascending:true}); const stageDates={}; (acts||[]).forEach(a=>{ let stage=null; if(a.activity_type==='contact_created') stage='Fresh'; else if(a.activity_type==='status_changed') stage=a.details?.status; else if(a.activity_type==='stage_advanced') stage=a.details?.to; else if(a.activity_type==='email_sent') stage=a.details?.to_stage; if(!stage||!ALL_STAGES.includes(stage)) return; stageDates[a.contact_id]=stageDates[a.contact_id]||{}; if(!stageDates[a.contact_id][stage]) stageDates[a.contact_id][stage]=a.created_at; }); const RESPONSE_LABELS_EXPORT={cold:'Cold',warm:'Warm',prospect:'Prospect',negative:'Negative',not_interested:'Not Interested',bounce:'Bounce'}; const STAGE_COLS=[]; ALL_STAGES.forEach(s=>{STAGE_COLS.push(s+' Subject');STAGE_COLS.push(s+' Email');}); const COLUMNS=['id','first_name','last_name','email','phone','title','company','account_id','status','next_followup','notes','response_type','linkedin_url','owner_id','created_at','updated_at','last_contacted','sequence_step','response_state','sender_email','pitch','persona','pitch_type','last_touchpoint_date','response_notes','source','bounced','bounced_at','Fresh','F1','F2','F3','F4','F5','Response',...STAGE_COLS]; const rows=list.map(c=>{ const sd=stageDates[c.id]||{}; const row={...c}; ALL_STAGES.forEach(s=>{row[s]=sd[s]?new Date(sd[s]).toLocaleDateString():'';}); row.Response=c.response_type?(RESPONSE_LABELS_EXPORT[c.response_type]||c.response_type):''; const emailsByStage={}; (sentEmails[c.id]||[]).forEach(e=>{ if(e.stage&&!emailsByStage[e.stage]) emailsByStage[e.stage]=e; }); const draft=drafts[c.id]; if(draft&&c.status&&!emailsByStage[c.status]) emailsByStage[c.status]={subject:draft.subject,body:draft.body}; ALL_STAGES.forEach(s=>{ row[s+' Subject']=emailsByStage[s]?.subject||''; row[s+' Email']=emailsByStage[s]?.body||''; }); return COLUMNS.map(k=>csvField(row[k])).join(','); }); const csv=[COLUMNS.join(','),...rows].join(String.fromCharCode(10)); const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url;a.download='followup_queue_export.csv';a.click(); URL.revokeObjectURL(url); } async function doGenerate(contact,silent=false,customPrompt=null){
+  async function exportQueueCSV(){ const csvField=v=>{v=(v==null?'':String(v)); var Q=String.fromCharCode(34); var NL=String.fromCharCode(10); var CR=String.fromCharCode(13); var bad=v.indexOf(Q)>-1||v.indexOf(',')>-1||v.indexOf(NL)>-1||v.indexOf(CR)>-1; if(!bad) return v; var out=Q; for(var j=0;j<v.length;j++){var ch=v[j]; out+=ch; if(ch===Q) out+=Q;} out+=Q; return out;}; const allList=[...filteredFresh,...filteredActive]; const list=selectedIds&&selectedIds.size>0?allList.filter(c=>selectedIds.has(c.id)):allList; if(!list.length) return; const ids=list.map(c=>c.id); const { data:acts } = await supabase.from('activity_log').select('contact_id,activity_type,details,created_at').in('contact_id',ids).order('created_at',{ascending:true}); const stageDates={}; (acts||[]).forEach(a=>{ let stage=null; if(a.activity_type==='contact_created') stage='Fresh'; else if(a.activity_type==='status_changed') stage=a.details?.status; else if(a.activity_type==='stage_advanced') stage=a.details?.to; else if(a.activity_type==='email_sent') stage=a.details?.to_stage; if(!stage||!ALL_STAGES.includes(stage)) return; stageDates[a.contact_id]=stageDates[a.contact_id]||{}; if(!stageDates[a.contact_id][stage]) stageDates[a.contact_id][stage]=a.created_at; }); const RESPONSE_LABELS_EXPORT={cold:'Cold',warm:'Warm',prospect:'Prospect',negative:'Negative',not_interested:'Not Interested',bounce:'Bounce'}; const STAGE_COLS=[]; ALL_STAGES.forEach(s=>{STAGE_COLS.push(s+' Subject');STAGE_COLS.push(s+' Email');}); const COLUMNS=['id','first_name','last_name','email','phone','title','company','account_id','status','next_followup','notes','response_type','linkedin_url','owner_id','created_at','updated_at','last_contacted','sequence_step','response_state','sender_email','pitch','persona','pitch_type','last_touchpoint_date','response_notes','source','bounced','bounced_at','Fresh','F1','F2','F3','F4','F5','Response',...STAGE_COLS]; const rows=list.map(c=>{ const sd=stageDates[c.id]||{}; const row={...c}; ALL_STAGES.forEach(s=>{row[s]=sd[s]?new Date(sd[s]).toLocaleDateString():'';}); row.Response=c.response_type?(RESPONSE_LABELS_EXPORT[c.response_type]||c.response_type):''; const emailsByStage={}; (sentEmails[c.id]||[]).forEach(e=>{ if(e.stage&&!emailsByStage[e.stage]) emailsByStage[e.stage]=e; }); const draft=drafts[c.id]; if(draft&&c.status&&!emailsByStage[c.status]) emailsByStage[c.status]={subject:draft.subject,body:draft.body}; ALL_STAGES.forEach(s=>{ row[s+' Subject']=emailsByStage[s]?.subject||''; row[s+' Email']=emailsByStage[s]?.body||''; }); return COLUMNS.map(k=>csvField(row[k])).join(','); }); const csv=[COLUMNS.join(','),...rows].join(String.fromCharCode(10)); const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url;a.download='followup_queue_export.csv';a.click(); URL.revokeObjectURL(url); } async function doGenerate(contact,silent=false,customPrompt=null){
     if(!silent){setDrafting(contact.id);setDraftOpen(contact.id);}
     const account=accounts[contact.account_id]||{};
     const senderName=profile?.full_name||user?.email?.split('@')[0]||'SDR';
@@ -330,6 +331,10 @@ export default function FollowUps() {
   const showFresh=stageFilter==='all'||stageFilter==='Fresh';
   const anyFilter=search||stageFilter!=='all'||timingFilter!=='all'||responseFilter!=='all'||companyFilter!=='all'||listFilter!=='all'||senderFilter!=='all'||lastSentFrom||lastSentTo;
   function clearFilters(){setSearch('');setStageFilter('all');setTimingFilter('all');setResponseFilter('all');setCompanyFilter('all');setListFilter('all');setSenderFilter('all');setLastSentFrom('');setLastSentTo('');}
+  function toggleSelect(id){
+    setSelectedIds(prev=>{ const next=new Set(prev); if(next.has(id)) next.delete(id); else next.add(id); return next; });
+  }
+  function clearSelection(){ setSelectedIds(new Set()); }
   const totalInQueue=contacts.length;
   const sharedProps={
     accounts,drafts,drafting,draftOpen,copied,markingSent,contactListMap,lists,sentEmails,
@@ -340,6 +345,7 @@ export default function FollowUps() {
     onRegenerate:(c,cp)=>doGenerate(c,false,cp),
     onMarkSent:c=>markSent(c), onSnooze:(id,days)=>snooze(id,days),
     onCopy:id=>copyDraft(id), onView:id=>navigate(`/contacts/${id}`),
+    selectedIds, onToggleSelect:toggleSelect,
     customPrompts, onCustomPromptChange:(id,val)=>setCustomPrompts(p=>({...p,[id]:val})),
   };
   const noResults=filteredFresh.length===0&&filteredActive.length===0;
@@ -381,7 +387,10 @@ export default function FollowUps() {
             <div style={{padding:'5px 12px',borderRadius:20,fontSize:12,fontWeight:500,color:'#6b7280',background:'#f9fafb',border:'1px solid #e5e7eb'}}>
               {totalInQueue} in queue</div>
           </div>
-          <button onClick={exportQueueCSV} style={{padding:'6px 14px',borderRadius:8,border:'1.5px solid #e5e7eb',background:'#fff',color:'#2563eb',fontSize:12,fontWeight:600,cursor:'pointer',marginRight:6}}>↓ CSV</button><button onClick={()=>setSettingsOpen(s=>!s)}
+          {selectedIds.size>0&&(
+            <button onClick={clearSelection} style={{padding:'6px 10px',borderRadius:8,border:'1.5px solid #d1d5db',background:'#fff',color:'#6b7280',fontSize:12,fontWeight:600,cursor:'pointer',marginRight:6}}>{selectedIds.size} selected ✕</button>
+          )}
+          <button onClick={exportQueueCSV} style={{padding:'6px 14px',borderRadius:8,border:'1.5px solid #e5e7eb',background:'#fff',color:'#2563eb',fontSize:12,fontWeight:600,cursor:'pointer',marginRight:6}}>{'↓ CSV'+(selectedIds.size>0?' ('+selectedIds.size+')':'')}</button><button onClick={()=>setSettingsOpen(s=>!s)}
             style={{padding:'6px 14px',borderRadius:8,border:`1.5px solid ${settingsOpen?'#2563eb':'#e5e7eb'}`,
               background:settingsOpen?'#dbeafe':'#fff',color:settingsOpen?'#1d4ed8':'#374151',fontSize:12,fontWeight:600,cursor:'pointer'}}>
             Settings {settingsOpen?'▲':'▼'}
@@ -574,7 +583,7 @@ function TimingGroup({group,...props}){
 function ContactRow({contact:c,accounts,drafts,drafting,draftOpen,copied,markingSent,
   contactListMap,lists,sentEmails,strategyOpen,setStrategyOpen,historyOpen,setHistoryOpen,
   onGenerate,onToggleDraft,onRegenerate,onMarkSent,onSnooze,onCopy,onView,isFresh,
-  customPrompts,onCustomPromptChange}){
+  customPrompts,onCustomPromptChange,selectedIds,onToggleSelect}){
   const customPrompt=customPrompts?.[c.id]||'';
   const sm=STAGE_META[c.status]||{bg:'#f1f5f9',color:'#475569',label:c.status};
   const rm=c.response_type?RESPONSE_META[c.response_type]:null;
@@ -599,6 +608,12 @@ function ContactRow({contact:c,accounts,drafts,drafting,draftOpen,copied,marking
       boxShadow:'0 1px 3px rgba(0,0,0,0.04)'}}>
       {/* Main row */}
       <div style={{display:'flex',alignItems:'center',gap:10,padding:'11px 14px'}}>
+        <input type="checkbox" checked={selectedIds?selectedIds.has(c.id):false} onChange={()=>onToggleSelect&&onToggleSelect(c.id)}
+          style={{width:15,height:15,flexShrink:0,cursor:'pointer'}}/>
+        <a href={'/contacts/'+c.id} onClick={e=>{e.preventDefault();onView(c.id);}} title="Open profile"
+          style={{fontSize:14,flexShrink:0,textDecoration:'none',color:'#9ca3af',cursor:'pointer',display:'flex',alignItems:'center'}}>
+          🔗
+        </a>
         <div onClick={()=>onView(c.id)} style={{width:36,height:36,borderRadius:'50%',background:ac,color:'#fff',
           display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700,flexShrink:0,cursor:'pointer',userSelect:'none'}}>
           {getInitials(((c.first_name||'')+' '+(c.last_name||'')).trim())}
