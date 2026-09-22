@@ -43,8 +43,9 @@ export default function AccountDetail() {
   const [intents, setIntents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('overview');
-  const [notes, setNotes] = useState('');
-  const [savingNotes, setSavingNotes] = useState(false);
+  const [companyNotesList, setCompanyNotesList] = useState([]);
+  const [newCompanyNoteText, setNewCompanyNoteText] = useState('');
+  const [savingCompanyNote, setSavingCompanyNote] = useState(false);
   const [showAddIntent, setShowAddIntent] = useState(false);
   const [newIntent, setNewIntent] = useState({ intent_type: 'qa_hiring', notes: '' });
   const [addingIntent, setAddingIntent] = useState(false);
@@ -64,18 +65,25 @@ export default function AccountDetail() {
       supabase.from('accounts').select('name'),
     ]);
     setAccount(acc);
-    setNotes(acc?.notes || '');
     setEditData(acc || {});
     setContacts(cts || []);
     setIntents(ints || []);
     setAllAccountNames((allAccs || []).map(a => a.name.toLowerCase().trim()));
+    if (acc?.name) {
+      const { data: cn } = await supabase.from('company_notes').select('*, profiles(full_name)').eq('company_name', acc.name).order('created_at', { ascending: false });
+      setCompanyNotesList(cn || []);
+    }
     setLoading(false);
   }
 
-  async function saveNotes() {
-    setSavingNotes(true);
-    await supabase.from('accounts').update({ notes }).eq('id', id);
-    setSavingNotes(false);
+  async function addCompanyNote() {
+    if (!newCompanyNoteText.trim() || !account?.name) return;
+    setSavingCompanyNote(true);
+    await supabase.from('company_notes').insert({ company_name: account.name, author_id: user.id, body: newCompanyNoteText.trim() });
+    const { data: cn } = await supabase.from('company_notes').select('*, profiles(full_name)').eq('company_name', account.name).order('created_at', { ascending: false });
+    setCompanyNotesList(cn || []);
+    setNewCompanyNoteText('');
+    setSavingCompanyNote(false);
   }
 
   async function saveEdit() {
@@ -481,19 +489,31 @@ export default function AccountDetail() {
       {/* Notes Tab */}
       {tab === 'notes' && (
         <div>
-          <p style={{ fontSize: 13, color: '#888', marginBottom: 10 }}>Company-level notes — visible to all SDRs working this account.</p>
-          <textarea
-            value={notes}
-            onChange={e => setNotes(e.target.value)}
-            placeholder="Add company intelligence here — budget cycles, key decision makers, known blockers, recent conversations…"
-            style={{ width: '100%', minHeight: 200, padding: 14, borderRadius: 10, border: '1px solid #e0e0e0', fontSize: 13, resize: 'vertical', outline: 'none', boxSizing: 'border-box', lineHeight: 1.6 }}
-          />
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
-            <button onClick={saveNotes} disabled={savingNotes}
-              style={{ padding: '8px 20px', background: '#2563eb', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: 'none' }}>
-              {savingNotes ? 'Saving…' : 'Save Notes'}
+          <p style={{ fontSize: 13, color: '#888', marginBottom: 10 }}>Company-level notes — visible to all SDRs working this account, same notes shown on each contact's Company Notes tab.</p>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+            <textarea
+              value={newCompanyNoteText}
+              onChange={e => setNewCompanyNoteText(e.target.value)}
+              placeholder="Add company intelligence here — budget cycles, key decision makers, known blockers, recent conversations…"
+              rows={4}
+              style={{ flex: 1, padding: 12, borderRadius: 10, border: '1px solid #e0e0e0', fontSize: 13, resize: 'vertical', outline: 'none', boxSizing: 'border-box', lineHeight: 1.6 }}
+            />
+            <button onClick={addCompanyNote} disabled={savingCompanyNote || !newCompanyNoteText.trim()}
+              style={{ padding: '8px 20px', background: '#2563eb', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: 'none', alignSelf: 'flex-end', opacity: !newCompanyNoteText.trim() ? 0.5 : 1 }}>
+              {savingCompanyNote ? 'Saving…' : 'Add'}
             </button>
           </div>
+          {companyNotesList.length === 0 ? (
+            <p style={{ fontSize: 13, color: '#bbb', textAlign: 'center', padding: '24px 0' }}>No notes yet</p>
+          ) : companyNotesList.map(n => (
+            <div key={n.id} style={{ padding: '12px 14px', borderRadius: 8, marginBottom: 8, background: '#f8f8f6', borderLeft: '3px solid #e0e0e0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>{n.profiles?.full_name || 'Unknown'}</span>
+                <span style={{ fontSize: 11, color: '#bbb' }}>{n.created_at ? new Date(n.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : ''}</span>
+              </div>
+              <p style={{ fontSize: 13, color: '#333', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{n.body}</p>
+            </div>
+          ))}
         </div>
       )}
     </div>
