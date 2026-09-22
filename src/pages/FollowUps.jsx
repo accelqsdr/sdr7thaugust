@@ -89,6 +89,8 @@ export default function FollowUps() {
   const [sentEmails,     setSentEmails]     = useState({});
   const [lists,          setLists]          = useState([]);
   const [contactListMap, setContactListMap] = useState({});
+  const [contactNoteMap, setContactNoteMap] = useState({});
+  const [companyNoteMap, setCompanyNoteMap] = useState({});
   const [loading,        setLoading]        = useState(true);
   const [search,         setSearch]         = useState('');
   const [stageFilter,    setStageFilter]    = useState('all');
@@ -172,10 +174,17 @@ export default function FollowUps() {
     // row for every contact in the whole org, regardless of viewAll/role).
     // Scope it to just the contacts actually loaded above instead.
     const rowIds = (rows||[]).map(c=>c.id);
-    const [listsRes,clRes]=await Promise.all([
+    const companyNames = [...new Set((rows||[]).map(c=>c.company).filter(Boolean))];
+    const [listsRes,clRes,cnRes,conRes]=await Promise.all([
       lqQuery,
       rowIds.length > 0
         ? supabase.from('contact_lists').select('contact_id,list_id,is_active_campaign').in('contact_id', rowIds)
+        : Promise.resolve({ data: [] }),
+      rowIds.length > 0
+        ? supabase.from('contact_notes').select('contact_id,body,created_at').in('contact_id', rowIds).order('created_at',{ascending:false})
+        : Promise.resolve({ data: [] }),
+      companyNames.length > 0
+        ? supabase.from('company_notes').select('company_name,body,created_at').in('company_name', companyNames).order('created_at',{ascending:false})
         : Promise.resolve({ data: [] }),
     ]);
     setLists(listsRes.data||[]);
@@ -185,6 +194,13 @@ export default function FollowUps() {
       clMap[cl.contact_id].push({list_id:cl.list_id,is_active_campaign:cl.is_active_campaign});
     });
     setContactListMap(clMap);
+    // Rows are ordered newest-first, so the first entry per key is the most recent note.
+    const cnMap={};
+    (cnRes.data||[]).forEach(n=>{ if(!cnMap[n.contact_id]) cnMap[n.contact_id]=n.body; });
+    setContactNoteMap(cnMap);
+    const conMap={};
+    (conRes.data||[]).forEach(n=>{ if(!conMap[n.company_name]) conMap[n.company_name]=n.body; });
+    setCompanyNoteMap(conMap);
     setLoading(false);
     return rows||[];
   }
@@ -209,7 +225,7 @@ export default function FollowUps() {
   function saveCadence(next){setCadence(next);localStorage.setItem('sdr_cadence',JSON.stringify(next));}
   function toggleAutoGen(){const n=!autoGenerate;setAutoGenerate(n);localStorage.setItem('sdr_auto_generate',String(n));}
 
-  async function exportQueueCSV(){ const csvField=v=>{v=(v==null?'':String(v)); var Q=String.fromCharCode(34); var NL=String.fromCharCode(10); var CR=String.fromCharCode(13); var bad=v.indexOf(Q)>-1||v.indexOf(',')>-1||v.indexOf(NL)>-1||v.indexOf(CR)>-1; if(!bad) return v; var out=Q; for(var j=0;j<v.length;j++){var ch=v[j]; out+=ch; if(ch===Q) out+=Q;} out+=Q; return out;}; const allList=[...filteredFresh,...filteredActive]; const list=selectedIds&&selectedIds.size>0?allList.filter(c=>selectedIds.has(c.id)):allList; if(!list.length) return; const ids=list.map(c=>c.id); const { data:acts } = await supabase.from('activity_log').select('contact_id,activity_type,details,created_at').in('contact_id',ids).order('created_at',{ascending:true}); const stageDates={}; (acts||[]).forEach(a=>{ let stage=null; if(a.activity_type==='contact_created') stage='Fresh'; else if(a.activity_type==='status_changed') stage=a.details?.status; else if(a.activity_type==='stage_advanced') stage=a.details?.to; else if(a.activity_type==='email_sent') stage=a.details?.to_stage; if(!stage||!ALL_STAGES.includes(stage)) return; stageDates[a.contact_id]=stageDates[a.contact_id]||{}; if(!stageDates[a.contact_id][stage]) stageDates[a.contact_id][stage]=a.created_at; }); const RESPONSE_LABELS_EXPORT={cold:'Cold',warm:'Warm',prospect:'Prospect',negative:'Negative',not_interested:'Not Interested',bounce:'Bounce'}; const STAGE_COLS=[]; ALL_STAGES.forEach(s=>{STAGE_COLS.push(s+' Subject');STAGE_COLS.push(s+' Email');}); const COLUMNS=['id','first_name','last_name','email','phone','title','company','account_id','status','next_followup','notes','response_type','linkedin_url','owner_id','created_at','updated_at','last_contacted','sequence_step','response_state','sender_email','pitch','persona','pitch_type','last_touchpoint_date','response_notes','source','bounced','bounced_at','Fresh','F1','F2','F3','F4','F5','Response',...STAGE_COLS]; const rows=list.map(c=>{ const sd=stageDates[c.id]||{}; const row={...c}; ALL_STAGES.forEach(s=>{row[s]=sd[s]?new Date(sd[s]).toLocaleDateString():'';}); row.Response=c.response_type?(RESPONSE_LABELS_EXPORT[c.response_type]||c.response_type):''; const emailsByStage={}; (sentEmails[c.id]||[]).forEach(e=>{ if(e.stage&&!emailsByStage[e.stage]) emailsByStage[e.stage]=e; }); const draft=drafts[c.id]; if(draft&&c.status&&!emailsByStage[c.status]) emailsByStage[c.status]={subject:draft.subject,body:draft.body}; ALL_STAGES.forEach(s=>{ row[s+' Subject']=emailsByStage[s]?.subject||''; row[s+' Email']=emailsByStage[s]?.body||''; }); return COLUMNS.map(k=>csvField(row[k])).join(','); }); const csv=[COLUMNS.join(','),...rows].join(String.fromCharCode(10)); const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url;a.download='followup_queue_export.csv';a.click(); URL.revokeObjectURL(url); } async function doGenerate(contact,silent=false,customPrompt=null){
+  async function exportQueueCSV(){ const csvField=v=>{v=(v==null?'':String(v)); var Q=String.fromCharCode(34); var NL=String.fromCharCode(10); var CR=String.fromCharCode(13); var bad=v.indexOf(Q)>-1||v.indexOf(',')>-1||v.indexOf(NL)>-1||v.indexOf(CR)>-1; if(!bad) return v; var out=Q; for(var j=0;j<v.length;j++){var ch=v[j]; out+=ch; if(ch===Q) out+=Q;} out+=Q; return out;}; const allList=[...filteredFresh,...filteredActive]; const list=selectedIds&&selectedIds.size>0?allList.filter(c=>selectedIds.has(c.id)):allList; if(!list.length) return; const ids=list.map(c=>c.id); const { data:acts } = await supabase.from('activity_log').select('contact_id,activity_type,details,created_at').in('contact_id',ids).order('created_at',{ascending:true}); const stageDates={}; (acts||[]).forEach(a=>{ let stage=null; if(a.activity_type==='contact_created') stage='Fresh'; else if(a.activity_type==='status_changed') stage=a.details?.status; else if(a.activity_type==='stage_advanced') stage=a.details?.to; else if(a.activity_type==='email_sent') stage=a.details?.to_stage; if(!stage||!ALL_STAGES.includes(stage)) return; stageDates[a.contact_id]=stageDates[a.contact_id]||{}; if(!stageDates[a.contact_id][stage]) stageDates[a.contact_id][stage]=a.created_at; }); const RESPONSE_LABELS_EXPORT={cold:'Cold',warm:'Warm',prospect:'Prospect',negative:'Negative',not_interested:'Not Interested',bounce:'Bounce'}; const STAGE_COLS=[]; ALL_STAGES.forEach(s=>{STAGE_COLS.push(s+' Subject');STAGE_COLS.push(s+' Email');}); const COLUMNS=['id','first_name','last_name','email','phone','title','company','account_id','status','next_followup','notes','response_type','linkedin_url','owner_id','created_at','updated_at','last_contacted','sequence_step','response_state','sender_email','pitch','persona','pitch_type','last_touchpoint_date','response_notes','source','bounced','bounced_at','Contact Note','Company Note','Fresh','F1','F2','F3','F4','F5','Response',...STAGE_COLS]; const rows=list.map(c=>{ const sd=stageDates[c.id]||{}; const row={...c}; ALL_STAGES.forEach(s=>{row[s]=sd[s]?new Date(sd[s]).toLocaleDateString():'';}); row.Response=c.response_type?(RESPONSE_LABELS_EXPORT[c.response_type]||c.response_type):''; row['Contact Note']=contactNoteMap[c.id]||''; row['Company Note']=c.company?(companyNoteMap[c.company]||''):''; const emailsByStage={}; (sentEmails[c.id]||[]).forEach(e=>{ if(e.stage&&!emailsByStage[e.stage]) emailsByStage[e.stage]=e; }); const draft=drafts[c.id]; if(draft&&c.status&&!emailsByStage[c.status]) emailsByStage[c.status]={subject:draft.subject,body:draft.body}; ALL_STAGES.forEach(s=>{ row[s+' Subject']=emailsByStage[s]?.subject||''; row[s+' Email']=emailsByStage[s]?.body||''; }); return COLUMNS.map(k=>csvField(row[k])).join(','); }); const csv=[COLUMNS.join(','),...rows].join(String.fromCharCode(10)); const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url;a.download='followup_queue_export.csv';a.click(); URL.revokeObjectURL(url); } async function doGenerate(contact,silent=false,customPrompt=null){
     if(!silent){setDrafting(contact.id);setDraftOpen(contact.id);}
     const account=accounts[contact.account_id]||{};
     const senderName=profile?.full_name||user?.email?.split('@')[0]||'SDR';
