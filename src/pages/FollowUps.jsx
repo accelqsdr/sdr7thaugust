@@ -610,10 +610,12 @@ function ContactRow({contact:c,accounts,drafts,drafting,draftOpen,copied,marking
       <div style={{display:'flex',alignItems:'center',gap:10,padding:'11px 14px'}}>
         <input type="checkbox" checked={selectedIds?selectedIds.has(c.id):false} onChange={()=>onToggleSelect&&onToggleSelect(c.id)}
           style={{width:15,height:15,flexShrink:0,cursor:'pointer'}}/>
-        <a href={'/contacts/'+c.id} onClick={e=>{e.preventDefault();onView(c.id);}} title="Open profile"
-          style={{fontSize:14,flexShrink:0,textDecoration:'none',color:'#9ca3af',cursor:'pointer',display:'flex',alignItems:'center'}}>
-          🔗
-        </a>
+        {c.linkedin_url&&(
+          <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} title="Open LinkedIn profile"
+            style={{flexShrink:0,textDecoration:'none',display:'flex',alignItems:'center',justifyContent:'center',width:18,height:18,borderRadius:4,background:'#0A66C2',color:'#fff',fontSize:11,fontWeight:700,lineHeight:1}}>
+            in
+          </a>
+        )}
         <div onClick={()=>onView(c.id)} style={{width:36,height:36,borderRadius:'50%',background:ac,color:'#fff',
           display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700,flexShrink:0,cursor:'pointer',userSelect:'none'}}>
           {getInitials(((c.first_name||'')+' '+(c.last_name||'')).trim())}
