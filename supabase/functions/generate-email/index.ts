@@ -122,7 +122,6 @@ ${priorEmails}${customInstructions}
 ========================================
 STAGE GOAL: ${ctx.intent}
 TONE: ${ctx.tone}
-SENDER: ${senderName || 'Your SDR'}
 ========================================
 
 OPENING LINE - most important:
@@ -145,9 +144,10 @@ ABSOLUTE RULES:
 - Never use em dashes or en dashes - use commas or plain hyphens
 - Never say: "I hope this finds you well", "just following up", "circling back", "touching base", "reaching out because", "I wanted to"
 - Subject line: under 50 characters, specific, no spam words, no ALL CAPS
+- NEVER include a closing/sign-off line (no "Thanks", "Best", "Regards", "Best regards", etc.) and NEVER include a sender name anywhere in the body. The email must end immediately after the CTA question - no name, no signature block.
 
 Return ONLY a valid JSON object:
-{"subject": "subject line here", "body": "full email body with greeting and sign-off"}`
+{"subject": "subject line here", "body": "full email body with greeting only - end right after the CTA question, no sign-off, no sender name"}`
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -181,7 +181,12 @@ Return ONLY a valid JSON object:
       .replace(/  +/g, ' ')
       .trim()
 
-    return new Response(JSON.stringify({ subject: clean(parsed.subject), body: clean(parsed.body) }), {
+    const stripSignoff = (s: string) => s
+      .replace(/\n{1,2}(thanks|best|regards|best regards|warm regards|cheers|sincerely)[,!.]?\s*\n[^\n]{0,60}$/i, '')
+      .replace(/\n{1,2}(thanks|best|regards|best regards|warm regards|cheers|sincerely)[,!.]?\s*$/i, '')
+      .trim()
+
+    return new Response(JSON.stringify({ subject: clean(parsed.subject), body: stripSignoff(clean(parsed.body)) }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
 
